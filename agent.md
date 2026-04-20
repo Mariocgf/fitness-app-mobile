@@ -6,7 +6,7 @@ Eres un Senior Frontend Architect guiando el desarrollo de una App de Salud Inte
 ---
 
 ## 1. Project Overview & Constraints
-- **Stack:** React Native (Expo Managed Workflow) + TypeScript.
+- **Stack:** React Native (Expo Managed Workflow) + TypeScript y para estilos Nativewind.
 - **Backend Role:** Toda la lógica de negocio (TDEE, IMC, cálculos nutricionales) y la orquestación de **Globant Enterprise AI** residen en el backend. El frontend es un consumidor de datos procesados.
 - **Payments:** Únicamente **In-App Purchases (IAP)** vía Apple Store y Google Play Store. **PROHIBIDO STRIPE**.
 - **Negative Constraints:** **PROHIBIDO** implementar o sugerir integraciones con Wearables (Apple Health, Google Fit, etc.).
@@ -22,17 +22,21 @@ Eres un Senior Frontend Architect guiando el desarrollo de una App de Salud Inte
   const fetchNutritionPlan = async (): Promise<NutritionPlan> => { ... }
 
 ## 3. Directory Structure & Architecture
-Debes sugerir y seguir esta estructura de carpetas para mantener la separación de responsabilidades:
-- **src/api/:** Definición de clientes de API (Axios/Fetch) y endpoints.
-- **src/components/**: Componentes reutilizables (Atómicos).
-- **src/components/common/**: UI genérica (Botones, Inputs).
-- **src/components/features/**: Componentes ligados a módulos (ej: WorkoutCard).
+Debes sugerir y seguir esta estructura híbrida, respetando que Expo Router (**app/**) maneja la navegación, mientras que **src/** contiene el dominio de negocio y componentes aislados:
+
+- **app/**: Manejo exclusivo de Rutas, Layouts y Pantallas (Páginas completas). Los archivos aquí deben ser contenedores ligeros que orquestan hooks y componentes de `src`.
+- **src/api/:** Definición de clientes de API (Axios/Fetch) y endpoints. 
+- **src/services/**: Capa de abstracción para llamadas a la API y Mappers de datos.
+- **src/components/**: UI pura.
+  - **src/components/common/**: UI genérica y atómica (Botones, Inputs, Modales).
+  - **src/components/features/**: Componentes ligados a módulos complejos de negocio (ej: WorkoutCard, RpeSlider).
 - **src/hooks/**: Lógica de estado y consumo de servicios (Custom Hooks).
-- **src/screens/**: Pantallas principales de la aplicación.
-- **src/services/**: Capa de abstracción para llamadas a la API y lógica de persistencia local.
-- **src/types/**: Definiciones de interfaces y tipos de TypeScript (deben coincidir con los DTOs del backend).
-- **src/utils/**: Funciones de utilidad (formateo de fechas, moneda, etc.).
-- **src/store/**: Gestión de estado global (Zustand/Context API).
+- **src/types/**: Definiciones estables de TypeScript e Interfaces (DTOs del backend).
+- **src/utils/**: Funciones puras de utilidad global (formatters, parsers).
+- **src/store/**: Gestión de estado global de cliente (Zustand/Context).
+
+*(Se prohíbe el uso de directorios como src/screens/ o src/navigation/ ya que Expo Router delega esa responsabilidad de forma nativa).*
+
 
 ## 4. Domain Logic & Data Flow
 - **AI Processing**: El frontend recibe objetos JSON complejos desde el backend. Debes sugerir validaciones de estructura (Interfaces) para asegurar que el renderizado de rutinas y planes nutricionales sea seguro.
@@ -53,4 +57,4 @@ Debes sugerir y seguir esta estructura de carpetas para mantener la separación 
 - **No Boilerplate:** No generes código innecesario. Sé conciso y modular.
 - **Refactoring:** Si ves lógica de negocio pesada o cálculos de salud en un componente, sugiere moverlos a un custom hook o indicar que deben venir del backend.
 - **Type Safety:** Prioriza siempre el uso de interfaces sobre types para los modelos de datos.
-- **UI Guidelines:** Sugiere el uso de StyleSheet.create para mantener el rendimiento y evitar estilos en línea.
+- **UI Guidelines:** Sugiere EXCLUSIVAMENTE el uso de **NativeWind / Tailwind clases** de utilidad (`className`) para los estilos en línea y componentes. Mantén la consistencia visual y evita `StyleSheet.create` a menos que sea estrictamente indispensable.
