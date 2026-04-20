@@ -79,8 +79,8 @@ export default function ProfileScreen() {
       {/* Spacer que empuja el botón hacia abajo */}
       <View className="flex-1" />
 
-      {/* Botón de cerrar sesión */}
-      <View className="px-8 pb-12">
+      {/* Botón de cerrar sesión con padding extra para librar la barra flotante */}
+      <View className="px-8 pb-32">
         <TouchableOpacity
           className="bg-red-500 py-4 rounded-2xl items-center shadow-red-500/30"
           onPress={handleSignOut}
