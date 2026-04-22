@@ -4,11 +4,12 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import 'react-native-reanimated';
 import './global.css';
-import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
+import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-expo';
 import * as SecureStore from 'expo-secure-store';
 
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
 import { useEffect } from 'react';
+import { FullPageLoader } from '@/src/components/common/FullPageLoader';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
@@ -50,22 +51,38 @@ export const unstable_settings = {
 
 function RootNavigator() {
   const { isLoaded, isSignedIn } = useAuth();
+  const { user } = useUser();
   const segments = useSegments();
   const router = useRouter();
     useEffect(() => {
     // 1. Si Clerk no ha terminado de cargar, no hacemos nada
     if (!isLoaded) return;
 
-    // 2. Revisamos si el usuario ya está en la ruta del login
-    // segments[0] devuelve el nombre del primer segmento de la URL. Si estamos en /login, será 'login'
+    // 2. Revisamos si el usuario ya está en la ruta del login o onboarding
     const inLoginScreen = segments[0] === 'login';
+    const inOnboardingScreen = segments[0] === 'onboarding';
+
+    // Manejo de race-condition: Si la metadata aún no llega del webhook del backend, esperamos.
+    const isMetadataReady = user ? user.publicMetadata?.onboarding_complete !== undefined : false;
+    
+    if (isSignedIn && !isMetadataReady) {
+      return; 
+    }
 
     if (!isSignedIn && !inLoginScreen) {
       // 3. Si NO está logueado y NO está en la pantalla de login, lo obligamos a ir a /login
       router.replace('/login');
-    } else if (isSignedIn && inLoginScreen) {
-      // 4. Si SÍ está logueado pero intenta estar en la pantalla de login, lo mandamos a la app (tabs)
-      router.replace('/(tabs)');
+    } else if (isSignedIn) {
+      // Verificamos si necesita onboarding
+      const needsOnboarding = user?.publicMetadata?.onboarding_complete === false;
+      const aux = user?.unsafeMetadata?.onboarding_complete;
+      if (needsOnboarding && !inOnboardingScreen) {
+        // Si necesita onboarding y no está en la pantalla, lo mandamos
+        router.replace('/onboarding');
+      } else if (!needsOnboarding && (inLoginScreen || inOnboardingScreen)) {
+        // Si NO necesita onboarding pero está en login o onboarding, lo mandamos a la app (tabs)
+        router.replace('/(tabs)');
+      }
     }
 
     // Ocultar el splash screen con un timeout muy breve para 
@@ -73,11 +90,56 @@ function RootNavigator() {
     setTimeout(() => {
       SplashScreen.hideAsync().catch(() => {});
     }, 50);
-  }, [isSignedIn, isLoaded, segments]);
+  }, [isSignedIn, isLoaded, segments, user]); // Aseguramos que reaccione cuando 'user' se actualiza
+
+  // Efecto secundario para recargar al usuario si es nuevo y esperamos el webhook
+  useEffect(() => {
+    let isMounted = true;
+    
+    const pollForMetadata = async () => {
+      if (!user) return;
+      
+      // Haremos polling solo si no tenemos la metadata definida
+      if (user.publicMetadata?.onboarding_complete === undefined) {
+        for (let i = 0; i < 5; i++) {
+          if (!isMounted) break;
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          await user.reload();
+          
+          if (user.publicMetadata?.onboarding_complete !== undefined) {
+            break;
+          }
+        }
+      }
+    };
+
+    pollForMetadata();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]); // Solo se ejecuta cuando el usuario se inicializa
+
+  const isMetadataReady = user ? user.publicMetadata?.onboarding_complete !== undefined : false;
+  const isWaitingForMetadata = isSignedIn && !isMetadataReady;
+  
+  // Si la metadata dice que necesita onboarding pero los segmentos de la URL aún no se actualizan,
+  // mantenemos el loader para evitar el parpadeo de la pantalla Home.
+  const needsOnboarding = user?.publicMetadata?.onboarding_complete === false;
+  const isRoutingToOnboarding = isSignedIn && isMetadataReady && needsOnboarding && segments[0] !== 'onboarding';
+
+  if (!isLoaded || isWaitingForMetadata || isRoutingToOnboarding) {
+    return (
+      <FullPageLoader 
+        message={isWaitingForMetadata ? "Sincronizando tu perfil..." : "Preparando tu espacio..."} 
+      />
+    );
+  }
 
   return (
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
     </Stack>

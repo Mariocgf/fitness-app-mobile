@@ -50,6 +50,9 @@ export default function LoginScreen() {
       }
     } catch (err) {
       console.error('Error de OAuth', err);
+      if(err?.e?.toUpperCase() == "You're already signed in".toUpperCase()){
+        redirectUrl: Linking.createURL('/(tabs)')
+      }
       Alert.alert('Interrumpido', 'No se pudo iniciar sesión con esta red.');
     }
   };

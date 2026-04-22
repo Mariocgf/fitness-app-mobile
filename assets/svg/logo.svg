@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8CF550"/>
+      <stop offset="35%" stop-color="#5CE06A"/>
+      <stop offset="65%" stop-color="#34D17A"/>
+      <stop offset="100%" stop-color="#1ABF70"/>
+    </linearGradient>
+  </defs>
+  <!-- Anillo principal con gradiente verde -->
+  <path
+    d="M100,10 A90,90 0 1,1 99.99,10 Z M100,52 A48,48 0 1,0 99.99,52 Z"
+    fill="url(#ringGradient)"
+    fill-rule="evenodd"
+  />
+  <!-- Reflejo/swoosh blanco superior izquierdo -->
+  <path
+    d="M58,22 Q30,42 26,80 Q32,58 44,40 Q54,28 66,22 Z"
+    fill="rgba(255,255,255,0.55)"
+  />
+  <!-- Pequeño brillo blanco en la esquina superior -->
+  <path
+    d="M80,16 Q72,18 66,22 Q74,17 82,15 Z"
+    fill="rgba(255,255,255,0.35)"
+  />
+</svg>
