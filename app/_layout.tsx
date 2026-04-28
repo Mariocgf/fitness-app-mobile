@@ -1,15 +1,17 @@
+import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-expo';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import * as SplashScreen from 'expo-splash-screen';
-import 'react-native-reanimated';
-import './global.css';
-import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-expo';
 import * as SecureStore from 'expo-secure-store';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import 'react-native-reanimated';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import './global.css';
 
-import { useColorScheme } from '@/src/hooks/use-color-scheme';
-import { useEffect } from 'react';
 import { FullPageLoader } from '@/src/components/common/FullPageLoader';
+import { useColorScheme } from '@/src/hooks/use-color-scheme';
+import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
@@ -24,11 +26,6 @@ const tokenCache = {
   async getToken(key: string) {
     try {
       const item = await SecureStore.getItemAsync(key);
-      if (item) {
-        console.log(`${key} se utilizó para autenticar\n`);
-      } else {
-        console.log('Ningún token fue encontrado bajo esta clave: ' + key);
-      }
       return item;
     } catch (error) {
       console.error('SecureStore get item error: ', error);
@@ -54,59 +51,83 @@ function RootNavigator() {
   const { user } = useUser();
   const segments = useSegments();
   const router = useRouter();
-    useEffect(() => {
-    // 1. Si Clerk no ha terminado de cargar, no hacemos nada
-    if (!isLoaded) return;
+  const [completedLocally, setCompletedLocally] = useState<boolean | null>(null);
+
+  // Leer el flag local de onboarding completado cuando cambia el usuario (para detectar sign in/out)
+  useEffect(() => {
+    if (!isSignedIn) {
+      setCompletedLocally(false);
+      AsyncStorage.multiRemove([
+        '@onboarding_completed',
+        '@onboarding_draft',
+        '@onboarding_selected_modules',
+        '@onboarding_health_config',
+        '@onboarding_fitness_config',
+        '@onboarding_nutrition_config',
+        '@onboarding_module_config_step'
+      ]).catch(() => {});
+      return;
+    }
+
+    AsyncStorage.getItem('@onboarding_completed')
+      .then((val) => setCompletedLocally(val === 'true'))
+      .catch(() => setCompletedLocally(false));
+  }, [isSignedIn]);
+
+  useEffect(() => {
+    // 1. Si Clerk no ha terminado de cargar o el flag local aún no se leyó, no hacemos nada
+    if (!isLoaded || completedLocally === null) return;
 
     // 2. Revisamos si el usuario ya está en la ruta del login o onboarding
     const inLoginScreen = segments[0] === 'login';
     const inOnboardingScreen = segments[0] === 'onboarding';
 
     // Manejo de race-condition: Si la metadata aún no llega del webhook del backend, esperamos.
-    const isMetadataReady = user ? user.publicMetadata?.onboarding_complete !== undefined : false;
-    
-    if (isSignedIn && !isMetadataReady) {
-      return; 
+    const isMetadataReady = user ? user.publicMetadata?.onboarding_status !== undefined : false;
+
+    if (isSignedIn && !isMetadataReady && !completedLocally) {
+      // Ocultamos el splash screen para mostrar el FullPageLoader y evitar bloqueos visuales
+      setTimeout(() => {
+        SplashScreen.hideAsync().catch(() => { });
+      }, 100);
+      return;
     }
 
     if (!isSignedIn && !inLoginScreen) {
       // 3. Si NO está logueado y NO está en la pantalla de login, lo obligamos a ir a /login
       router.replace('/login');
     } else if (isSignedIn) {
-      // Verificamos si necesita onboarding
-      const needsOnboarding = user?.publicMetadata?.onboarding_complete === false;
-      const aux = user?.unsafeMetadata?.onboarding_complete;
-      if (needsOnboarding && !inOnboardingScreen) {
-        // Si necesita onboarding y no está en la pantalla, lo mandamos
+      const onboardingStatus = user?.publicMetadata?.onboarding_status as string;
+      const isCompleted = onboardingStatus === 'COMPLETED' || completedLocally;
+
+      if (!isCompleted && !inOnboardingScreen) {
         router.replace('/onboarding');
-      } else if (!needsOnboarding && (inLoginScreen || inOnboardingScreen)) {
-        // Si NO necesita onboarding pero está en login o onboarding, lo mandamos a la app (tabs)
+      } else if (isCompleted && (inLoginScreen || inOnboardingScreen)) {
         router.replace('/(tabs)');
       }
     }
 
-    // Ocultar el splash screen con un timeout muy breve para 
-    // permitir a la navegación procesar la nueva ruta y evitar parpadeos (flash) de layout previo
+    // Ocultar el splash screen cuando ya sabemos a dónde ir
     setTimeout(() => {
-      SplashScreen.hideAsync().catch(() => {});
+      SplashScreen.hideAsync().catch(() => { });
     }, 50);
-  }, [isSignedIn, isLoaded, segments, user]); // Aseguramos que reaccione cuando 'user' se actualiza
+  }, [isSignedIn, isLoaded, segments, user?.publicMetadata?.onboarding_status, completedLocally]);
 
   // Efecto secundario para recargar al usuario si es nuevo y esperamos el webhook
   useEffect(() => {
     let isMounted = true;
-    
+
     const pollForMetadata = async () => {
-      if (!user) return;
-      
-      // Haremos polling solo si no tenemos la metadata definida
-      if (user.publicMetadata?.onboarding_complete === undefined) {
+      if (!user || !isSignedIn) return;
+
+      // Haremos polling solo si no tenemos el estado definido
+      if (user.publicMetadata?.onboarding_status === undefined) {
         for (let i = 0; i < 5; i++) {
           if (!isMounted) break;
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          await new Promise(resolve => setTimeout(resolve, 2000));
           await user.reload();
-          
-          if (user.publicMetadata?.onboarding_complete !== undefined) {
+
+          if (user.publicMetadata?.onboarding_status !== undefined) {
             break;
           }
         }
@@ -118,20 +139,25 @@ function RootNavigator() {
     return () => {
       isMounted = false;
     };
-  }, [user?.id]); // Solo se ejecuta cuando el usuario se inicializa
+  }, [user?.id, isSignedIn]); 
 
-  const isMetadataReady = user ? user.publicMetadata?.onboarding_complete !== undefined : false;
-  const isWaitingForMetadata = isSignedIn && !isMetadataReady;
-  
+  const isMetadataReady = user ? user.publicMetadata?.onboarding_status !== undefined : false;
+  const isWaitingForMetadata = isSignedIn && !isMetadataReady && !completedLocally;
+
   // Si la metadata dice que necesita onboarding pero los segmentos de la URL aún no se actualizan,
   // mantenemos el loader para evitar el parpadeo de la pantalla Home.
-  const needsOnboarding = user?.publicMetadata?.onboarding_complete === false;
-  const isRoutingToOnboarding = isSignedIn && isMetadataReady && needsOnboarding && segments[0] !== 'onboarding';
+  // Si el webhook de Clerk o el backend reporta un estado distinto de COMPLETED,
+  // ese estado tiene prioridad sobre la caché local (por si el usuario borró la cuenta
+  // y creó otra en el mismo dispositivo).
+  const onboardingStatus = user?.publicMetadata?.onboarding_status as string;
+  const isCompleted = onboardingStatus === 'COMPLETED' || completedLocally;
+    
+  const isRoutingToOnboarding = isSignedIn && isMetadataReady && !isCompleted && segments[0] !== 'onboarding';
 
-  if (!isLoaded || isWaitingForMetadata || isRoutingToOnboarding) {
+  if (!isLoaded || completedLocally === null || isWaitingForMetadata || isRoutingToOnboarding) {
     return (
-      <FullPageLoader 
-        message={isWaitingForMetadata ? "Sincronizando tu perfil..." : "Preparando tu espacio..."} 
+      <FullPageLoader
+        message={isWaitingForMetadata ? "Sincronizando tu perfil..." : "Preparando tu espacio..."}
       />
     );
   }
@@ -150,15 +176,16 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <ClerkProvider
-      publishableKey={publishableKey}
-      tokenCache={tokenCache}
-    >
-
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <RootNavigator />
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    </ClerkProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ClerkProvider
+        publishableKey={publishableKey}
+        tokenCache={tokenCache}
+      >
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <RootNavigator />
+          <StatusBar style="auto" />
+        </ThemeProvider>
+      </ClerkProvider>
+    </GestureHandlerRootView>
   );
 }

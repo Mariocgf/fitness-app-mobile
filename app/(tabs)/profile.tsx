@@ -1,4 +1,5 @@
 import { useAuth, useUser } from '@clerk/clerk-expo';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -18,7 +19,19 @@ export default function ProfileScreen() {
       {
         text: 'Cerrar sesión',
         style: 'destructive',
-        onPress: () => signOut(),
+        onPress: async () => {
+          // Limpiar flags locales y borradores para que un usuario nuevo no se salte el onboarding
+          await AsyncStorage.multiRemove([
+            '@onboarding_completed',
+            '@onboarding_draft',
+            '@onboarding_selected_modules',
+            '@onboarding_health_config',
+            '@onboarding_fitness_config',
+            '@onboarding_nutrition_config',
+            '@onboarding_module_config_step'
+          ]);
+          signOut();
+        },
       },
     ]);
   };
