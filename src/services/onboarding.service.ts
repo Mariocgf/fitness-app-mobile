@@ -78,3 +78,22 @@ export const setSelectedModules = async (
   );
   return data;
 };
+
+/**
+ * Acepta los términos y condiciones de privacidad.
+ * @param token El token de autenticación de Clerk.
+ */
+export const acceptTerms = async (
+  token: string | null
+) => {
+  const { status } = await apiClient.post(
+    '/api/Users/accept-terms',
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  return status === 204;
+};

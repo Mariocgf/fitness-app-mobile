@@ -1,4 +1,5 @@
 import {
+  acceptTerms,
   getModules,
   getOnboardingStatus,
   setBasicInfo,
@@ -17,6 +18,7 @@ import { FullPageLoader } from '@/src/components/common/FullPageLoader';
 import BasicInfoStep1 from '@/src/components/features/onboarding/BasicInfoStep1';
 import BasicInfoStep2 from '@/src/components/features/onboarding/BasicInfoStep2';
 import BasicInfoStep3 from '@/src/components/features/onboarding/BasicInfoStep3';
+import PrivacyTermsStep from '@/src/components/features/onboarding/PrivacyTermsStep';
 import ModuleSelectionStep from '@/src/components/features/onboarding/ModuleSelectionStep';
 import ModuleConfigRouter from '@/src/components/features/onboarding/ModuleConfigRouter';
 import { useOnboardingStorage } from '@/src/hooks/use-onboarding-storage';
@@ -87,11 +89,23 @@ export default function OnboardingScreen() {
         const token = await getToken();
 
         // 1. Consultar estado del backend (fuente de verdad)
-        const { status } = await getOnboardingStatus(token);
+        const responseData: any = await getOnboardingStatus(token);
+        
+        // Manejar tanto si es { status: "..." } como si es { onboardingStatus: "..." } o solo string
+        const statusValue = typeof responseData === 'string' 
+          ? responseData 
+          : (responseData?.status || responseData?.onboardingStatus || responseData?.onboarding_status || '');
+          
+        const status = typeof statusValue === 'string' ? statusValue.toUpperCase().trim() : '';
 
         if (status === 'COMPLETED') {
           await setOnboardingCompleted();
           router.replace('/(tabs)');
+          return;
+        }
+
+        if (status === 'AWAITING_TERMS_ACCEPTANCE' || status === 'AWAITNG_TERMS_ACCEPTANCE') {
+          setStep(-2);
           return;
         }
 
@@ -231,6 +245,27 @@ export default function OnboardingScreen() {
   };
 
   /**
+   * Acepta los términos de privacidad y avanza a datos básicos.
+   */
+  const handleAcceptTerms = async () => {
+    setIsTransitioning(true);
+    try {
+      const token = await getToken();
+      const success = await acceptTerms(token);
+      if (success) {
+        setStep(0);
+      } else {
+        alert('Hubo un problema al aceptar los términos.');
+      }
+    } catch (error) {
+      console.error('Error al aceptar términos:', error);
+      alert('Ocurrió un error inesperado al aceptar los términos.');
+    } finally {
+      setIsTransitioning(false);
+    }
+  };
+
+  /**
    * Envía los datos básicos al backend y avanza al paso de módulos.
    * Usa FullPageLoader durante la transición y pre-carga los módulos.
    */
@@ -360,6 +395,13 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-white dark:bg-zinc-900">
+      {step === -2 && (
+        <PrivacyTermsStep
+          onContinue={handleAcceptTerms}
+          isSubmitting={isTransitioning}
+        />
+      )}
+
       {step === 0 && (
         <BasicInfoStep1
           date={date}
