@@ -57,16 +57,22 @@ export default function EquipmentSelect({
   const safeEquipments = Array.isArray(equipments) ? equipments : [];
   const safeSelected = Array.isArray(selectedEquipment) ? selectedEquipment : [];
 
-  const selectedIds = useMemo(
-    () => safeSelected.map((e) => e.id),
-    [safeSelected]
-  );
+  const selectedIds = useMemo(() => {
+    return safeSelected
+      .map((e) => (e.id ? String(e.id).trim().toLowerCase() : ''))
+      .filter((id) => id !== '');
+  }, [safeSelected]);
 
   /**
    * Equipamientos filtrados: excluye seleccionados y filtra por query.
    */
   const filteredItems = useMemo(() => {
-    const available = safeEquipments.filter((eq) => !selectedIds.includes(eq.id));
+    const available = safeEquipments.filter((eq) => {
+      if (!eq.id) return true;
+      const eqId = String(eq.id).trim().toLowerCase();
+      return !selectedIds.includes(eqId);
+    });
+
     if (!query.trim()) return available;
 
     const normalizedQuery = query.toLowerCase().trim();
@@ -82,7 +88,7 @@ export default function EquipmentSelect({
     () =>
       safeSelected.map((sel) => ({
         ...sel,
-        name: safeEquipments.find((eq) => eq.id === sel.id)?.name ?? '',
+        name: sel.name || safeEquipments.find((eq) => eq.id === sel.id)?.name || '',
       })),
     [safeSelected, safeEquipments]
   );

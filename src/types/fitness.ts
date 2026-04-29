@@ -38,6 +38,7 @@ export interface Equipment {
 
 export interface EquipmentSelection {
   id: string;
+  name?: string;
   qty: number;
 }
 

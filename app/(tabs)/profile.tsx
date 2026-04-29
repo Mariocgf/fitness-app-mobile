@@ -1,17 +1,58 @@
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  Alert,
   ActivityIndicator,
+  Alert,
+  ScrollView,
+  Text,
+  useColorScheme,
+  View,
 } from 'react-native';
 
+import ConfigMenuItem from '@/src/components/features/profile/ConfigMenuItem';
+import DataManagement from '@/src/components/features/profile/DataManagement';
+import DietaryConfig from '@/src/components/features/profile/DietaryConfig';
+import EquipmentConfig from '@/src/components/features/profile/EquipmentConfig';
+import InjuriesConfig from '@/src/components/features/profile/InjuriesConfig';
+import ProfileHeader from '@/src/components/features/profile/ProfileHeader';
+import { getActiveModules } from '@/src/services/module.service';
+import { ActiveModule } from '@/src/types/module';
+
+/** Pantallas internas del perfil */
+type ProfileScreen = 'main' | 'equipment' | 'injuries' | 'dietary' | 'data';
+
 export default function ProfileScreen() {
-  const { signOut } = useAuth();
+  const { signOut, getToken } = useAuth();
   const { user, isLoaded } = useUser();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  const [activeScreen, setActiveScreen] = useState<ProfileScreen>('main');
+  const [activeModules, setActiveModules] = useState<ActiveModule[]>([]);
+  const [isLoadingModules, setIsLoadingModules] = useState(true);
+
+  // ── Cargar módulos activos ──
+  useEffect(() => {
+    const fetchModules = async () => {
+      try {
+        const token = await getToken();
+        const modules = await getActiveModules(token);
+        setActiveModules(Array.isArray(modules) ? modules : []);
+      } catch (e) {
+        console.error('Error cargando módulos activos:', e);
+      } finally {
+        setIsLoadingModules(false);
+      }
+    };
+    if (isLoaded) fetchModules();
+  }, [isLoaded]);
+
+  // ── Helpers ──
+  const hasModule = (name: string) =>
+    activeModules.some(
+      (m) => m.name.toLowerCase() === name.toLowerCase()
+    );
 
   const handleSignOut = () => {
     Alert.alert('Cerrar sesión', '¿Estás seguro que querés cerrar sesión?', [
@@ -36,6 +77,7 @@ export default function ProfileScreen() {
     ]);
   };
 
+  // ── Loading state ──
   if (!isLoaded) {
     return (
       <View className="flex-1 items-center justify-center bg-white dark:bg-zinc-950">
@@ -44,66 +86,106 @@ export default function ProfileScreen() {
     );
   }
 
-  // Datos del usuario autenticado con Clerk
+  // ── Sub-pantallas de configuración ──
+  if (activeScreen === 'equipment') {
+    return <EquipmentConfig onBack={() => setActiveScreen('main')} />;
+  }
+  if (activeScreen === 'injuries') {
+    return <InjuriesConfig onBack={() => setActiveScreen('main')} />;
+  }
+  if (activeScreen === 'dietary') {
+    return <DietaryConfig onBack={() => setActiveScreen('main')} />;
+  }
+  if (activeScreen === 'data') {
+    return <DataManagement onBack={() => setActiveScreen('main')} />;
+  }
+
+  // ── Datos del usuario ──
   const fullName = user?.fullName ?? 'Usuario';
   const email = user?.primaryEmailAddress?.emailAddress ?? '';
   const avatarUrl = user?.imageUrl;
 
+  // ── Pantalla principal del perfil ──
   return (
     <View className="flex-1 bg-white dark:bg-zinc-950">
-      {/* Header */}
-      <View className="pt-16 pb-4 px-6">
-        <Text className="text-2xl font-bold text-center text-slate-900 dark:text-white">
-          Perfil
-        </Text>
-      </View>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header con avatar + card blur */}
+        <ProfileHeader
+          avatarUrl={avatarUrl}
+          fullName={fullName}
+          email={email}
+          onLogout={handleSignOut}
+        />
 
-      {/* Avatar + Info */}
-      <View className="items-center mt-6">
-        {/* Círculo decorativo detrás del avatar */}
-        <View className="w-36 h-36 rounded-full bg-cyan-50 dark:bg-cyan-900/20 items-center justify-center">
-          {avatarUrl ? (
-            <Image
-              source={{ uri: avatarUrl }}
-              className="w-28 h-28 rounded-full"
+        {/* Sección de configuración */}
+        <View style={{ marginTop: 28, paddingHorizontal: 20 }}>
+          <Text
+            style={{
+              fontSize: 20,
+              fontWeight: '700',
+              color: isDark ? '#fafafa' : '#0f172a',
+              marginBottom: 16,
+            }}
+          >
+            Configuración
+          </Text>
+
+          <View
+            style={{
+              borderRadius: 16,
+              overflow: 'hidden',
+              backgroundColor: isDark ? '#18181b' : '#ffffff',
+              // Sombra sutil
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.05,
+              shadowRadius: 8,
+              elevation: 2,
+            }}
+          >
+            {/* Módulos dinámicos */}
+            {isLoadingModules ? (
+              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#06b6d4" />
+              </View>
+            ) : (
+              <>
+                {hasModule('Fitness') && (
+                  <ConfigMenuItem
+                    icon="barbell-outline"
+                    label="Equipamientos"
+                    onPress={() => setActiveScreen('equipment')}
+                  />
+                )}
+                {hasModule('Health') && (
+                  <ConfigMenuItem
+                    icon="body-outline"
+                    label="Limitaciones físicas"
+                    onPress={() => setActiveScreen('injuries')}
+                  />
+                )}
+                {hasModule('Nutrition') && (
+                  <ConfigMenuItem
+                    icon="restaurant-outline"
+                    label="Restricciones alimenticias"
+                    onPress={() => setActiveScreen('dietary')}
+                  />
+                )}
+              </>
+            )}
+
+            {/* Siempre visible */}
+            <ConfigMenuItem
+              icon="settings-outline"
+              label="Manejo de datos"
+              onPress={() => setActiveScreen('data')}
             />
-          ) : (
-            <View className="w-28 h-28 rounded-full bg-cyan-200 dark:bg-cyan-800 items-center justify-center">
-              <Text className="text-4xl font-bold text-cyan-700 dark:text-cyan-200">
-                {fullName.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          )}
+          </View>
         </View>
-
-        {/* Nombre y correo */}
-        <View className="mt-6 items-center px-8">
-          <Text className="text-xl font-bold text-slate-900 dark:text-white">
-            {fullName}
-          </Text>
-          {email ? (
-            <Text className="text-base text-slate-500 dark:text-zinc-400 mt-1">
-              {email}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-
-      {/* Spacer que empuja el botón hacia abajo */}
-      <View className="flex-1" />
-
-      {/* Botón de cerrar sesión con padding extra para librar la barra flotante */}
-      <View className="px-8 pb-32">
-        <TouchableOpacity
-          className="bg-red-500 py-4 rounded-2xl items-center shadow-red-500/30"
-          onPress={handleSignOut}
-          activeOpacity={0.85}
-        >
-          <Text className="text-white text-base font-bold tracking-wide">
-            Cerrar sesión
-          </Text>
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
   );
 }
