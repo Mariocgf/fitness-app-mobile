@@ -36,9 +36,21 @@ export default function ProfileScreen() {
   useEffect(() => {
     const fetchModules = async () => {
       try {
+        // 1. Cache-First (Optimistic load)
+        const cachedModulesStr = await AsyncStorage.getItem('@active_modules');
+        if (cachedModulesStr) {
+          const cachedModules = JSON.parse(cachedModulesStr);
+          setActiveModules(Array.isArray(cachedModules) ? cachedModules : []);
+          setIsLoadingModules(false);
+        }
+
+        // 2. Fetch en segundo plano
         const token = await getToken();
         const modules = await getActiveModules(token);
-        setActiveModules(Array.isArray(modules) ? modules : []);
+        const validModules = Array.isArray(modules) ? modules : [];
+        
+        setActiveModules(validModules);
+        await AsyncStorage.setItem('@active_modules', JSON.stringify(validModules));
       } catch (e) {
         console.error('Error cargando módulos activos:', e);
       } finally {

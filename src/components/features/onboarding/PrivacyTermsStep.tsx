@@ -17,7 +17,7 @@ export default function PrivacyTermsStep({ onContinue, isSubmitting }: PrivacyTe
     <View className="flex-1 bg-white dark:bg-zinc-900">
       <ScrollView
         className="flex-1 px-6"
-        contentContainerStyle={{ pt: 20, pb: 20 }}
+        contentContainerStyle={{ paddingTop: 20, paddingBottom: 20 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Header Icon */}

@@ -1,98 +1,121 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/src/components/common/hello-wave';
-import ParallaxScrollView from '@/src/components/common/parallax-scroll-view';
-import { ThemedText } from '@/src/components/common/themed-text';
-import { ThemedView } from '@/src/components/common/themed-view';
-import { Link } from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth, useUser } from '@clerk/clerk-expo';
+import { GreetingHeader } from '@/src/components/features/home/GreetingHeader';
+import { ActionCard, CardState } from '@/src/components/features/home/ActionCard';
+import { RoutineDetailModal } from '@/src/components/features/routine/RoutineDetailModal';
+import { Routine } from '@/src/types/routine';
+import { generateRoutine, getActiveRoutine } from '@/src/services/routine.service';
+import { getActiveModules } from '@/src/services/module.service';
+import { useThemeColor } from '@/src/hooks/use-theme-color';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const { user } = useUser();
+  const { getToken } = useAuth();
+  const [cardState, setCardState] = useState<CardState>('initial');
+  const [routine, setRoutine] = useState<Routine | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isFetchingData, setIsFetchingData] = useState(true);
+  
+  const backgroundColor = useThemeColor({ light: '#FFFFFF', dark: '#000000' }, 'background');
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  /** Obtiene el primer nombre del usuario autenticado */
+  const userName = user?.firstName ?? 'Usuario';
+
+  useEffect(() => {
+    const initializeData = async () => {
+      try {
+        // 1. Carga optimista de la rutina cacheada
+        const storedRoutine = await AsyncStorage.getItem('@user_routine');
+        if (storedRoutine) {
+          setRoutine(JSON.parse(storedRoutine));
+          setCardState('success');
+        }
+
+        const token = await getToken();
+        if (!token) return;
+
+        // 2. Ejecutar requests en paralelo
+        const [modulesResult, routineResult] = await Promise.allSettled([
+          getActiveModules(token),
+          getActiveRoutine(token)
+        ]);
+
+        // 3. Procesar Módulos y guardar en caché
+        if (modulesResult.status === 'fulfilled') {
+          await AsyncStorage.setItem('@active_modules', JSON.stringify(modulesResult.value));
+        }
+
+        // 4. Procesar Rutina
+        if (routineResult.status === 'fulfilled') {
+          const activeRoutine = routineResult.value;
+          if (activeRoutine) {
+            setRoutine(activeRoutine);
+            await AsyncStorage.setItem('@user_routine', JSON.stringify(activeRoutine));
+            setCardState('success');
+          } else {
+            // 404: Sin rutina activa
+            await AsyncStorage.removeItem('@user_routine');
+            setRoutine(null);
+            setCardState('initial');
+          }
+        }
+      } catch (error) {
+        console.error('Error inicializando datos en Home:', error);
+      } finally {
+        setIsFetchingData(false);
+      }
+    };
+    
+    initializeData();
+  }, []);
+
+  const handleGenerate = async () => {
+    setCardState('loading');
+    try {
+      const token = await getToken();
+      const newRoutine = await generateRoutine(token);
+      setRoutine(newRoutine);
+      await AsyncStorage.setItem('@user_routine', JSON.stringify(newRoutine));
+      setCardState('success');
+    } catch (error) {
+      console.error(error);
+      setCardState('initial');
+    }
+  };
+
+  const handleViewPlan = () => {
+    setIsModalVisible(true);
+  };
+
+  return (
+    <SafeAreaView style={[{ flex: 1, backgroundColor }]}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <GreetingHeader userName={userName} />
+        
+        <ActionCard 
+          cardState={cardState}
+          onGenerate={handleGenerate}
+          onViewPlan={handleViewPlan}
+          routine={routine}
+          isLoadingInitial={isFetchingData}
+        />
+      </ScrollView>
+
+      <RoutineDetailModal 
+        visible={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
+        routine={routine}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+  scrollContent: {
+    paddingTop: 24,
+    paddingBottom: 40,
+  }
 });
