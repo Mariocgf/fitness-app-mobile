@@ -2,6 +2,7 @@ import { Routine } from '@/src/types/routine';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Image, Modal, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { cssInterop } from 'nativewind';
 
 cssInterop(Ionicons, {
@@ -21,6 +22,7 @@ interface RoutineDetailModalProps {
 
 export const RoutineDetailModal: React.FC<RoutineDetailModalProps> = ({ visible, onClose, routine }) => {
   const [activeDayIndex, setActiveDayIndex] = useState(0);
+  const router = useRouter();
 
   if (!routine) return null;
 
@@ -161,7 +163,19 @@ export const RoutineDetailModal: React.FC<RoutineDetailModalProps> = ({ visible,
 
           {/* Fixed Bottom Button */}
           <View className={`absolute bottom-0 w-full p-4 ${Platform.OS === 'ios' ? 'pb-8' : 'pb-4'} bg-white dark:bg-zinc-950 border-t border-zinc-200 dark:border-white/10`}>
-            <TouchableOpacity className="bg-lime-300 rounded-2xl p-4 flex-row justify-center items-center gap-2">
+            <TouchableOpacity 
+              className="bg-lime-300 rounded-2xl p-4 flex-row justify-center items-center gap-2"
+              onPress={() => {
+                onClose();
+                router.push({
+                  pathname: '/session',
+                  params: { 
+                    routineId: routine.id,
+                    dayData: JSON.stringify(activeDay)
+                  }
+                });
+              }}
+            >
               <Ionicons name="play-circle" size={24} className="text-black" />
               <View className="items-center">
                 <Text className="text-black font-bold text-base">

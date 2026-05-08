@@ -12,6 +12,7 @@ import { FullPageLoader } from '@/src/components/common/FullPageLoader';
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
@@ -21,6 +22,18 @@ if (!publishableKey) {
 
 // Previene que se oculte el splash screen antes de que tengamos la info del usuario
 SplashScreen.preventAutoHideAsync();
+let isSplashScreenHidden = false;
+
+const hideSplash = async () => {
+  if (isSplashScreenHidden) return;
+  try {
+    await SplashScreen.hideAsync();
+  } catch (error) {
+    // ignore
+  } finally {
+    isSplashScreenHidden = true;
+  }
+};
 
 const tokenCache = {
   async getToken(key: string) {
@@ -88,7 +101,7 @@ function RootNavigator() {
     if (isSignedIn && !isMetadataReady && !completedLocally) {
       // Ocultamos el splash screen para mostrar el FullPageLoader y evitar bloqueos visuales
       setTimeout(() => {
-        SplashScreen.hideAsync().catch(() => { });
+        hideSplash();
       }, 100);
       return;
     }
@@ -109,7 +122,7 @@ function RootNavigator() {
 
     // Ocultar el splash screen cuando ya sabemos a dónde ir
     setTimeout(() => {
-      SplashScreen.hideAsync().catch(() => { });
+      hideSplash();
     }, 50);
   }, [isSignedIn, isLoaded, segments, user?.publicMetadata?.onboarding_status, completedLocally]);
 
@@ -168,24 +181,36 @@ function RootNavigator() {
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+      <Stack.Screen name="session" options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
     </Stack>
   );
 }
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  
+  // Initialize query client for react-query
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 1000 * 60 * 5, // 5 minutes
+      },
+    },
+  }));
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ClerkProvider
-        publishableKey={publishableKey}
-        tokenCache={tokenCache}
-      >
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <RootNavigator />
-          <StatusBar style="auto" />
-        </ThemeProvider>
-      </ClerkProvider>
+      <QueryClientProvider client={queryClient}>
+        <ClerkProvider
+          publishableKey={publishableKey}
+          tokenCache={tokenCache}
+        >
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <RootNavigator />
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </ClerkProvider>
+      </QueryClientProvider>
     </GestureHandlerRootView>
   );
 }

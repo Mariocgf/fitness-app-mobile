@@ -1,5 +1,6 @@
 import apiClient from '../api/client';
 import { Routine } from '../types/routine';
+import { SessionLog } from '../types/session';
 import { AxiosError } from 'axios';
 
 /**
@@ -45,4 +46,25 @@ export const getActiveRoutine = async (
     }
     throw error;
   }
+};
+
+/**
+ * Guarda una sesión de entrenamiento completada.
+ * Llama al endpoint POST /api/Routine/sessions.
+ * @param log Objeto con los datos de la sesión.
+ * @param token Token de autenticación de Clerk.
+ */
+export const saveSession = async (
+  log: SessionLog,
+  token: string | null
+): Promise<void> => {
+  await apiClient.post(
+    '/api/Routine/sessions',
+    log,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
 };
