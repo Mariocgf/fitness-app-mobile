@@ -14,6 +14,11 @@ import Animated, {
 import Svg, { Circle } from 'react-native-svg';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { SessionDay, SessionLog, ExerciseLog } from '../../../../types/session';
+import { Modal as RNModal, ScrollView, ActivityIndicator } from 'react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@clerk/clerk-expo';
+import { getExerciseInstructions } from '../../../../services/exercise.service';
+import { ExerciseInfo } from '../../../../types/exercise';
 
 type Phase = 'COUNTDOWN' | 'EXERCISE' | 'REST' | 'SUMMARY';
 
@@ -196,6 +201,88 @@ const ExerciseGif = React.memo(({ uri }: { uri: string }) => {
   );
 });
 
+/* ────────────────────── Instructions Modal ────────────────────── */
+
+const InstructionsModal = ({
+  visible,
+  onClose,
+  exerciseId,
+  exerciseName,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  exerciseId: string;
+  exerciseName: string;
+}) => {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+
+  // 1. Check if info is already cached
+  const cachedInfo = queryClient.getQueryData<ExerciseInfo>(['exercise-info', exerciseId]);
+
+  // 2. Query for instructions, only enabled if we don't have cached instructions
+  const { data: instructionsData, isLoading, isError } = useQuery({
+    queryKey: ['exercise-instructions', exerciseId],
+    queryFn: async () => {
+      const token = await getToken();
+      return getExerciseInstructions(exerciseId, token);
+    },
+    enabled: visible && !cachedInfo?.instructions,
+    staleTime: Infinity,
+  });
+
+  const instructionsToDisplay = cachedInfo?.instructions || instructionsData?.instructions;
+
+  return (
+    <RNModal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity
+        className="flex-1 bg-black/60 justify-center items-center p-4"
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <TouchableOpacity 
+          activeOpacity={1} 
+          className="bg-zinc-900 w-full max-w-sm rounded-3xl p-6 border border-zinc-800"
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-white font-bold text-lg flex-1 mr-4" numberOfLines={2}>
+              {exerciseName}
+            </Text>
+            <TouchableOpacity onPress={onClose} className="bg-white/10 p-2 rounded-full">
+              <Ionicons name="close" size={20} color="white" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView className="max-h-80" showsVerticalScrollIndicator={false}>
+            {isLoading && !instructionsToDisplay ? (
+              <ActivityIndicator size="small" color="#d9f99d" className="my-4" />
+            ) : isError ? (
+              <Text className="text-red-400 my-4 text-center">Error al cargar instrucciones</Text>
+            ) : instructionsToDisplay && instructionsToDisplay.length > 0 ? (
+              instructionsToDisplay.map((step, idx) => {
+                const cleanStep = step.replace(/^Step\s*:?\s*\d+\s*:?\s*/i, '').trim();
+                return (
+                  <View key={idx} className="flex-row mb-3 last:mb-0">
+                    <Text className="text-lime-300 font-bold mr-2 mt-0.5">
+                      Step {idx + 1}:
+                    </Text>
+                    <Text className="text-zinc-300 flex-1 leading-5">
+                      {cleanStep}
+                    </Text>
+                  </View>
+                );
+              })
+            ) : (
+              <Text className="text-zinc-400 my-4 text-center">No hay instrucciones disponibles</Text>
+            )}
+          </ScrollView>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </RNModal>
+  );
+};
+
 /* ════════════════════════════════════════════════════════════════════ */
 /*                      MAIN COMPONENT                                */
 /* ════════════════════════════════════════════════════════════════════ */
@@ -219,6 +306,7 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
   const [rpe, setRpe] = useState(5);
   const [rpeSaved, setRpeSaved] = useState(false);
   const [logs, setLogs] = useState<ExerciseLog[]>([]);
+  const [showInstructions, setShowInstructions] = useState(false);
 
   const currentExercise = day.exercises[exerciseIndex];
   const totalSets = parseInt(currentExercise?.sets) || 1;
@@ -444,14 +532,17 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
                   <Text className="text-zinc-400 text-xs">Descanso</Text>
                 </View>
                 <View className="w-px bg-zinc-800" />
-                <View className="items-center flex-1">
+                <TouchableOpacity 
+                  className="items-center flex-1 justify-center"
+                  onPress={() => setShowInstructions(true)}
+                >
                   <Ionicons
                     name="information-circle-outline"
                     size={24}
                     color="#d9f99d"
                   />
                   <Text className="text-zinc-400 text-xs">Info</Text>
-                </View>
+                </TouchableOpacity>
               </View>
             </Animated.View>
           ) : (
@@ -543,6 +634,16 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Info Modal */}
+      {currentExercise && (
+        <InstructionsModal
+          visible={showInstructions}
+          onClose={() => setShowInstructions(false)}
+          exerciseId={currentExercise.id}
+          exerciseName={currentExercise.exercise}
+        />
+      )}
     </View>
   );
 };
