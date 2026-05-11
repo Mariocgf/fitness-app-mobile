@@ -1,10 +1,17 @@
+import { RepType } from './routine';
+
 export type SessionExercise = {
   id: string;
   exercise: string;
   gifUrl: string | null;
   sets: string;
-  reps: string;
+  repType: RepType;
+  minRep: string | null;
+  maxRep: string | null;
+  currentRep: string | null;
+  durationSeconds: string | null;
   rest: string; // seconds as string
+  weight: string;
 };
 
 export type SessionDay = {

@@ -15,8 +15,8 @@ jest.mock('../NutritionConfigStep', () => (props: any) => mockComponent({ ...pro
 describe('ModuleConfigRouter', () => {
   const mockOnModuleConfigured = jest.fn();
   const modules = [
-    { id: '1', name: 'Health', brandColor: '#000' },
-    { id: '2', name: 'Fitness', brandColor: '#111' },
+    { id: '1', name: 'Health', brandColor: '#000', description: '', imageUrl: '' },
+    { id: '2', name: 'Fitness', brandColor: '#111', description: '', imageUrl: '' },
   ];
 
   beforeEach(() => {

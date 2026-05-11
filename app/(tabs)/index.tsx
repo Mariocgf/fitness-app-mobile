@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView } from 'react-native';
+import { StyleSheet, ScrollView, View, TouchableOpacity, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth, useUser } from '@clerk/clerk-expo';
@@ -18,6 +19,7 @@ export default function HomeScreen() {
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isFetchingData, setIsFetchingData] = useState(true);
+  const [isFabMenuVisible, setIsFabMenuVisible] = useState(false);
   
   const backgroundColor = useThemeColor({ light: '#FFFFFF', dark: '#000000' }, 'background');
 
@@ -109,6 +111,31 @@ export default function HomeScreen() {
         onClose={() => setIsModalVisible(false)}
         routine={routine}
       />
+
+      {/* Menu desplegable del FAB */}
+      {isFabMenuVisible && (
+        <View className="absolute bottom-24 right-6 bg-zinc-800 rounded-2xl p-2 shadow-lg border border-zinc-700">
+          <TouchableOpacity 
+            className="flex-row items-center p-3"
+            onPress={() => {
+              setIsFabMenuVisible(false);
+              handleGenerate();
+            }}
+          >
+            <Ionicons name="sparkles" size={20} color="white" />
+            <Text className="text-white ml-2 font-medium">Generar rutina</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* FAB - Botón + */}
+      <TouchableOpacity 
+        style={{ elevation: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }}
+        className="absolute bottom-6 right-6 w-14 h-14 bg-lime-300 rounded-full items-center justify-center"
+        onPress={() => setIsFabMenuVisible(!isFabMenuVisible)}
+      >
+        <Ionicons name={isFabMenuVisible ? "close" : "add"} size={32} color="black" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }

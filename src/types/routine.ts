@@ -1,10 +1,17 @@
+export type RepType = 'Fixed' | 'Range' | 'Timed';
+
 export interface RoutineExercise {
   id: string;
   exercise: string; // The name of the exercise conceptually based on the mockup
-  gifUrl: string;
+  gifUrl: string | null;
   sets: string;
-  reps: string;
+  repType: RepType;
+  minRep: string | null;
+  maxRep: string | null;
+  currentRep: string | null;
+  durationSeconds: string | null;
   rest: string;
+  weight: string;
 }
 
 export interface RoutineDay {

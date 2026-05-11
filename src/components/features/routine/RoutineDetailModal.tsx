@@ -1,5 +1,5 @@
 import { Routine, RoutineExercise } from '@/src/types/routine';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Image, Modal, Platform, ScrollView, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -11,6 +11,15 @@ import Animated, { SlideInRight, SlideOutRight } from 'react-native-reanimated';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 
 cssInterop(Ionicons, {
+  className: {
+    target: 'style',
+    nativeStyleToProp: {
+      color: true,
+    },
+  },
+});
+
+cssInterop(MaterialCommunityIcons, {
   className: {
     target: 'style',
     nativeStyleToProp: {
@@ -153,6 +162,19 @@ const ExerciseDetailView = ({
 /*                              RoutineDetailModal                              */
 /* ──────────────────────────────────────────────────────────────────────────── */
 
+const formatReps = (exercise: RoutineExercise) => {
+  if (exercise.repType === 'Timed') {
+    const totalSecs = parseInt(exercise.durationSeconds || '0', 10);
+    if (totalSecs >= 60) {
+      const m = Math.floor(totalSecs / 60);
+      const s = totalSecs % 60;
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+    return `${totalSecs}s`;
+  }
+  return exercise.currentRep || '-';
+};
+
 interface RoutineDetailModalProps {
   visible: boolean;
   onClose: () => void;
@@ -281,11 +303,17 @@ export const RoutineDetailModal: React.FC<RoutineDetailModalProps> = ({ visible,
                     onPress={() => setSelectedExercise(exercise)}
                     className="flex-row bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-3 mb-3 border border-zinc-200 dark:border-white/10 items-center"
                   >
-                    <Image
-                      source={{ uri: exercise.gifUrl }}
-                      className="w-20 h-20 bg-white rounded-xl"
-                      resizeMode="cover"
-                    />
+                    {exercise.gifUrl ? (
+                      <Image
+                        source={{ uri: exercise.gifUrl }}
+                        className="w-20 h-20 bg-white rounded-xl"
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View className="w-20 h-20 bg-zinc-200 dark:bg-zinc-800 rounded-xl items-center justify-center">
+                        <Ionicons name="image-outline" size={24} className="text-zinc-400" />
+                      </View>
+                    )}
                     <View className="flex-1 ml-4">
                       <View className="flex-row items-center gap-2 mb-1">
                         <View className="w-6 h-6 rounded-full bg-lime-500/10 dark:bg-lime-500/15 items-center justify-center">
@@ -302,11 +330,15 @@ export const RoutineDetailModal: React.FC<RoutineDetailModalProps> = ({ visible,
                         </View>
                         <View className="flex-row items-center">
                           <Ionicons name="repeat-outline" size={12} className="text-zinc-900 dark:text-lime-300" />
-                          <Text className="text-zinc-500 dark:text-zinc-400 text-xs ml-1">{exercise.reps}</Text>
+                          <Text className="text-zinc-500 dark:text-zinc-400 text-xs ml-1">{formatReps(exercise)}</Text>
                         </View>
                         <View className="flex-row items-center">
                           <Ionicons name="time-outline" size={12} className="text-zinc-900 dark:text-lime-300" />
                           <Text className="text-zinc-500 dark:text-zinc-400 text-xs ml-1">{exercise.rest}</Text>
+                        </View>
+                        <View className="flex-row items-center">
+                          <MaterialCommunityIcons name="weight" size={12} className="text-zinc-900 dark:text-lime-300" />
+                          <Text className="text-zinc-500 dark:text-zinc-400 text-xs ml-1">{exercise.weight}</Text>
                         </View>
                       </View>
                     </View>

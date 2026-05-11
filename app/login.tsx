@@ -48,7 +48,7 @@ export default function LoginScreen() {
       if (createdSessionId && setOAuthActive) {
         await setOAuthActive({ session: createdSessionId });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error de OAuth', err);
       if(err?.e?.toUpperCase() == "You're already signed in".toUpperCase()){
         Linking.createURL('/(tabs)')
