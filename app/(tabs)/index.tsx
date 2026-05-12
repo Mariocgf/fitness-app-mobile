@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView, View, TouchableOpacity, Text } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { GreetingHeader } from '@/src/components/features/home/GreetingHeader';
 import { ActionCard, CardState } from '@/src/components/features/home/ActionCard';
+import { RoutineFabMenu } from '@/src/components/features/home/RoutineFabMenu';
 import { RoutineDetailModal } from '@/src/components/features/routine/RoutineDetailModal';
 import { Routine } from '@/src/types/routine';
 import { generateRoutine, getActiveRoutine } from '@/src/services/routine.service';
@@ -93,8 +93,8 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={[{ flex: 1, backgroundColor }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <SafeAreaView style={{ flex: 1, backgroundColor }}>
+      <ScrollView contentContainerClassName="pt-6 pb-10">
         <GreetingHeader userName={userName} />
         
         <ActionCard 
@@ -112,37 +112,11 @@ export default function HomeScreen() {
         routine={routine}
       />
 
-      {/* Menu desplegable del FAB */}
-      {isFabMenuVisible && (
-        <View className="absolute bottom-24 right-6 bg-zinc-800 rounded-2xl p-2 shadow-lg border border-zinc-700">
-          <TouchableOpacity 
-            className="flex-row items-center p-3"
-            onPress={() => {
-              setIsFabMenuVisible(false);
-              handleGenerate();
-            }}
-          >
-            <Ionicons name="sparkles" size={20} color="white" />
-            <Text className="text-white ml-2 font-medium">Generar rutina</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* FAB - Botón + */}
-      <TouchableOpacity 
-        style={{ elevation: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }}
-        className="absolute bottom-6 right-6 w-14 h-14 bg-lime-300 rounded-full items-center justify-center"
-        onPress={() => setIsFabMenuVisible(!isFabMenuVisible)}
-      >
-        <Ionicons name={isFabMenuVisible ? "close" : "add"} size={32} color="black" />
-      </TouchableOpacity>
+      <RoutineFabMenu
+        isMenuVisible={isFabMenuVisible}
+        onToggleMenu={() => setIsFabMenuVisible(!isFabMenuVisible)}
+        onGenerateRoutine={handleGenerate}
+      />
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  scrollContent: {
-    paddingTop: 24,
-    paddingBottom: 40,
-  }
-});

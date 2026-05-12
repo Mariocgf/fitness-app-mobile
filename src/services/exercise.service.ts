@@ -40,3 +40,35 @@ export const getExerciseInstructions = async (
   );
   return data;
 };
+
+export interface AdjustLoadResponse {
+  weight: string | null;
+  currentRep: string | null;
+  durationSeconds: string | null;
+}
+
+/**
+ * Ajusta la carga de un ejercicio en base al RPE reportado.
+ * @param exerciseId ID del ejercicio
+ * @param rpe Valor de RPE reportado (0-10)
+ * @param token Token de autenticación de Clerk
+ */
+export const adjustExerciseLoad = async (
+  exerciseId: string,
+  routineDayId: string,
+  rpe: number,
+  token: string | null
+): Promise<AdjustLoadResponse> => {
+  const { data } = await apiClient.post<AdjustLoadResponse>(
+    '/api/Exercise/adjust-load',
+    { exerciseId, routineDayId, rpe },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  console.log(data);
+  
+  return data;
+};

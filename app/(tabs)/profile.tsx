@@ -5,17 +5,15 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
-  Text,
-  useColorScheme,
   View,
 } from 'react-native';
 
-import ConfigMenuItem from '@/src/components/features/profile/ConfigMenuItem';
 import DataManagement from '@/src/components/features/profile/DataManagement';
 import DietaryConfig from '@/src/components/features/profile/DietaryConfig';
 import EquipmentConfig from '@/src/components/features/profile/EquipmentConfig';
 import InjuriesConfig from '@/src/components/features/profile/InjuriesConfig';
 import ProfileHeader from '@/src/components/features/profile/ProfileHeader';
+import { SettingsSection } from '@/src/components/features/profile/SettingsSection';
 import { getActiveModules } from '@/src/services/module.service';
 import { ActiveModule } from '@/src/types/module';
 
@@ -25,8 +23,6 @@ type ProfileScreen = 'main' | 'equipment' | 'injuries' | 'dietary' | 'data';
 export default function ProfileScreen() {
   const { signOut, getToken } = useAuth();
   const { user, isLoaded } = useUser();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
 
   const [activeScreen, setActiveScreen] = useState<ProfileScreen>('main');
   const [activeModules, setActiveModules] = useState<ActiveModule[]>([]);
@@ -36,7 +32,7 @@ export default function ProfileScreen() {
   useEffect(() => {
     const fetchModules = async () => {
       try {
-        // 1. Cache-First (Optimistic load)
+        // 1. Cache-First (carga optimista)
         const cachedModulesStr = await AsyncStorage.getItem('@active_modules');
         if (cachedModulesStr) {
           const cachedModules = JSON.parse(cachedModulesStr);
@@ -60,12 +56,7 @@ export default function ProfileScreen() {
     if (isLoaded) fetchModules();
   }, [isLoaded]);
 
-  // ── Helpers ──
-  const hasModule = (name: string) =>
-    activeModules.some(
-      (m) => m.name.toLowerCase() === name.toLowerCase()
-    );
-
+  // ── Handlers ──
   const handleSignOut = () => {
     Alert.alert('Cerrar sesión', '¿Estás seguro que querés cerrar sesión?', [
       { text: 'Cancelar', style: 'cancel' },
@@ -89,7 +80,7 @@ export default function ProfileScreen() {
     ]);
   };
 
-  // ── Loading state ──
+  // ── Estado de carga ──
   if (!isLoaded) {
     return (
       <View className="flex-1 items-center justify-center bg-white dark:bg-zinc-950">
@@ -132,71 +123,12 @@ export default function ProfileScreen() {
           onLogout={handleSignOut}
         />
 
-        {/* Sección de configuración */}
-        <View style={{ marginTop: 28, paddingHorizontal: 20 }}>
-          <Text
-            style={{
-              fontSize: 20,
-              fontWeight: '700',
-              color: isDark ? '#fafafa' : '#0f172a',
-              marginBottom: 16,
-            }}
-          >
-            Configuración
-          </Text>
-
-          <View
-            style={{
-              borderRadius: 16,
-              overflow: 'hidden',
-              backgroundColor: isDark ? '#18181b' : '#ffffff',
-              // Sombra sutil
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.05,
-              shadowRadius: 8,
-              elevation: 2,
-            }}
-          >
-            {/* Módulos dinámicos */}
-            {isLoadingModules ? (
-              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-                <ActivityIndicator size="small" color="#06b6d4" />
-              </View>
-            ) : (
-              <>
-                {hasModule('Fitness') && (
-                  <ConfigMenuItem
-                    icon="barbell-outline"
-                    label="Equipamientos"
-                    onPress={() => setActiveScreen('equipment')}
-                  />
-                )}
-                {hasModule('Health') && (
-                  <ConfigMenuItem
-                    icon="body-outline"
-                    label="Limitaciones físicas"
-                    onPress={() => setActiveScreen('injuries')}
-                  />
-                )}
-                {hasModule('Nutrition') && (
-                  <ConfigMenuItem
-                    icon="restaurant-outline"
-                    label="Restricciones alimenticias"
-                    onPress={() => setActiveScreen('dietary')}
-                  />
-                )}
-              </>
-            )}
-
-            {/* Siempre visible */}
-            <ConfigMenuItem
-              icon="settings-outline"
-              label="Manejo de datos"
-              onPress={() => setActiveScreen('data')}
-            />
-          </View>
-        </View>
+        {/* Sección de configuración extraída a componente */}
+        <SettingsSection
+          activeModules={activeModules}
+          isLoadingModules={isLoadingModules}
+          onNavigate={(screen) => setActiveScreen(screen as ProfileScreen)}
+        />
       </ScrollView>
     </View>
   );

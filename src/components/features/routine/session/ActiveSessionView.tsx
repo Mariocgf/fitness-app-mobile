@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Alert, LayoutChangeEvent, Dimensions } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, Alert, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -9,16 +8,15 @@ import Animated, {
   SlideOutDown,
   SlideInDown,
   SlideOutUp,
-  LinearTransition,
 } from 'react-native-reanimated';
-import Svg, { Circle } from 'react-native-svg';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { SessionDay, SessionLog, ExerciseLog, SessionExercise } from '../../../../types/session';
-import { Modal as RNModal, ScrollView, ActivityIndicator } from 'react-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@clerk/clerk-expo';
-import { getExerciseInstructions } from '../../../../services/exercise.service';
-import { ExerciseInfo } from '../../../../types/exercise';
+import { SessionDay, SessionLog, ExerciseLog, SessionExercise } from '@/src/types/session';
+import { adjustExerciseLoad } from '@/src/services/exercise.service';
+import { formatTime, formatReps, formatTimeSpan } from '@/src/utils/format.utils';
+import { RPESlider } from './RPESlider';
+import { ClockCircle } from '@/src/components/common/ClockCircle';
+import { InstructionsModal } from './InstructionsModal';
+import { ExerciseGif } from './ExerciseGif';
 
 type Phase = 'COUNTDOWN' | 'EXERCISE' | 'REST' | 'SUMMARY';
 
@@ -29,291 +27,9 @@ interface ActiveSessionViewProps {
   onCancel?: () => void;
 }
 
-/* ────────────────────────────── helpers ────────────────────────────── */
-
-const formatTime = (totalSeconds: number) => {
-  const m = Math.floor(totalSeconds / 60)
-    .toString()
-    .padStart(2, '0');
-  const s = (totalSeconds % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
-};
-
-/* ────────────────────── RPE Slider (gesture-handler) ────────────────────── */
-
-const RPESlider = ({
-  value,
-  onValueChange,
-  min = 0,
-  max = 10,
-}: {
-  value: number;
-  onValueChange: (v: number) => void;
-  min?: number;
-  max?: number;
-}) => {
-  const trackLayoutRef = useRef({ width: 0 });
-
-  const clamp = (v: number) => Math.max(min, Math.min(max, v));
-
-  const resolveValue = (localX: number) => {
-    const trackW = trackLayoutRef.current.width;
-    if (trackW === 0) return value;
-    let pct = localX / trackW;
-    pct = Math.max(0, Math.min(1, pct));
-    return clamp(Math.round(min + pct * (max - min)));
-  };
-
-  const pan = Gesture.Pan()
-    .runOnJS(true)
-    .onUpdate((e) => {
-      onValueChange(resolveValue(e.x));
-    })
-    .hitSlop({ top: 20, bottom: 20, left: 10, right: 10 });
-
-  const tap = Gesture.Tap()
-    .runOnJS(true)
-    .onEnd((e) => {
-      onValueChange(resolveValue(e.x));
-    });
-
-  const composed = Gesture.Race(pan, tap);
-
-  const percentage = (value - min) / (max - min);
-
-  return (
-    <View className="w-full flex-row items-center py-4 px-5">
-      <Text className="text-white font-bold text-lg mr-4">{min}</Text>
-      <GestureDetector gesture={composed}>
-        <View
-          className="flex-1 h-10 justify-center"
-          onLayout={(e: LayoutChangeEvent) => {
-            trackLayoutRef.current = { width: e.nativeEvent.layout.width };
-          }}
-        >
-          {/* Track bg */}
-          <View className="h-2 bg-zinc-700 rounded-full w-full" />
-          {/* Track fill */}
-          <View
-            className="absolute h-2 bg-lime-300 rounded-full"
-            style={{ width: `${percentage * 100}%` }}
-          />
-          {/* Thumb */}
-          <View
-            className="absolute w-8 h-8 bg-lime-300 rounded-full items-center justify-center border-4 border-zinc-900"
-            style={{
-              left: `${percentage * 100}%`,
-              transform: [{ translateX: -16 }],
-            }}
-          >
-            <Text className="text-black font-bold text-xs">{value}</Text>
-          </View>
-        </View>
-      </GestureDetector>
-      <Text className="text-white font-bold text-lg ml-4">{max}</Text>
-    </View>
-  );
-};
-
-/* ────────────────────── Clock ring ────────────────────── */
-
-const ClockCircle = ({
-  isRestPhase,
-  restTimeLeft,
-  initialRest,
-  globalTime,
-  sizeOverride,
-  isExerciseCountdown,
-  exerciseTimeLeft,
-  exerciseInitialTime,
-}: {
-  isRestPhase: boolean;
-  restTimeLeft: number;
-  initialRest: number;
-  globalTime: number;
-  sizeOverride?: number;
-  isExerciseCountdown?: boolean;
-  exerciseTimeLeft?: number;
-  exerciseInitialTime?: number;
-}) => {
-  const size = sizeOverride ? sizeOverride : (isRestPhase ? 240 : 120);
-  const strokeWidth = isRestPhase || isExerciseCountdown ? 6 : 4;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  
-  let progress = 1;
-  if (isRestPhase) {
-    progress = initialRest > 0 ? restTimeLeft / initialRest : 0;
-  } else if (isExerciseCountdown && exerciseInitialTime && exerciseInitialTime > 0 && exerciseTimeLeft !== undefined) {
-    progress = exerciseTimeLeft / exerciseInitialTime;
-  }
-  const strokeDashoffset = circumference - progress * circumference;
-
-  let displayTime = globalTime;
-  if (isRestPhase) {
-    displayTime = restTimeLeft;
-  } else if (isExerciseCountdown && exerciseTimeLeft !== undefined) {
-    displayTime = exerciseTimeLeft;
-  }
-
-  return (
-    <View
-      className="items-center justify-center relative"
-      style={{ width: size, height: size }}
-    >
-      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        {/* Background ring */}
-        <Circle
-          stroke="#3f3f46"
-          fill="none"
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          strokeWidth={strokeWidth}
-        />
-        {/* Foreground ring */}
-        <Circle
-          stroke="#d9f99d"
-          fill="none"
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-      </Svg>
-      <View className="absolute items-center justify-center">
-        {isRestPhase && (
-          <Text className="text-zinc-300 text-sm mb-1">Descanso</Text>
-        )}
-        <Text
-          className={`text-white font-bold ${isRestPhase ? 'text-5xl' : 'text-3xl'}`}
-        >
-          {formatTime(displayTime)}
-        </Text>
-        {(isRestPhase || isExerciseCountdown) && (
-          <Text className="text-zinc-400 text-sm mt-1">
-            {formatTime(globalTime)}
-          </Text>
-        )}
-      </View>
-    </View>
-  );
-};
-
-/* ────────────────────── GIF Wrapper ────────────────────── */
-const ExerciseGif = React.memo(({ uri }: { uri: string }) => {
-  return (
-    <Image
-      source={{ uri }}
-      style={{ width: '100%', height: '100%', borderRadius: 24 }}
-      contentFit="cover"
-      cachePolicy="memory"
-    />
-  );
-});
-
-/* ────────────────────── Instructions Modal ────────────────────── */
-
-const InstructionsModal = ({
-  visible,
-  onClose,
-  exerciseId,
-  exerciseName,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  exerciseId: string;
-  exerciseName: string;
-}) => {
-  const queryClient = useQueryClient();
-  const { getToken } = useAuth();
-
-  // 1. Check if info is already cached
-  const cachedInfo = queryClient.getQueryData<ExerciseInfo>(['exercise-info', exerciseId]);
-
-  // 2. Query for instructions, only enabled if we don't have cached instructions
-  const { data: instructionsData, isLoading, isError } = useQuery({
-    queryKey: ['exercise-instructions', exerciseId],
-    queryFn: async () => {
-      const token = await getToken();
-      return getExerciseInstructions(exerciseId, token);
-    },
-    enabled: visible && !cachedInfo?.instructions,
-    staleTime: Infinity,
-  });
-
-  const instructionsToDisplay = cachedInfo?.instructions || instructionsData?.instructions;
-
-  return (
-    <RNModal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity
-        className="flex-1 bg-black/60 justify-center items-center p-4"
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        <TouchableOpacity 
-          activeOpacity={1} 
-          className="bg-zinc-900 w-full max-w-sm rounded-3xl p-6 border border-zinc-800"
-          onPress={(e) => e.stopPropagation()}
-        >
-          <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-white font-bold text-lg flex-1 mr-4" numberOfLines={2}>
-              {exerciseName}
-            </Text>
-            <TouchableOpacity onPress={onClose} className="bg-white/10 p-2 rounded-full">
-              <Ionicons name="close" size={20} color="white" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView className="max-h-80" showsVerticalScrollIndicator={false}>
-            {isLoading && !instructionsToDisplay ? (
-              <ActivityIndicator size="small" color="#d9f99d" className="my-4" />
-            ) : isError ? (
-              <Text className="text-red-400 my-4 text-center">Error al cargar instrucciones</Text>
-            ) : instructionsToDisplay && instructionsToDisplay.length > 0 ? (
-              instructionsToDisplay.map((step, idx) => {
-                const cleanStep = step.replace(/^Step\s*:?\s*\d+\s*:?\s*/i, '').trim();
-                return (
-                  <View key={idx} className="flex-row mb-3 last:mb-0">
-                    <Text className="text-lime-300 font-bold mr-2 mt-0.5">
-                      Step {idx + 1}:
-                    </Text>
-                    <Text className="text-zinc-300 flex-1 leading-5">
-                      {cleanStep}
-                    </Text>
-                  </View>
-                );
-              })
-            ) : (
-              <Text className="text-zinc-400 my-4 text-center">No hay instrucciones disponibles</Text>
-            )}
-          </ScrollView>
-        </TouchableOpacity>
-      </TouchableOpacity>
-    </RNModal>
-  );
-};
-
 /* ════════════════════════════════════════════════════════════════════ */
-/*                      MAIN COMPONENT                                */
+/*                      COMPONENTE PRINCIPAL                          */
 /* ════════════════════════════════════════════════════════════════════ */
-
-const formatReps = (exercise: SessionExercise) => {
-  if (exercise.repType === 'Timed') {
-    const totalSecs = parseInt(exercise.durationSeconds || '0', 10);
-    if (totalSecs >= 60) {
-      const m = Math.floor(totalSecs / 60);
-      const s = totalSecs % 60;
-      return `${m}:${s.toString().padStart(2, '0')}`;
-    }
-    return `${totalSecs}s`;
-  }
-  return exercise.currentRep || '-';
-};
 
 export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
   routineId,
@@ -321,11 +37,14 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
   onFinishSession,
   onCancel,
 }) => {
+  const { getToken } = useAuth();
   const { width: screenWidth } = Dimensions.get('window');
   const dynamicClockSize = screenWidth * 0.40; // 40% del ancho de pantalla
 
   const [phase, setPhase] = useState<Phase>('COUNTDOWN');
   const [countdown, setCountdown] = useState(3);
+
+  const [exercises, setExercises] = useState<SessionExercise[]>(day.exercises);
 
   const [globalTime, setGlobalTime] = useState(0);
   const [exerciseIndex, setExerciseIndex] = useState(0);
@@ -336,11 +55,12 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
   const [logs, setLogs] = useState<ExerciseLog[]>([]);
   const [showInstructions, setShowInstructions] = useState(false);
   const [exerciseTimeLeft, setExerciseTimeLeft] = useState<number | null>(null);
+  const [isAdjustingLoad, setIsAdjustingLoad] = useState(false);
 
-  const currentExercise = day.exercises[exerciseIndex];
+  const currentExercise = exercises[exerciseIndex];
   const totalSets = parseInt(currentExercise?.sets) || 1;
   const initialRest = parseInt(currentExercise?.rest) || 60;
-  
+
   const isTimeBased = currentExercise?.repType === 'Timed';
   const timeBasedDuration = isTimeBased ? parseInt(currentExercise?.durationSeconds || '0', 10) : 0;
 
@@ -351,19 +71,19 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
       const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
       return () => clearTimeout(t);
     }
-    // show "¡Vamos!" for 1 s then start
+    // Muestra "¡Vamos!" por 1 segundo antes de iniciar
     const t = setTimeout(() => setPhase('EXERCISE'), 1000);
     return () => clearTimeout(t);
   }, [countdown, phase]);
 
-  /* ── global timer ── */
+  /* ── timer global ── */
   useEffect(() => {
     if (phase !== 'EXERCISE' && phase !== 'REST') return;
     const t = setInterval(() => setGlobalTime((g) => g + 1), 1000);
     return () => clearInterval(t);
   }, [phase]);
 
-  /* ── rest countdown ── */
+  /* ── countdown de descanso ── */
   useEffect(() => {
     if (phase !== 'REST') return;
     if (restTimeLeft <= 0) return;
@@ -379,16 +99,16 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
     return () => clearInterval(t);
   }, [phase, restTimeLeft > 0]);
 
-  /* ── auto-advance when rest reaches 0 ── */
+  /* ── auto-avance cuando el descanso llega a 0 ── */
   useEffect(() => {
     if (phase === 'REST' && restTimeLeft === 0 && initialRest > 0) {
-      // small delay so the user sees 00:00
+      // Pequeña pausa para que el usuario vea 00:00
       const t = setTimeout(() => advanceAfterRest(), 500);
       return () => clearTimeout(t);
     }
   }, [phase, restTimeLeft]);
 
-  /* ── exercise countdown ── */
+  /* ── countdown de ejercicio (Timed) ── */
   useEffect(() => {
     if (phase === 'EXERCISE' && isTimeBased) {
       setExerciseTimeLeft(timeBasedDuration);
@@ -432,8 +152,8 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
   );
 
   const advanceAfterRest = useCallback(() => {
-    // save rpe (if the user never pressed "Guardar", default 5)
-    if (!rpeSaved) saveCurrentLog(rpe);
+    // Guarda RPE (si el usuario no presionó "Guardar", valor por defecto 5)
+    if (!rpeSaved) saveCurrentLog(5);
 
     if (currentSet < totalSets) {
       setCurrentSet((s) => s + 1);
@@ -444,7 +164,7 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
     setRpeSaved(false);
     setRpe(5);
     setPhase('EXERCISE');
-  }, [currentSet, totalSets, rpe, rpeSaved, saveCurrentLog]);
+  }, [currentSet, totalSets, rpeSaved, saveCurrentLog]);
 
   const handleFinishSet = useCallback(() => {
     const isLastSet = currentSet >= totalSets;
@@ -456,18 +176,56 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
       return;
     }
 
-    // Increment set counter BEFORE entering rest (e.g. 1/3 → 2/3)
+    // Inicia descanso
     setRestTimeLeft(initialRest);
     setRpe(5);
     setRpeSaved(false);
     setPhase('REST');
-  }, [currentSet, totalSets, exerciseIndex, day.exercises.length, saveCurrentLog, initialRest]);
+  }, [currentSet, totalSets, exerciseIndex, exercises.length, saveCurrentLog, initialRest]);
 
   useEffect(() => {
     if (phase === 'EXERCISE' && isTimeBased && exerciseTimeLeft === 0) {
       handleFinishSet();
     }
   }, [phase, isTimeBased, exerciseTimeLeft, handleFinishSet]);
+
+  /** Guarda el RPE y ajusta la carga si el valor está fuera del rango neutral */
+  const handleSaveRpe = async () => {
+    if (rpe >= 4 && rpe <= 6) {
+      saveCurrentLog(rpe);
+      setRpeSaved(true);
+      return;
+    }
+
+    setIsAdjustingLoad(true);
+    try {
+      const token = await getToken();
+      const adjustment = await adjustExerciseLoad(currentExercise.id, day.id, rpe, token);
+
+      if (!adjustment.weight && !adjustment.currentRep && !adjustment.durationSeconds) {
+        Alert.alert("Aviso", "No se pudo ajustar la carga para este ejercicio.");
+      } else {
+        setExercises((prev) => {
+          const newEx = [...prev];
+          const curr = { ...newEx[exerciseIndex] };
+          if (adjustment.weight !== null) curr.weight = adjustment.weight;
+          if (adjustment.currentRep !== null) curr.currentRep = adjustment.currentRep;
+          if (adjustment.durationSeconds !== null) curr.durationSeconds = adjustment.durationSeconds;
+          newEx[exerciseIndex] = curr;
+          return newEx;
+        });
+        saveCurrentLog(rpe);
+        setRpeSaved(true);
+      }
+    } catch (error: any) {
+      Alert.alert("Error", "No se pudo ajustar la carga. Intente nuevamente.");
+      console.log('STATUS:', error?.response?.status);
+      console.log('DATA:', error?.response?.data);
+      console.log('MESSAGE:', error?.message);
+    } finally {
+      setIsAdjustingLoad(false);
+    }
+  };
 
   const handleFinishRest = () => {
     advanceAfterRest();
@@ -489,15 +247,10 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
   };
 
   const handleSaveSession = () => {
-    // Backend expects a TimeSpan parseable format like "HH:mm:ss"
-    const h = Math.floor(globalTime / 3600).toString().padStart(2, '0');
-    const m = Math.floor((globalTime % 3600) / 60).toString().padStart(2, '0');
-    const s = (globalTime % 60).toString().padStart(2, '0');
-
     const log: SessionLog = {
       routineId,
       trainedAt: new Date().toISOString(),
-      totalTime: `${h}:${m}:${s}`,
+      totalTime: formatTimeSpan(globalTime),
       exercises: logs,
     };
     onFinishSession?.(log);
@@ -552,7 +305,7 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
       </Text>
 
       <View className="flex-1 justify-between">
-        {/* ──── upper area ──── */}
+        {/* ──── zona superior ──── */}
         <View className="w-full mb-4">
           {phase === 'EXERCISE' ? (
             <Animated.View
@@ -561,16 +314,16 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
               exiting={SlideOutUp.duration(300)}
               className="items-center w-full"
             >
-              {/* GIF with expo-image for animated gif support */}
+              {/* GIF del ejercicio */}
               <View className="bg-zinc-900 rounded-3xl overflow-hidden w-full aspect-square mb-4 items-center justify-center relative">
                 {currentExercise.gifUrl ? (
                   <ExerciseGif uri={currentExercise.gifUrl} />
                 ) : (
                   <Ionicons name="image-outline" size={60} color="#555" />
                 )}
-                
-                {/* Floating Info Button */}
-                <TouchableOpacity 
+
+                {/* Botón flotante de información */}
+                <TouchableOpacity
                   onPress={() => setShowInstructions(true)}
                   className="absolute top-4 right-4 bg-zinc-800/80 p-2 rounded-full z-10 border border-white/10"
                 >
@@ -578,7 +331,7 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
                 </TouchableOpacity>
               </View>
 
-              {/* Stats chips */}
+              {/* Chips de estadísticas */}
               <View className="bg-zinc-900 rounded-2xl py-4 px-2 w-full flex-row justify-between border border-zinc-800">
                 <View className="items-center flex-1">
                   <Text className="text-lime-300 font-bold text-lg">
@@ -616,7 +369,7 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
               exiting={SlideOutDown.duration(300)}
               className="items-center w-full"
             >
-              {/* Large rest clock */}
+              {/* Reloj grande de descanso */}
               <ClockCircle
                 isRestPhase
                 restTimeLeft={restTimeLeft}
@@ -624,37 +377,40 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
                 globalTime={globalTime}
               />
 
-              {/* RPE slider */}
+              {/* Slider de RPE */}
               <View className="w-full mt-8">
                 <Text className="text-white font-bold text-lg ml-2 mb-2">
                   Esfuerzo percibido
                 </Text>
                 <View className="bg-zinc-900 rounded-2xl border border-zinc-800 pb-2">
-                  <RPESlider value={rpe} onValueChange={setRpe} />
+                  <RPESlider value={rpe} onValueChange={setRpe} disabled={rpeSaved || isAdjustingLoad} />
                 </View>
 
                 <TouchableOpacity
-                  className="bg-lime-300 w-full p-4 rounded-xl items-center mt-4"
-                  onPress={() => {
-                    saveCurrentLog(rpe);
-                    setRpeSaved(true);
-                  }}
+                  className={`w-full p-4 rounded-xl items-center mt-4 ${rpeSaved ? 'bg-zinc-700' : 'bg-lime-300'
+                    }`}
+                  disabled={rpeSaved || isAdjustingLoad}
+                  onPress={handleSaveRpe}
                 >
-                  <Text className="text-black font-bold text-base">
-                    {rpe >= 4 && rpe <= 6
-                      ? 'Guardar RPE'
-                      : 'Guardar y actualizar serie'}
-                  </Text>
+                  {isAdjustingLoad ? (
+                    <ActivityIndicator color="#000" size="small" />
+                  ) : (
+                    <Text className={`font-bold text-base ${rpeSaved ? 'text-zinc-500' : 'text-black'}`}>
+                      {rpe >= 4 && rpe <= 6
+                        ? 'Guardar RPE'
+                        : 'Guardar y actualizar serie'}
+                    </Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </Animated.View>
           )}
         </View>
 
-        {/* ──── bottom actions ──── */}
+        {/* ──── acciones inferiores ──── */}
         <View className="w-full flex-1 justify-end">
           {phase === 'EXERCISE' ? (
-            /* Exercise phase: clock + Finalizar Serie side by side */
+            /* Fase de ejercicio: reloj + botón Finalizar Serie */
             <View className="flex-row items-center justify-between mb-4 flex-1">
               <View className="flex-1 items-center justify-center">
                 <ClockCircle
@@ -678,7 +434,7 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
               </TouchableOpacity>
             </View>
           ) : (
-            /* Rest phase: Finalizar Descanso */
+            /* Fase de descanso: botón Finalizar Descanso */
             <View className="flex-1 mb-4 mt-8 justify-center">
               <TouchableOpacity
                 className="bg-lime-300 rounded-2xl w-full h-[120px] justify-center items-center"
@@ -702,7 +458,7 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
         </View>
       </View>
 
-      {/* Info Modal */}
+      {/* Modal de instrucciones */}
       {currentExercise && (
         <InstructionsModal
           visible={showInstructions}
