@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, forwardRef } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming } from 'react-native-reanimated';
@@ -14,7 +14,7 @@ interface ActionCardProps {
   isLoadingInitial?: boolean;
 }
 
-export const ActionCard: React.FC<ActionCardProps> = ({ cardState, onGenerate, onViewPlan, routine, isLoadingInitial = false }) => {
+export const ActionCard = forwardRef<View, ActionCardProps>(({ cardState, onGenerate, onViewPlan, routine, isLoadingInitial = false }, ref) => {
   const sparkleOpacity = useSharedValue(0.5);
   const sparkleScale = useSharedValue(0.9);
 
@@ -34,7 +34,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({ cardState, onGenerate, o
   }));
 
   return (
-    <View className="bg-[#18181b] rounded-3xl p-6 mx-4 mt-2 overflow-hidden relative">
+    <View ref={ref} collapsable={false} className="bg-[#18181b] rounded-3xl p-6 mx-4 mt-2 overflow-hidden relative">
       {/* Background styling to simulate the dark glassmorphism / gradient from the image */}
       <View className="absolute inset-0 bg-white/5" />
       
@@ -75,7 +75,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({ cardState, onGenerate, o
           )}
 
           {cardState === 'success' && routine && (
-            <View>
+            <TouchableOpacity onPress={onViewPlan} activeOpacity={0.9}>
               <View className="mb-4">
                 <Ionicons name="sparkles" size={32} color="white" />
               </View>
@@ -84,22 +84,21 @@ export const ActionCard: React.FC<ActionCardProps> = ({ cardState, onGenerate, o
                 {routine.days.length} días/semana{'\n'}45 min por sesión.
               </Text>
               <View className="flex-row items-center gap-4">
-                <TouchableOpacity 
-                  onPress={onViewPlan}
+                <View 
                   className="bg-zinc-100 flex-1 py-3 rounded-2xl items-center"
                 >
                   <Text className="text-black font-bold text-base">Ver mi plan</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
+                </View>
+                <View 
                   className="bg-lime-300 p-3 rounded-2xl items-center justify-center"
                 >
                   <Ionicons name="play" size={24} color="black" />
-                </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            </TouchableOpacity>
           )}
         </>
       )}
     </View>
   );
-};
+});

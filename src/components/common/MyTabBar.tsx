@@ -4,6 +4,7 @@ import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useState } from 'react';
 import { Platform, Pressable, View, Text, Modal } from 'react-native';
+import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -79,7 +80,7 @@ function TabItem({
 }) {
   const icons = TAB_ICONS[route.name] ?? { outline: 'ellipse-outline', filled: 'ellipse' };
   const iconColor = isFocused
-    ? (isDark ? '#d9f99d' : '#18181b')
+    ? (isDark ? '#ffffff' : '#18181b')
     : (isDark ? '#71717a' : '#a1a1aa');
 
   return (
@@ -96,7 +97,7 @@ function TabItem({
       <Text
         className={`text-[10px] mt-1 font-semibold ${
           isFocused
-            ? (isDark ? 'text-lime-200' : 'text-zinc-900')
+            ? (isDark ? 'text-white' : 'text-zinc-900')
             : (isDark ? 'text-zinc-500' : 'text-zinc-400')
         }`}
       >
@@ -111,6 +112,7 @@ function FabMenuItem({
   option,
   isDark,
   isPressed,
+  iconColor,
   onPress,
   onPressIn,
   onPressOut,
@@ -118,6 +120,7 @@ function FabMenuItem({
   option: MenuOption;
   isDark: boolean;
   isPressed: boolean;
+  iconColor: string;
   onPress: () => void;
   onPressIn: () => void;
   onPressOut: () => void;
@@ -142,7 +145,7 @@ function FabMenuItem({
         <Ionicons
           name={option.icon as any}
           size={19}
-          color={isDark ? '#d9f99d' : '#18181b'}
+          color={iconColor}
         />
       </View>
 
@@ -168,13 +171,23 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   const [isMenuOpen, setIsMenuOpen]   = useState(false);
   const [pressedKey, setPressedKey]   = useState<string | null>(null);
 
+  /** Contexto de la vista de detalle de rutina para opciones contextuales */
+  const { isDetailVisible, actions: routineActions } = useRoutineDetailContext();
+
   /** Progreso de animación del menú: 0 = cerrado, 1 = abierto */
   const menuProgress = useSharedValue(0);
   /** Escala del botón FAB para feedback de press */
   const fabScale     = useSharedValue(1);
 
   const activeRouteName = state.routes[state.index]?.name ?? 'index';
-  const menuOptions     = FAB_MENU_OPTIONS[activeRouteName] ?? FAB_MENU_OPTIONS.index;
+
+  /** Opciones del menú: contextuales cuando la rutina está expandida */
+  const menuOptions = (isDetailVisible && activeRouteName === 'index')
+    ? [
+        { icon: 'refresh',          label: 'Regenerar rutina',    key: 'regenerate-routine' },
+        { icon: 'swap-horizontal',   label: 'Cambiar ejercicios', key: 'change-exercises' },
+      ] as MenuOption[]
+    : (FAB_MENU_OPTIONS[activeRouteName] ?? FAB_MENU_OPTIONS.index);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -199,8 +212,19 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   const handleMenuAction = useCallback((key: string) => {
     closeMenu();
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Acciones contextuales de la vista de rutina
+    if (key === 'regenerate-routine' && routineActions?.onRegenerate) {
+      routineActions.onRegenerate();
+      return;
+    }
+    if (key === 'change-exercises' && routineActions?.onChangeExercises) {
+      routineActions.onChangeExercises();
+      return;
+    }
+
     onFabAction?.(key);
-  }, [closeMenu, onFabAction]);
+  }, [closeMenu, onFabAction, routineActions]);
 
   const onFabPressIn  = useCallback(() => { fabScale.value = withSpring(0.92, PRESS_SPRING); }, [fabScale]);
   const onFabPressOut = useCallback(() => { fabScale.value = withSpring(1,    PRESS_SPRING); }, [fabScale]);
@@ -228,6 +252,18 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
     ],
   }));
 
+  /** Crossfade out para los 3 puntos: counter-rotación para que quede horizontal mientras desvanece */
+  const ellipsisAnimStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(menuProgress.value, [0, 0.5], [1, 0]),
+    transform: [{ rotate: `${interpolate(menuProgress.value, [0, 1], [0, -45])}deg` }],
+  }));
+
+  /** Crossfade in para el icono que se convierte en X (un "add" normal) */
+  const crossIconAnimStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(menuProgress.value, [0.5, 1], [0, 1]),
+    position: 'absolute',
+  }));
+
   /** Morphing del menú: escala desde abajo + opacidad */
   const menuAnimStyle = useAnimatedStyle(() => ({
     opacity: interpolate(menuProgress.value, [0, 0.35, 1], [0, 0.85, 1]),
@@ -242,9 +278,45 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
     opacity: interpolate(menuProgress.value, [0, 1], [0, 1]),
   }));
 
-  // ── Colores dinámicos del FAB (valores runtime, no pueden ir en className) ──
-  const fabBg        = isDark ? '#f4f4f5' : '#18181b';
-  const fabIconColor = isDark ? '#18181b' : '#ffffff';
+  // ── Colores dinámicos del FAB y de los iconos del menú según la vista activa ──
+  const getThemeColors = () => {
+    if (isDetailVisible || activeRouteName === 'fitness') {
+      // lime-300
+      return {
+        fabBg: '#d9f99d',
+        fabIconColor: '#18181b',
+        menuIconColor: '#d9f99d',
+        fabIconName: isDetailVisible ? 'ellipsis-horizontal' : 'add',
+      };
+    }
+    if (activeRouteName === 'nutrition') {
+      // amber-500
+      return {
+        fabBg: '#f59e0b',
+        fabIconColor: '#ffffff',
+        menuIconColor: '#f59e0b',
+        fabIconName: 'add',
+      };
+    }
+    if (activeRouteName === 'health') {
+      // red-500
+      return {
+        fabBg: '#ef4444',
+        fabIconColor: '#ffffff',
+        menuIconColor: '#ef4444',
+        fabIconName: 'add',
+      };
+    }
+    // index / home neutro
+    return {
+      fabBg: isDark ? '#f4f4f5' : '#18181b',
+      fabIconColor: isDark ? '#18181b' : '#ffffff',
+      menuIconColor: isDark ? '#ffffff' : '#18181b',
+      fabIconName: 'add',
+    };
+  };
+
+  const { fabBg, fabIconColor, menuIconColor, fabIconName } = getThemeColors();
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -284,6 +356,7 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
                 option={option}
                 isDark={isDark}
                 isPressed={pressedKey === option.key}
+                iconColor={menuIconColor}
                 onPress={() => handleMenuAction(option.key)}
                 onPressIn={() => setPressedKey(option.key)}
                 onPressOut={() => setPressedKey(null)}
@@ -363,7 +436,18 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
               fabAnimStyle,
             ]}
           >
-            <Ionicons name="add" size={32} color={fabIconColor} />
+            {fabIconName === 'add' ? (
+              <Ionicons name="add" size={32} color={fabIconColor} />
+            ) : (
+              <>
+                <Animated.View style={ellipsisAnimStyle}>
+                  <Ionicons name="ellipsis-horizontal" size={32} color={fabIconColor} />
+                </Animated.View>
+                <Animated.View style={crossIconAnimStyle} pointerEvents="none">
+                  <Ionicons name="add" size={32} color={fabIconColor} />
+                </Animated.View>
+              </>
+            )}
           </Animated.View>
         </Pressable>
 

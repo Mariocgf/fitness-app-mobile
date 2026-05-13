@@ -1,23 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { GreetingHeader } from '@/src/components/features/home/GreetingHeader';
 import { ActionCard, CardState } from '@/src/components/features/home/ActionCard';
-import { RoutineDetailModal } from '@/src/components/features/routine/RoutineDetailModal';
+import { RoutineDetailView, CardLayout } from '@/src/components/features/routine/RoutineDetailView';
 import { Routine } from '@/src/types/routine';
 import { generateRoutine, getActiveRoutine } from '@/src/services/routine.service';
 import { getActiveModules } from '@/src/services/module.service';
 import { useThemeColor } from '@/src/hooks/use-theme-color';
+import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 
 export default function HomeScreen() {
   const { user } = useUser();
   const { getToken } = useAuth();
   const [cardState, setCardState] = useState<CardState>('initial');
   const [routine, setRoutine] = useState<Routine | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [showRoutineDetail, setShowRoutineDetail] = useState(false);
+  const [cardLayout, setCardLayout] = useState<CardLayout | null>(null);
   const [isFetchingData, setIsFetchingData] = useState(true);
+  const cardRef = useRef<View>(null);
+
+  const { setDetailVisible, setActions } = useRoutineDetailContext();
   
   const backgroundColor = useThemeColor({ light: '#FFFFFF', dark: '#000000' }, 'background');
 
@@ -72,6 +77,29 @@ export default function HomeScreen() {
     initializeData();
   }, []);
 
+  /** Mide la posición de la card en pantalla y abre la vista expandida */
+  const handleViewPlan = useCallback(() => {
+    cardRef.current?.measureInWindow((x, y, width, height) => {
+      setCardLayout({ x, y, width, height });
+      setShowRoutineDetail(true);
+      setDetailVisible(true);
+      setActions({
+        onRegenerate: () => {
+          // Placeholder: lógica de regeneración pendiente
+        },
+        onChangeExercises: () => {
+          // Placeholder: lógica de cambio de ejercicios pendiente
+        },
+      });
+    });
+  }, [setDetailVisible, setActions]);
+
+  const handleCloseDetail = useCallback(() => {
+    setShowRoutineDetail(false);
+    setDetailVisible(false);
+    setActions(null);
+  }, [setDetailVisible, setActions]);
+
   const handleGenerate = async () => {
     setCardState('loading');
     try {
@@ -86,16 +114,13 @@ export default function HomeScreen() {
     }
   };
 
-  const handleViewPlan = () => {
-    setIsModalVisible(true);
-  };
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor }}>
       <ScrollView contentContainerClassName="pt-6 pb-10">
         <GreetingHeader userName={userName} avatarUrl={user?.imageUrl} />
         
-        <ActionCard 
+        <ActionCard
+          ref={cardRef}
           cardState={cardState}
           onGenerate={handleGenerate}
           onViewPlan={handleViewPlan}
@@ -104,11 +129,14 @@ export default function HomeScreen() {
         />
       </ScrollView>
 
-      <RoutineDetailModal 
-        visible={isModalVisible}
-        onClose={() => setIsModalVisible(false)}
-        routine={routine}
-      />
+      {/* Vista expandida: se anima desde la posición de la card */}
+      {showRoutineDetail && routine && cardLayout && (
+        <RoutineDetailView
+          routine={routine}
+          onClose={handleCloseDetail}
+          cardLayout={cardLayout}
+        />
+      )}
     </SafeAreaView>
   );
 }
