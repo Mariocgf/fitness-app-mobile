@@ -5,7 +5,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { GreetingHeader } from '@/src/components/features/home/GreetingHeader';
 import { ActionCard, CardState } from '@/src/components/features/home/ActionCard';
-import { RoutineFabMenu } from '@/src/components/features/home/RoutineFabMenu';
 import { RoutineDetailModal } from '@/src/components/features/routine/RoutineDetailModal';
 import { Routine } from '@/src/types/routine';
 import { generateRoutine, getActiveRoutine } from '@/src/services/routine.service';
@@ -19,7 +18,6 @@ export default function HomeScreen() {
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isFetchingData, setIsFetchingData] = useState(true);
-  const [isFabMenuVisible, setIsFabMenuVisible] = useState(false);
   
   const backgroundColor = useThemeColor({ light: '#FFFFFF', dark: '#000000' }, 'background');
 
@@ -95,7 +93,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor }}>
       <ScrollView contentContainerClassName="pt-6 pb-10">
-        <GreetingHeader userName={userName} />
+        <GreetingHeader userName={userName} avatarUrl={user?.imageUrl} />
         
         <ActionCard 
           cardState={cardState}
@@ -110,12 +108,6 @@ export default function HomeScreen() {
         visible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         routine={routine}
-      />
-
-      <RoutineFabMenu
-        isMenuVisible={isFabMenuVisible}
-        onToggleMenu={() => setIsFabMenuVisible(!isFabMenuVisible)}
-        onGenerateRoutine={handleGenerate}
       />
     </SafeAreaView>
   );

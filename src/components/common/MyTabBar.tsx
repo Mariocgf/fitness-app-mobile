@@ -1,124 +1,390 @@
-import { IconSymbol } from '@/src/components/common/ui/icon-symbol';
+import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import * as Haptics from 'expo-haptics';
-import { useState } from 'react';
-import { LayoutChangeEvent, Platform, Pressable } from 'react-native';
-import Animated, { LinearTransition, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { useCallback, useState } from 'react';
+import { Platform, Pressable, View, Text, Modal } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+  interpolate,
+  Easing,
+} from 'react-native-reanimated';
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+// ─── Tipos ───────────────────────────────────────────────────────────────────
 
-export function MyTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+interface TabRoute {
+  route: { key: string; name: string; params?: object };
+  originalIndex: number;
+}
+
+interface MenuOption {
+  icon: string;
+  label: string;
+  key: string;
+}
+
+// ─── Constantes ──────────────────────────────────────────────────────────────
+
+/** Iconos por tab (outline = inactivo, filled = activo) */
+const TAB_ICONS: Record<string, { outline: string; filled: string }> = {
+  index:     { outline: 'home-outline',      filled: 'home' },
+  fitness:   { outline: 'barbell-outline',   filled: 'barbell' },
+  nutrition: { outline: 'nutrition-outline', filled: 'nutrition' },
+  health:    { outline: 'heart-outline',     filled: 'heart' },
+};
+
+/** Opciones del menú contextual del botón central según la vista activa */
+const FAB_MENU_OPTIONS: Record<string, MenuOption[]> = {
+  index: [
+    { icon: 'sparkles',          label: 'Generar rutina',     key: 'generate-routine' },
+    { icon: 'add-circle-outline', label: 'Agregar actividad', key: 'add-activity' },
+  ],
+  fitness: [
+    { icon: 'add-circle-outline', label: 'Nuevo ejercicio',  key: 'new-exercise' },
+    { icon: 'sparkles',           label: 'Generar rutina',   key: 'generate-routine' },
+  ],
+  nutrition: [
+    { icon: 'restaurant-outline', label: 'Registrar comida', key: 'log-meal' },
+    { icon: 'water-outline',      label: 'Registrar agua',   key: 'log-water' },
+  ],
+  health: [
+    { icon: 'pulse-outline',    label: 'Nueva métrica',    key: 'new-metric' },
+    { icon: 'calendar-outline', label: 'Agendar consulta', key: 'schedule-appointment' },
+  ],
+};
+
+/** Spring sin overshoot para apertura del menú */
+const OPEN_SPRING  = { damping: 22, stiffness: 280, overshootClamping: true } as const;
+/** Spring suave para feedback del botón */
+const PRESS_SPRING = { damping: 18, stiffness: 300, overshootClamping: true } as const;
+
+// ─── Sub-componentes ─────────────────────────────────────────────────────────
+
+/** Ítem individual del tab bar (icono + label) */
+function TabItem({
+  route,
+  isFocused,
+  label,
+  isDark,
+  onPress,
+}: {
+  route: { name: string };
+  isFocused: boolean;
+  label: string;
+  isDark: boolean;
+  onPress: () => void;
+}) {
+  const icons = TAB_ICONS[route.name] ?? { outline: 'ellipse-outline', filled: 'ellipse' };
+  const iconColor = isFocused
+    ? (isDark ? '#d9f99d' : '#18181b')
+    : (isDark ? '#71717a' : '#a1a1aa');
+
+  return (
+    <Pressable
+      onPress={onPress}
+      className="items-center justify-center py-2 px-3"
+      style={{ minWidth: 56 }}
+    >
+      <Ionicons
+        name={(isFocused ? icons.filled : icons.outline) as any}
+        size={24}
+        color={iconColor}
+      />
+      <Text
+        className={`text-[10px] mt-1 font-semibold ${
+          isFocused
+            ? (isDark ? 'text-lime-200' : 'text-zinc-900')
+            : (isDark ? 'text-zinc-500' : 'text-zinc-400')
+        }`}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+/** Ítem individual dentro del menú desplegable del FAB */
+function FabMenuItem({
+  option,
+  isDark,
+  isPressed,
+  onPress,
+  onPressIn,
+  onPressOut,
+}: {
+  option: MenuOption;
+  isDark: boolean;
+  isPressed: boolean;
+  onPress: () => void;
+  onPressIn: () => void;
+  onPressOut: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      className="flex-row items-center px-5 py-4"
+      style={{
+        // Solo el backgroundColor es dinámico runtime — el resto va en className
+        backgroundColor: isPressed
+          ? (isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.055)')
+          : 'transparent',
+      }}
+    >
+      {/* Fondo del icono */}
+      <View className={`w-9 h-9 rounded-xl items-center justify-center mr-3 ${
+        isDark ? 'bg-zinc-700' : 'bg-gray-100'
+      }`}>
+        <Ionicons
+          name={option.icon as any}
+          size={19}
+          color={isDark ? '#d9f99d' : '#18181b'}
+        />
+      </View>
+
+      <Text className={`text-[15px] font-semibold ${
+        isDark ? 'text-white' : 'text-zinc-900'
+      }`}>
+        {option.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────────
+
+interface MyTabBarProps extends BottomTabBarProps {
+  onFabAction?: (actionKey: string) => void;
+}
+
+export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabBarProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  // Guardamos las dimensiones (x y width) de cada uno de los botones para animar
-  const [dimensions, setDimensions] = useState<{ x: number; width: number }[]>([]);
+  const [isMenuOpen, setIsMenuOpen]   = useState(false);
+  const [pressedKey, setPressedKey]   = useState<string | null>(null);
 
-  const onTabbarLayout = (e: LayoutChangeEvent, index: number) => {
-    const { x, width } = e.nativeEvent.layout;
-    setDimensions((prev) => {
-      const newDim = [...prev];
-      newDim[index] = { x, width };
-      return newDim;
-    });
-  };
+  /** Progreso de animación del menú: 0 = cerrado, 1 = abierto */
+  const menuProgress = useSharedValue(0);
+  /** Escala del botón FAB para feedback de press */
+  const fabScale     = useSharedValue(1);
 
-  // Estilo animado para el indicador deslizable (pill) de fondo - Amortiguación alta para evitar rebotes
-  const animatedIndicatorStyle = useAnimatedStyle(() => {
-    const activeDimension = dimensions[state.index];
-    if (!activeDimension) return { opacity: 0 };
-    return {
-      opacity: 1,
-      // Damping alto (50) elimina el rebote físico por completo
-      width: withSpring(activeDimension.width, { damping: 10, stiffness: 200, overshootClamping: true }),
-      transform: [{ translateX: withSpring(activeDimension.x, { damping: 10, stiffness: 200, overshootClamping: true }) }],
-    };
-  }, [state.index, dimensions]);
+  const activeRouteName = state.routes[state.index]?.name ?? 'index';
+  const menuOptions     = FAB_MENU_OPTIONS[activeRouteName] ?? FAB_MENU_OPTIONS.index;
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+  const openMenu = useCallback(() => {
+    setIsMenuOpen(true);
+    menuProgress.value = withSpring(1, OPEN_SPRING);
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  }, [menuProgress]);
+
+  const closeMenu = useCallback(() => {
+    menuProgress.value = withTiming(0, { duration: 180, easing: Easing.in(Easing.cubic) });
+    setTimeout(() => setIsMenuOpen(false), 185);
+  }, [menuProgress]);
+
+  const toggleMenu = useCallback(() => {
+    if (isMenuOpen) closeMenu();
+    else openMenu();
+  }, [isMenuOpen, openMenu, closeMenu]);
+
+  const handleMenuAction = useCallback((key: string) => {
+    closeMenu();
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onFabAction?.(key);
+  }, [closeMenu, onFabAction]);
+
+  const onFabPressIn  = useCallback(() => { fabScale.value = withSpring(0.92, PRESS_SPRING); }, [fabScale]);
+  const onFabPressOut = useCallback(() => { fabScale.value = withSpring(1,    PRESS_SPRING); }, [fabScale]);
+
+  // ── Filtrado de rutas visibles ─────────────────────────────────────────────
+
+  const VISIBLE_LEFT  = ['index', 'fitness'];
+  const VISIBLE_RIGHT = ['nutrition', 'health'];
+
+  const leftRoutes: TabRoute[] = state.routes
+    .map((route, idx) => ({ route, originalIndex: idx }))
+    .filter(({ route }) => VISIBLE_LEFT.includes(route.name));
+
+  const rightRoutes: TabRoute[] = state.routes
+    .map((route, idx) => ({ route, originalIndex: idx }))
+    .filter(({ route }) => VISIBLE_RIGHT.includes(route.name));
+
+  // ── Animated styles ────────────────────────────────────────────────────────
+
+  /** Rotación del "+" y escala del botón unificadas en un solo animated style */
+  const fabAnimStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale:  fabScale.value },
+      { rotate: `${interpolate(menuProgress.value, [0, 1], [0, 45])}deg` },
+    ],
+  }));
+
+  /** Morphing del menú: escala desde abajo + opacidad */
+  const menuAnimStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(menuProgress.value, [0, 0.35, 1], [0, 0.85, 1]),
+    transform: [
+      { scale:      interpolate(menuProgress.value, [0, 1], [0.55, 1]) },
+      { translateY: interpolate(menuProgress.value, [0, 1], [40, 0]) },
+    ],
+  }));
+
+  /** Overlay que bloquea interacciones mientras el menú está abierto */
+  const overlayAnimStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(menuProgress.value, [0, 1], [0, 1]),
+  }));
+
+  // ── Colores dinámicos del FAB (valores runtime, no pueden ir en className) ──
+  const fabBg        = isDark ? '#f4f4f5' : '#18181b';
+  const fabIconColor = isDark ? '#18181b' : '#ffffff';
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <Animated.View
-      layout={LinearTransition}
-      className={`absolute bottom-6 flex-row items-center self-center h-20 p-2 rounded-full border ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'
-        } shadow-xl shadow-black/20`}
-    >
-      {/* --- EL INDICADOR ANIMADO DE FONDO --- */}
-      {dimensions.length > 0 && (
+    <>
+      <Modal visible={isMenuOpen} transparent animationType="none" onRequestClose={closeMenu}>
+        {/* Overlay transparente para cerrar el menú al tocar fuera */}
         <Animated.View
+          className="flex-1"
+          style={overlayAnimStyle}
+        >
+          <Pressable className="flex-1" onPress={closeMenu} />
+        </Animated.View>
+
+        {/* Menú desplegable con efecto de morphing */}
+        <Animated.View
+          className="absolute self-center z-50"
           style={[
             {
-              position: 'absolute',
-              height: '100%',
-              top: 8,
-              bottom: 8,
-              left: 0,
-              borderRadius: 100,
-              backgroundColor: isDark ? 'white' : '#0f172a',
+              bottom: 108,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.18,
+              shadowRadius: 24,
+              elevation: 12,
             },
-            animatedIndicatorStyle,
+            menuAnimStyle,
           ]}
-        />
-      )}
+        >
+          {/* Card del menú */}
+          <View className={`rounded-2xl overflow-hidden ${
+            isDark ? 'bg-zinc-800' : 'bg-white'
+          }`} style={{ minWidth: 230 }}>
+            {menuOptions.map((option) => (
+              <FabMenuItem
+                key={option.key}
+                option={option}
+                isDark={isDark}
+                isPressed={pressedKey === option.key}
+                onPress={() => handleMenuAction(option.key)}
+                onPressIn={() => setPressedKey(option.key)}
+                onPressOut={() => setPressedKey(null)}
+              />
+            ))}
+          </View>
 
-      {state.routes.map((route, index) => {
-        const { options } = descriptors[route.key];
-        const label =
-          options.tabBarLabel !== undefined
-            ? options.tabBarLabel
-            : options.title !== undefined
-              ? options.title
-              : route.name;
+          {/* Triángulo indicador apuntando al botón */}
+          <View className="items-center">
+            <View style={{
+              width: 0, height: 0,
+              borderLeftWidth: 11, borderRightWidth: 11, borderTopWidth: 9,
+              borderLeftColor: 'transparent', borderRightColor: 'transparent',
+              borderTopColor: isDark ? '#3f3f46' : '#ffffff',
+            }} />
+          </View>
+        </Animated.View>
+      </Modal>
 
-        const getIconName = (routeName: string) => {
-          switch (routeName) {
-            case 'index': return 'house.fill';
-            case 'explore': return 'paperplane.fill';
-            case 'profile': return 'person.fill';
-            default: return 'circle';
-          }
-        };
-
-        const isFocused = state.index === index;
-
-        const onPress = () => {
-          if (Platform.OS === 'ios') {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-          });
-
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name, route.params);
-          }
-        };
-
-        return (
-          <AnimatedPressable
-            layout={LinearTransition}
-            onLayout={(e) => onTabbarLayout(e, index)}
+      {/* Tab Bar principal */}
+      <View
+        className={`absolute bottom-6 self-center flex-row items-center rounded-full ${
+          isDark
+            ? 'bg-zinc-900 border border-zinc-800'
+            : 'bg-white border border-zinc-200'
+        }`}
+        style={{
+          paddingHorizontal: 8,
+          paddingVertical: 6,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: isDark ? 0.4 : 0.1,
+          shadowRadius: 16,
+          elevation: 8,
+        }}
+      >
+        {leftRoutes.map(({ route, originalIndex }) => (
+          <TabItem
             key={route.key}
-            onPress={onPress}
-            className="flex-row items-center justify-center p-3 rounded-full mx-[2px] bg-transparent"
+            route={route}
+            isFocused={state.index === originalIndex}
+            label={(descriptors[route.key]?.options?.title ?? route.name) as string}
+            isDark={isDark}
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (isMenuOpen) closeMenu();
+              const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+              if (state.index !== originalIndex && !event.defaultPrevented) {
+                navigation.navigate(route.name, route.params);
+              }
+            }}
+          />
+        ))}
+
+        {/* Botón FAB central */}
+        <Pressable
+          onPress={toggleMenu}
+          onPressIn={onFabPressIn}
+          onPressOut={onFabPressOut}
+          className="items-center justify-center mx-2"
+          style={{ marginTop: -20 }}
+        >
+          <Animated.View
+            className="items-center justify-center"
+            style={[
+              {
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                backgroundColor: fabBg,
+                shadowColor: fabBg,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.35,
+                shadowRadius: 8,
+                elevation: 6,
+              },
+              fabAnimStyle,
+            ]}
           >
-            <IconSymbol
-              size={24}
-              name={getIconName(route.name) as any}
-              color={isFocused ? (isDark ? '#000' : '#fff') : (isDark ? '#a1a1aa' : '#64748b')}
-            />
-            {isFocused && (
-              <Animated.Text
-                layout={LinearTransition}
-                className={`ml-2 font-semibold ${isDark ? 'text-black' : 'text-white'}`}
-              >
-                {label as string}
-              </Animated.Text>
-            )}
-          </AnimatedPressable>
-        );
-      })}
-    </Animated.View>
+            <Ionicons name="add" size={32} color={fabIconColor} />
+          </Animated.View>
+        </Pressable>
+
+        {rightRoutes.map(({ route, originalIndex }) => (
+          <TabItem
+            key={route.key}
+            route={route}
+            isFocused={state.index === originalIndex}
+            label={(descriptors[route.key]?.options?.title ?? route.name) as string}
+            isDark={isDark}
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (isMenuOpen) closeMenu();
+              const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+              if (state.index !== originalIndex && !event.defaultPrevented) {
+                navigation.navigate(route.name, route.params);
+              }
+            }}
+          />
+        ))}
+      </View>
+    </>
   );
 }

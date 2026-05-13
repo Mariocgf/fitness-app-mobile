@@ -2,15 +2,9 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 import { useAuth } from '@clerk/clerk-expo';
 
-import { HapticTab } from '@/src/components/common/haptic-tab';
-import { IconSymbol } from '@/src/components/common/ui/icon-symbol';
-import { Colors } from '@/src/utils/constants/theme';
-import { useColorScheme } from '@/src/hooks/use-color-scheme';
-
 import { MyTabBar } from '@/src/components/common/MyTabBar';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
   const { isLoaded, isSignedIn } = useAuth();
 
   // Si Clerk no ha cargado completamente o el usuario no está autenticado,
@@ -33,15 +27,28 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="fitness"
         options={{
-          title: 'Explore',
+          title: 'Fitness',
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="nutrition"
         options={{
-          title: 'Profile',
+          title: 'Nutrición',
+        }}
+      />
+      <Tabs.Screen
+        name="health"
+        options={{
+          title: 'Salud',
+        }}
+      />
+      {/* Ocultar explore del tab bar — se puede remover más adelante */}
+      <Tabs.Screen
+        name="explore"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

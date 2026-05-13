@@ -182,6 +182,7 @@ function RootNavigator() {
       <Stack.Screen name="login" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       <Stack.Screen name="session" options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="profile" options={{ headerShown: false, animation: 'slide_from_right' }} />
     </Stack>
   );
 }
