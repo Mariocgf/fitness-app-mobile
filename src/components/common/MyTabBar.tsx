@@ -1,17 +1,17 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
+import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
+import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useState } from 'react';
-import { Platform, Pressable, View, Text, Modal } from 'react-native';
-import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
+import { Modal, Platform, Pressable, Text, View } from 'react-native';
 import Animated, {
+  Easing,
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
-  interpolate,
-  Easing,
 } from 'react-native-reanimated';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -172,7 +172,7 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   const [pressedKey, setPressedKey]   = useState<string | null>(null);
 
   /** Contexto de la vista de detalle de rutina para opciones contextuales */
-  const { isDetailVisible, actions: routineActions } = useRoutineDetailContext();
+  const { isDetailVisible, isSwapMode, actions: routineActions } = useRoutineDetailContext();
 
   /** Progreso de animación del menú: 0 = cerrado, 1 = abierto */
   const menuProgress = useSharedValue(0);
@@ -181,13 +181,25 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
 
   const activeRouteName = state.routes[state.index]?.name ?? 'index';
 
-  /** Opciones del menú: contextuales cuando la rutina está expandida */
-  const menuOptions = (isDetailVisible && activeRouteName === 'index')
-    ? [
+  /** Opciones del menú: contextuales según estado de la vista de rutina */
+  const menuOptions: MenuOption[] = (() => {
+    if (isDetailVisible && activeRouteName === 'index') {
+      // Modo edición de ejercicios activo
+      if (isSwapMode) {
+        return [
+          { icon: 'flash-outline',  label: 'Sugerencia',         key: 'request-suggestions' },
+          { icon: 'sparkles',       label: 'Sugerencia con IA',  key: 'request-suggestions-ai' },
+          { icon: 'close-circle-outline', label: 'Salir del modo editar', key: 'exit-swap-mode' },
+        ];
+      }
+      // Vista de detalle abierta sin modo edición
+      return [
         { icon: 'refresh',          label: 'Regenerar rutina',    key: 'regenerate-routine' },
-        { icon: 'swap-horizontal',   label: 'Cambiar ejercicios', key: 'change-exercises' },
-      ] as MenuOption[]
-    : (FAB_MENU_OPTIONS[activeRouteName] ?? FAB_MENU_OPTIONS.index);
+        { icon: 'swap-horizontal',  label: 'Cambiar ejercicios',  key: 'change-exercises' },
+      ];
+    }
+    return FAB_MENU_OPTIONS[activeRouteName] ?? FAB_MENU_OPTIONS.index;
+  })();
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -210,20 +222,41 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   }, [isMenuOpen, openMenu, closeMenu]);
 
   const handleMenuAction = useCallback((key: string) => {
+    console.log('[MyTabBar] handleMenuAction →', key);
     closeMenu();
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Acciones contextuales de la vista de rutina
-    if (key === 'regenerate-routine' && routineActions?.onRegenerate) {
-      routineActions.onRegenerate();
-      return;
-    }
-    if (key === 'change-exercises' && routineActions?.onChangeExercises) {
-      routineActions.onChangeExercises();
-      return;
-    }
+    // ⚠️ React Native no permite 2 Modals simultáneos. El menú del FAB usa
+    // <Modal>, así que tenemos que esperar a que termine de cerrarse antes
+    // de disparar acciones que abran su propio Modal (confirmación, candidatos…).
+    const run = () => {
+      // Acciones contextuales de la vista de rutina
+      if (key === 'regenerate-routine' && routineActions?.onRegenerate) {
+        routineActions.onRegenerate();
+        return;
+      }
+      if (key === 'change-exercises' && routineActions?.onChangeExercises) {
+        routineActions.onChangeExercises();
+        return;
+      }
+      if (key === 'request-suggestions' && routineActions?.onRequestSuggestions) {
+        routineActions.onRequestSuggestions(false);
+        return;
+      }
+      if (key === 'request-suggestions-ai' && routineActions?.onRequestSuggestions) {
+        routineActions.onRequestSuggestions(true);
+        return;
+      }
+      if (key === 'exit-swap-mode' && routineActions?.onExitSwapMode) {
+        routineActions.onExitSwapMode();
+        return;
+      }
+      onFabAction?.(key);
+    };
 
-    onFabAction?.(key);
+    // 220ms > 185ms del closeMenu para asegurar que el Modal del menú ya
+    // se desmontó antes de pedir abrir otro Modal.
+    setTimeout(run, 220);
   }, [closeMenu, onFabAction, routineActions]);
 
   const onFabPressIn  = useCallback(() => { fabScale.value = withSpring(0.92, PRESS_SPRING); }, [fabScale]);
@@ -286,7 +319,12 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
         fabBg: '#d9f99d',
         fabIconColor: '#18181b',
         menuIconColor: '#d9f99d',
-        fabIconName: isDetailVisible ? 'ellipsis-horizontal' : 'add',
+        // En modo edición: lápiz; en detalle normal: ellipsis; en fitness: add
+        fabIconName: isSwapMode
+          ? 'create-outline'
+          : isDetailVisible
+            ? 'ellipsis-horizontal'
+            : 'add',
       };
     }
     if (activeRouteName === 'nutrition') {
@@ -441,7 +479,7 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
             ) : (
               <>
                 <Animated.View style={ellipsisAnimStyle}>
-                  <Ionicons name="ellipsis-horizontal" size={32} color={fabIconColor} />
+                  <Ionicons name={fabIconName as any} size={fabIconName === 'create-outline' ? 26 : 32} color={fabIconColor} />
                 </Animated.View>
                 <Animated.View style={crossIconAnimStyle} pointerEvents="none">
                   <Ionicons name="add" size={32} color={fabIconColor} />

@@ -1,7 +1,7 @@
-import apiClient from '../api/client';
-import { Routine } from '../types/routine';
-import { SessionLog } from '../types/session';
 import { AxiosError } from 'axios';
+import apiClient from '../api/client';
+import { Routine, SwapPick, SwapSuggestionsResponse } from '../types/routine';
+import { SessionLog } from '../types/session';
 
 /**
  * Genera una rutina personalizada usando la IA del backend.
@@ -87,4 +87,95 @@ export const saveSession = async (
       },
     }
   );
+};
+
+/**
+ * Solicita sugerencias de reemplazo para uno o más ejercicios de la rutina activa.
+ * Llama a POST /api/Routine/swap-suggestions (modo determinista) o
+ * POST /api/Routine/swap-suggestions/ai (modo IA) según `useAI`.
+ *
+ * @param routineExerciseIds IDs (Guid) de las filas RoutineExercise a reemplazar.
+ * @param useAI              true = sugerencias rankeadas por IA (sin warnings, score 0).
+ * @param token              Token de autenticación de Clerk.
+ */
+export const getSwapSuggestions = async (
+  routineExerciseIds: string[],
+  useAI: boolean,
+  token: string | null
+): Promise<SwapSuggestionsResponse> => {
+  const url = useAI
+    ? '/api/Routine/swap-suggestions/ai'
+    : '/api/Routine/swap-suggestions';
+  console.log('[routine.service] POST', url, { routineExerciseIds, hasToken: !!token });
+
+  try {
+    // ⚠️ C# System.Text.Json por defecto espera PascalCase. Usar exacto nombre del DTO.
+    const { data } = await apiClient.post<SwapSuggestionsResponse>(
+      url,
+      { RoutineExerciseIds: routineExerciseIds },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    console.log('[routine.service]', url, 'OK', {
+      suggestionsCount: data.suggestions?.length,
+      hasHealthWarning: data.hasHealthWarning,
+      warningLevel: data.warningLevel,
+    });
+    return data;
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      console.error('[routine.service]', url, 'FAIL', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+    } else {
+      console.error('[routine.service]', url, 'FAIL', error);
+    }
+    throw error;
+  }
+};
+
+/**
+ * Confirma el reemplazo de uno o más ejercicios en la rutina activa.
+ * Llama a POST /api/Routine/swap-exercises.
+ *
+ * @param swaps Pares (routineExerciseId → newExerciseId). Sin duplicados.
+ * @param token Token de autenticación de Clerk.
+ * @returns     La rutina activa completa actualizada.
+ */
+export const confirmSwapExercises = async (
+  swaps: SwapPick[],
+  token: string | null
+): Promise<Routine> => {
+  const url = '/api/Routine/swap-exercises';
+  console.log('[routine.service] POST', url, { swapsCount: swaps.length, swaps, hasToken: !!token });
+
+  try {
+    const { data } = await apiClient.post<Routine>(
+      url,
+      { swaps },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    console.log('[routine.service]', url, 'OK', { routineId: data.id, daysCount: data.days?.length });
+    return data;
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      console.error('[routine.service]', url, 'FAIL', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+    } else {
+      console.error('[routine.service]', url, 'FAIL', error);
+    }
+    throw error;
+  }
 };

@@ -194,7 +194,7 @@ export const RoutineDetailModal: React.FC<RoutineDetailModalProps> = ({ visible,
                           <Text className="text-zinc-900 dark:text-lime-300 text-xs font-bold">{idx + 1}</Text>
                         </View>
                         <Text className="text-zinc-900 dark:text-white font-bold text-base flex-1" numberOfLines={1}>
-                          {exercise.exercise}
+                          {exercise.name}
                         </Text>
                       </View>
                       <View className="flex-row items-center flex-wrap gap-3">

@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { ActionCard, CardState } from '@/src/components/features/home/ActionCard';
+import { GreetingHeader } from '@/src/components/features/home/GreetingHeader';
+import { CardLayout, RoutineDetailView } from '@/src/components/features/routine/RoutineDetailView';
+import { useThemeColor } from '@/src/hooks/use-theme-color';
+import { getActiveModules } from '@/src/services/module.service';
+import { generateRoutine, getActiveRoutine, regenerateRoutine } from '@/src/services/routine.service';
+import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
+import { Routine } from '@/src/types/routine';
+import { useAuth, useUser } from '@clerk/clerk-expo';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAuth, useUser } from '@clerk/clerk-expo';
-import { GreetingHeader } from '@/src/components/features/home/GreetingHeader';
-import { ActionCard, CardState } from '@/src/components/features/home/ActionCard';
-import { RoutineDetailView, CardLayout } from '@/src/components/features/routine/RoutineDetailView';
-import { Routine } from '@/src/types/routine';
-import { generateRoutine, getActiveRoutine, regenerateRoutine } from '@/src/services/routine.service';
-import { getActiveModules } from '@/src/services/module.service';
-import { useThemeColor } from '@/src/hooks/use-theme-color';
-import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 
 export default function HomeScreen() {
   const { user } = useUser();
@@ -22,7 +22,7 @@ export default function HomeScreen() {
   const [isFetchingData, setIsFetchingData] = useState(true);
   const cardRef = useRef<View>(null);
 
-  const { setDetailVisible, setActions } = useRoutineDetailContext();
+  const { setDetailVisible } = useRoutineDetailContext();
   
   const backgroundColor = useThemeColor({ light: '#FFFFFF', dark: '#000000' }, 'background');
 
@@ -83,32 +83,38 @@ export default function HomeScreen() {
       setCardLayout({ x, y, width, height });
       setShowRoutineDetail(true);
       setDetailVisible(true);
-      setActions({
-        onRegenerate: async () => {
-          setCardState('loading');
-          try {
-            const token = await getToken();
-            const newRoutine = await regenerateRoutine(token);
-            setRoutine(newRoutine);
-            await AsyncStorage.setItem('@user_routine', JSON.stringify(newRoutine));
-            setCardState('success');
-          } catch (error) {
-            console.error(error);
-            setCardState('success'); // Vuelve al estado normal si falla
-          }
-        },
-        onChangeExercises: () => {
-          // Placeholder: lógica de cambio de ejercicios pendiente
-        },
-      });
     });
-  }, [setDetailVisible, setActions]);
+  }, [setDetailVisible]);
 
   const handleCloseDetail = useCallback(() => {
     setShowRoutineDetail(false);
     setDetailVisible(false);
-    setActions(null);
-  }, [setDetailVisible, setActions]);
+  }, [setDetailVisible]);
+
+  /** Regenera la rutina (lo dispara el FAB vía RoutineDetailView). */
+  const handleRegenerate = useCallback(async () => {
+    setCardState('loading');
+    try {
+      const token = await getToken();
+      const newRoutine = await regenerateRoutine(token);
+      setRoutine(newRoutine);
+      await AsyncStorage.setItem('@user_routine', JSON.stringify(newRoutine));
+      setCardState('success');
+    } catch (error) {
+      console.error(error);
+      setCardState('success'); // Vuelve al estado normal si falla
+    }
+  }, [getToken]);
+
+  /** Sincroniza el estado y la caché cuando un swap aplicado actualiza la rutina. */
+  const handleRoutineUpdated = useCallback(async (updated: Routine) => {
+    setRoutine(updated);
+    try {
+      await AsyncStorage.setItem('@user_routine', JSON.stringify(updated));
+    } catch (error) {
+      console.error('No se pudo cachear la rutina actualizada:', error);
+    }
+  }, []);
 
   const handleGenerate = async () => {
     setCardState('loading');
@@ -146,6 +152,8 @@ export default function HomeScreen() {
           onClose={handleCloseDetail}
           cardLayout={cardLayout}
           isGenerating={cardState === 'loading'}
+          onRegenerate={handleRegenerate}
+          onRoutineUpdated={handleRoutineUpdated}
         />
       )}
     </SafeAreaView>

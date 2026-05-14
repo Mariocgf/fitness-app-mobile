@@ -8,6 +8,7 @@ import { useAuth } from '@clerk/clerk-expo';
 import { cssInterop } from 'nativewind';
 import { getExerciseInfo } from '@/src/services/exercise.service';
 import { RoutineExercise } from '@/src/types/routine';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 cssInterop(Ionicons, {
   className: {
@@ -48,12 +49,13 @@ export const ExerciseDetailView: React.FC<ExerciseDetailViewProps> = ({
   onClose,
 }) => {
   const { getToken } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const { data: info, isLoading, isError } = useQuery({
     queryKey: ['exercise-info', exercise.id],
     queryFn: async () => {
       const token = await getToken();
-      return getExerciseInfo(exercise.id, token);
+      return getExerciseInfo(exercise.exerciseId, token);
     },
     staleTime: Infinity,
   });
@@ -76,13 +78,16 @@ export const ExerciseDetailView: React.FC<ExerciseDetailViewProps> = ({
         className="absolute top-0 left-0 w-full h-full bg-white dark:bg-zinc-950 z-20"
       >
         {/* Header */}
-        <View className="flex-row justify-between items-center px-6 py-4 border-b border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950">
+        <View
+          style={{ paddingTop: insets.top + 16 }}
+          className="flex-row justify-between items-center px-6 pb-4 border-b border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950"
+        >
           <View className="flex-row items-center gap-3 flex-1">
             <TouchableOpacity onPress={onBack} className="p-2 -ml-2">
               <Ionicons name="arrow-back" size={24} className="text-zinc-900 dark:text-white" />
             </TouchableOpacity>
             <Text className="flex-1 text-zinc-900 dark:text-white text-lg font-bold" numberOfLines={1}>
-              {exercise.exercise}
+              {exercise.name}
             </Text>
           </View>
           <TouchableOpacity

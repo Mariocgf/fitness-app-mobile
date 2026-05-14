@@ -2,7 +2,9 @@ import { RepType } from './routine';
 
 export type SessionExercise = {
   id: string;
-  exercise: string;
+  exerciseId: string;
+  order: string;
+  name: string;
   gifUrl: string | null;
   sets: string;
   repType: RepType;

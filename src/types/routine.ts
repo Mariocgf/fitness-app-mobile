@@ -2,7 +2,9 @@ export type RepType = 'Fixed' | 'Range' | 'Timed';
 
 export interface RoutineExercise {
   id: string;
-  exercise: string; // The name of the exercise conceptually based on the mockup
+  exerciseId: string;
+  order: string;
+  name: string;
   gifUrl: string | null;
   sets: string;
   repType: RepType;
@@ -26,4 +28,46 @@ export interface Routine {
   name: string; // e.g. "Fuerza Pro - Nivel Intermedio"
   createdAt: string;
   days: RoutineDay[];
+}
+
+/* ──────────────────────────── Swap exercises ─────────────────────────────── */
+
+export type WarningLevel = 'High' | 'Medium' | 'Low';
+
+export interface HealthWarning {
+  condition: string;
+  severity: string;
+  message: string;
+}
+
+export interface SwapCandidate {
+  exerciseId: string;
+  name: string;
+  gifUrl: string;
+  targetMuscles: string[];
+  bodyParts: string[];
+  equipments: string[];
+  /** Score informativo (0-10). */
+  score: number;
+}
+
+export interface SwapSuggestionItem {
+  replaces: {
+    routineExerciseId: string;
+    exerciseId: string;
+    exerciseName: string;
+  };
+  candidates: SwapCandidate[];
+}
+
+export interface SwapSuggestionsResponse {
+  hasHealthWarning: boolean;
+  warningLevel: WarningLevel | null;
+  warnings: HealthWarning[];
+  suggestions: SwapSuggestionItem[];
+}
+
+export interface SwapPick {
+  routineExerciseId: string;
+  newExerciseId: string;
 }

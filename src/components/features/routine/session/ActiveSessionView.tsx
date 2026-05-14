@@ -463,8 +463,8 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
         <InstructionsModal
           visible={showInstructions}
           onClose={() => setShowInstructions(false)}
-          exerciseId={currentExercise.id}
-          exerciseName={currentExercise.exercise}
+          exerciseId={currentExercise.exerciseId}
+          exerciseName={currentExercise.name}
         />
       )}
     </View>
