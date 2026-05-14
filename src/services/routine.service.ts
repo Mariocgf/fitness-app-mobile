@@ -24,6 +24,26 @@ export const generateRoutine = async (
 };
 
 /**
+ * Regenera la rutina actual del usuario usando la IA del backend.
+ * Llama al endpoint POST /api/Routine/regenerate-routine.
+ * @param token Token de autenticación de Clerk.
+ */
+export const regenerateRoutine = async (
+  token: string | null
+): Promise<Routine> => {
+  const { data } = await apiClient.post<Routine>(
+    '/api/Routine/regenerate-routine',
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  return data;
+};
+
+/**
  * Obtiene la rutina activa del usuario.
  * @param token Token de autenticación de Clerk.
  */

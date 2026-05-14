@@ -7,7 +7,7 @@ import { GreetingHeader } from '@/src/components/features/home/GreetingHeader';
 import { ActionCard, CardState } from '@/src/components/features/home/ActionCard';
 import { RoutineDetailView, CardLayout } from '@/src/components/features/routine/RoutineDetailView';
 import { Routine } from '@/src/types/routine';
-import { generateRoutine, getActiveRoutine } from '@/src/services/routine.service';
+import { generateRoutine, getActiveRoutine, regenerateRoutine } from '@/src/services/routine.service';
 import { getActiveModules } from '@/src/services/module.service';
 import { useThemeColor } from '@/src/hooks/use-theme-color';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
@@ -84,8 +84,18 @@ export default function HomeScreen() {
       setShowRoutineDetail(true);
       setDetailVisible(true);
       setActions({
-        onRegenerate: () => {
-          // Placeholder: lógica de regeneración pendiente
+        onRegenerate: async () => {
+          setCardState('loading');
+          try {
+            const token = await getToken();
+            const newRoutine = await regenerateRoutine(token);
+            setRoutine(newRoutine);
+            await AsyncStorage.setItem('@user_routine', JSON.stringify(newRoutine));
+            setCardState('success');
+          } catch (error) {
+            console.error(error);
+            setCardState('success'); // Vuelve al estado normal si falla
+          }
         },
         onChangeExercises: () => {
           // Placeholder: lógica de cambio de ejercicios pendiente
@@ -135,6 +145,7 @@ export default function HomeScreen() {
           routine={routine}
           onClose={handleCloseDetail}
           cardLayout={cardLayout}
+          isGenerating={cardState === 'loading'}
         />
       )}
     </SafeAreaView>
