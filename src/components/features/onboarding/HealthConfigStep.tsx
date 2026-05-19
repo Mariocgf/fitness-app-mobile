@@ -1,3 +1,6 @@
+import { useAuth } from '@clerk/clerk-expo';
+import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -7,11 +10,11 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useAuth } from '@clerk/clerk-expo';
 
 import BackButton from '@/src/components/common/BackButton';
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
 import OnboardingHeader from '@/src/components/common/OnboardingHeader';
+import ProgressBar from '@/src/components/common/ProgressBar';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
 import { useModuleConfigStorage } from '@/src/hooks/use-module-config-storage';
@@ -71,13 +74,6 @@ export default function HealthConfigStep({
     initialize();
   }, []);
 
-  useEffect(() => {
-    saveHealthConfig({
-      injuryIds: selectedInjuryIds,
-      medicalConditionIds: selectedConditionIds,
-    });
-  }, [selectedInjuryIds, selectedConditionIds]);
-
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
@@ -95,23 +91,32 @@ export default function HealthConfigStep({
     }
   };
 
+  const helperFooter = (
+    <View className="w-10 h-10 rounded-lg bg-white dark:bg-slate-800 items-center justify-center border border-slate-200 dark:border-slate-800">
+      <Ionicons name="lock-closed-outline" size={20} color="#64748b" />
+    </View>
+  );
+
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color={brandColor} />
-        <Text className="text-slate-500 dark:text-zinc-400 mt-4">
+        <Text className="text-slate-500 dark:text-slate-400 mt-4">
           Cargando datos de salud...
         </Text>
       </View>
     );
   }
 
-  // ── Pantalla 1: Lesiones ──────────────────────────────────────────
+  // ── Paso 1: Lesiones ──────────────────────────────────────────────
   if (subStep === 0) {
     return (
       <View className="flex-1">
+        <StatusBar style="dark" />
+        <ProgressBar currentStep={0} totalSteps={2} />
+
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32, paddingTop: 32 }}
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 24 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -120,72 +125,79 @@ export default function HealthConfigStep({
             onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
           >
             <OnboardingHeader
-              title="Datos de salud"
-              subtitle="Configura tu perfil físico para comenzar"
+              title={"Datos\nde salud"}
+              subtitle="Cuéntanos sobre tus lesiones que debeamos considerar."
             />
-
-            <Text className="text-xl font-semibold text-slate-800 dark:text-zinc-200 mb-4">
-              Lesiones
-            </Text>
 
             <SearchableSelect
               items={injuries}
               selectedIds={selectedInjuryIds}
               onSelectionChange={setSelectedInjuryIds}
-              placeholder="Seleccionar - Opcional"
+              placeholder="Buscar lesión"
+              cardTitle="Tienes alguna lesión?"
+              cardSubtitle="Selecciona todas las que apliquen"
+              cardIconName="shield-outline"
+              selectedLabel="Seleccionadas"
             />
           </Pressable>
         </ScrollView>
 
         <OnboardingFooter
-          brandColor={brandColor}
-          onPress={() => setSubStep(1)}
-          helperText="Puedes completar o editar estos datos luego."
+          onPress={() => {
+            saveHealthConfig({ injuryIds: selectedInjuryIds, medicalConditionIds: selectedConditionIds });
+            setSubStep(1);
+          }}
+          buttonLabel="Continuar"
+          helperText="Esta información es confidencial y solo se usa para personalizar tu planes."
+          helperIcon={helperFooter}
         />
       </View>
     );
   }
 
-  // ── Pantalla 2: Afecciones Médicas ────────────────────────────────
+  // ── Paso 2: Afecciones médicas ────────────────────────────────────
   return (
     <SwipeBackWrapper onSwipeBack={() => setSubStep(0)}>
-    <View className="flex-1">
-      <BackButton onPress={() => setSubStep(0)} color={brandColor} />
+      <View className="flex-1">
+        <StatusBar style="dark" />
+        <ProgressBar currentStep={1} totalSteps={2} />
+        <BackButton onPress={() => setSubStep(0)} color={brandColor} />
 
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32 }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Pressable
-          style={{ flex: 1 }}
-          onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <OnboardingHeader
-            title="Datos de salud"
-            subtitle="Configura tu perfil físico para comenzar"
-          />
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
+          >
+            <OnboardingHeader
+              title={"Datos\nde salud"}
+              subtitle="¿Tenés alguna afección médica que debamos considerar?"
+            />
 
-          <Text className="text-xl font-semibold text-slate-800 dark:text-zinc-200 mb-4">
-            Afecciones médicas
-          </Text>
+            <SearchableSelect
+              items={conditions}
+              selectedIds={selectedConditionIds}
+              onSelectionChange={setSelectedConditionIds}
+              placeholder="Buscar afección"
+              cardTitle="Afecciones médicas"
+              cardSubtitle="Selecciona todas las que apliquen"
+              cardIconName="medkit-outline"
+              selectedLabel="Seleccionadas"
+            />
+          </Pressable>
+        </ScrollView>
 
-          <SearchableSelect
-            items={conditions}
-            selectedIds={selectedConditionIds}
-            onSelectionChange={setSelectedConditionIds}
-            placeholder="Seleccionar - Opcional"
-          />
-        </Pressable>
-      </ScrollView>
-
-      <OnboardingFooter
-        brandColor={brandColor}
-        onPress={handleSubmit}
-        disabled={isSubmitting}
-        helperText="Puedes completar o editar estos datos luego."
-      />
-    </View>
+        <OnboardingFooter
+          onPress={handleSubmit}
+          disabled={isSubmitting}
+          buttonLabel="Continuar"
+          helperText="Esta información es confidencial y solo se usa para personalizar tu planes."
+          helperIcon={helperFooter}
+        />
+      </View>
     </SwipeBackWrapper>
   );
 }

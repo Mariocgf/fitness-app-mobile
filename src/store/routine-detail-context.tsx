@@ -24,6 +24,9 @@ interface RoutineDetailContextValue {
   setSwapMode: (active: boolean) => void;
   actions: RoutineActions | null;
   setActions: (actions: RoutineActions | null) => void;
+  /** Acción global para generar una rutina (se registra desde el index) */
+  onGenerateRoutine: (() => void) | null;
+  setOnGenerateRoutine: (action: (() => void) | null) => void;
 }
 
 const RoutineDetailContext = createContext<RoutineDetailContextValue>({
@@ -33,12 +36,15 @@ const RoutineDetailContext = createContext<RoutineDetailContextValue>({
   setSwapMode: () => {},
   actions: null,
   setActions: () => {},
+  onGenerateRoutine: null,
+  setOnGenerateRoutine: () => {},
 });
 
 export function RoutineDetailProvider({ children }: { children: React.ReactNode }) {
   const [isDetailVisible, setDetailVisible] = useState(false);
   const [isSwapMode, setSwapMode] = useState(false);
   const [actions, setActions] = useState<RoutineActions | null>(null);
+  const [onGenerateRoutine, setOnGenerateRoutine] = useState<(() => void) | null>(null);
 
   const value = useMemo(() => ({
     isDetailVisible,
@@ -47,7 +53,9 @@ export function RoutineDetailProvider({ children }: { children: React.ReactNode 
     setSwapMode,
     actions,
     setActions,
-  }), [isDetailVisible, isSwapMode, actions]);
+    onGenerateRoutine,
+    setOnGenerateRoutine,
+  }), [isDetailVisible, isSwapMode, actions, onGenerateRoutine]);
 
   return (
     <RoutineDetailContext.Provider value={value}>

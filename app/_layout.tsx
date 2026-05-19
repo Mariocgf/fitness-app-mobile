@@ -4,15 +4,15 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import 'react-native-reanimated';
 import './global.css';
 
 import { FullPageLoader } from '@/src/components/common/FullPageLoader';
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
-import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
@@ -82,10 +82,19 @@ function RootNavigator() {
       return;
     }
 
+    const clerkStatus = user?.publicMetadata?.onboarding_status as string | undefined;
+    // Si Clerk ya tiene un estado explícito que no es COMPLETED, el flag local no es confiable
+    if (clerkStatus && clerkStatus !== 'COMPLETED') {
+      AsyncStorage.removeItem('@onboarding_completed').catch(() => {});
+      AsyncStorage.removeItem('@onboarding_module_config_step').catch(() => {});
+      setCompletedLocally(false);
+      return;
+    }
+
     AsyncStorage.getItem('@onboarding_completed')
       .then((val) => setCompletedLocally(val === 'true'))
       .catch(() => setCompletedLocally(false));
-  }, [isSignedIn]);
+  }, [isSignedIn, user?.publicMetadata?.onboarding_status]);
 
   useEffect(() => {
     // 1. Si Clerk no ha terminado de cargar o el flag local aún no se leyó, no hacemos nada
@@ -98,8 +107,8 @@ function RootNavigator() {
     // Manejo de race-condition: Si la metadata aún no llega del webhook del backend, esperamos.
     const isMetadataReady = user ? user.publicMetadata?.onboarding_status !== undefined : false;
 
-    if (isSignedIn && !isMetadataReady && !completedLocally) {
-      // Ocultamos el splash screen para mostrar el FullPageLoader y evitar bloqueos visuales
+    if (isSignedIn && !isMetadataReady) {
+      // Mientras Clerk no tenga metadata, no tomar decisiones de navegación
       setTimeout(() => {
         hideSplash();
       }, 100);
@@ -111,7 +120,9 @@ function RootNavigator() {
       router.replace('/login');
     } else if (isSignedIn) {
       const onboardingStatus = user?.publicMetadata?.onboarding_status as string;
-      const isCompleted = onboardingStatus === 'COMPLETED' || completedLocally;
+      // Si el backend tiene un estado explícito que NO es COMPLETED, no confiar en el flag local
+      const backendSaysNotDone = onboardingStatus && onboardingStatus !== 'COMPLETED';
+      const isCompleted = onboardingStatus === 'COMPLETED' || (!backendSaysNotDone && completedLocally);
 
       if (!isCompleted && !inOnboardingScreen) {
         router.replace('/onboarding');
@@ -155,7 +166,7 @@ function RootNavigator() {
   }, [user?.id, isSignedIn]); 
 
   const isMetadataReady = user ? user.publicMetadata?.onboarding_status !== undefined : false;
-  const isWaitingForMetadata = isSignedIn && !isMetadataReady && !completedLocally;
+  const isWaitingForMetadata = isSignedIn && !isMetadataReady;
 
   // Si la metadata dice que necesita onboarding pero los segmentos de la URL aún no se actualizan,
   // mantenemos el loader para evitar el parpadeo de la pantalla Home.
@@ -163,7 +174,8 @@ function RootNavigator() {
   // ese estado tiene prioridad sobre la caché local (por si el usuario borró la cuenta
   // y creó otra en el mismo dispositivo).
   const onboardingStatus = user?.publicMetadata?.onboarding_status as string;
-  const isCompleted = onboardingStatus === 'COMPLETED' || completedLocally;
+  const backendSaysNotDone = onboardingStatus && onboardingStatus !== 'COMPLETED';
+  const isCompleted = onboardingStatus === 'COMPLETED' || (!backendSaysNotDone && completedLocally);
     
   const isRoutingToOnboarding = isSignedIn && isMetadataReady && !isCompleted && segments[0] !== 'onboarding';
 

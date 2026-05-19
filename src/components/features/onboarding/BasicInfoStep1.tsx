@@ -1,15 +1,25 @@
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
+import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
-  Platform,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  useColorScheme,
-  useWindowDimensions,
-  View,
+    Platform,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    useColorScheme,
+    useWindowDimensions,
+    View,
 } from 'react-native';
+
+import InputCard from '@/src/components/common/InputCard';
+import OnboardingFooter from '@/src/components/common/OnboardingFooter';
+import OnboardingHeader from '@/src/components/common/OnboardingHeader';
+import ProgressBar from '@/src/components/common/ProgressBar';
+
+/** Total de pasos del onboarding básico */
+const TOTAL_ONBOARDING_STEPS = 3;
 
 interface BasicInfoStep1Props {
   date: Date;
@@ -19,8 +29,16 @@ interface BasicInfoStep1Props {
   onContinue: () => void;
 }
 
+/** Opciones de género disponibles */
+const GENDER_OPTIONS = [
+  { label: 'No seleccionado', value: '' },
+  { label: 'Masculino', value: 'male' },
+  { label: 'Femenino', value: 'female' },
+];
+
 /**
  * Paso 1 del onboarding: Fecha de nacimiento y Género.
+ * Diseño según imagen de referencia y colores de colors.md.
  */
 export default function BasicInfoStep1({
   date,
@@ -43,122 +61,120 @@ export default function BasicInfoStep1({
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={{ flexGrow: 1 }}
-      className="px-8"
-      showsVerticalScrollIndicator={false}
-    >
-      <View className="flex-1 pt-8">
-        <Text className="text-[34px] font-bold text-slate-900 dark:text-white">
-          Datos basico
-        </Text>
-        <Text className="text-lg text-slate-500 dark:text-zinc-400 mb-8">
-          Configura tu perfil basico para comenzar
-        </Text>
+    <View className="flex-1 bg-slate-100 dark:bg-slate-950">
+      {/* StatusBar con estilo adecuado */}
+      <StatusBar style={isDark ? 'light' : 'dark'} />
 
-        {/* Fecha de nacimiento */}
-        <View className="mb-8">
-          <Text className="text-xl text-slate-800 dark:text-zinc-200 mb-4">
-            Ingresa tu fecha de nacimiento
-          </Text>
+      {/* Barra de progreso */}
+      <ProgressBar currentStep={0} totalSteps={TOTAL_ONBOARDING_STEPS} />
 
-          {Platform.OS === 'android' && !showDatePicker && (
-            <TouchableOpacity
-              className="bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 py-4 rounded-2xl items-center mb-4"
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Text className="text-lg text-slate-800 dark:text-white">
-                {date.toLocaleDateString('es-AR', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </Text>
-            </TouchableOpacity>
-          )}
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        className="px-6"
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View className="pt-4">
+          <OnboardingHeader
+            title={"Datos\nbásicos"}
+            subtitle="Necesitamos algunos datos para personalizar tu experiencia Wellium."
+          />
 
-          {(showDatePicker || Platform.OS === 'ios') && (
+          {/* Card: Fecha de nacimiento */}
+          <InputCard className="mb-4">
+            <Text className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+              Fecha de nacimiento
+            </Text>
+
+            {Platform.OS === 'android' && !showDatePicker && (
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(true)}
+                className="flex-row justify-between items-center"
+              >
+                <Text className="text-xl text-slate-900 dark:text-slate-50">
+                  {date.toLocaleDateString('es-AR', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </Text>
+                <Ionicons name="calendar-outline" size={24} className="text-slate-400 dark:text-slate-500" />
+              </TouchableOpacity>
+            )}
+
+            {(showDatePicker || Platform.OS === 'ios') && (
+              <View className="items-center justify-center" style={{ height: SCREEN_HEIGHT * 0.18 }}>
+                <DateTimePicker
+                  value={date}
+                  mode="date"
+                  display="spinner"
+                  onChange={(e, d) => {
+                    if (Platform.OS === 'android') setShowDatePicker(false);
+                    if (d) onDateChange(d);
+                  }}
+                  textColor={isDark ? '#f8fafc' : '#0f172a'}
+                  style={{ width: '100%' }}
+                  maximumDate={new Date()}
+                />
+              </View>
+            )}
+          </InputCard>
+
+          {/* Card: Género */}
+          <InputCard>
+            <Text className="text-sm text-slate-500 dark:text-slate-400 mb-2">
+              Género
+            </Text>
             <View
-              style={{ height: SCREEN_HEIGHT * 0.22 }}
-              className="items-center justify-center"
-            >
-              <DateTimePicker
-                value={date}
-                mode="date"
-                display="spinner"
-                onChange={(e, d) => {
-                  if (Platform.OS === 'android') setShowDatePicker(false);
-                  if (d) onDateChange(d);
-                }}
-                textColor={isDark ? '#FFFFFF' : '#0f172a'}
-                style={{ width: '100%', height: SCREEN_HEIGHT * 0.22 }}
-                maximumDate={new Date()}
-              />
-            </View>
-          )}
-        </View>
-
-        {/* Género */}
-        <View className="mb-10">
-          <Text className="text-xl text-slate-800 dark:text-zinc-200 mb-4">
-            Selecciona tu genero
-          </Text>
-
-          <View
-            style={{
-              height: Platform.OS === 'ios' ? SCREEN_HEIGHT * 0.18 : 64,
-            }}
-            className={`rounded-2xl justify-center overflow-hidden ${
-              Platform.OS === 'android'
-                ? 'border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800'
-                : ''
-            }`}
-          >
-            <Picker
-              selectedValue={gender}
-              onValueChange={(itemValue) => onGenderChange(itemValue)}
-              mode={Platform.OS === 'android' ? 'dropdown' : 'dialog'}
               style={{
-                color: isDark ? '#FFFFFF' : '#0f172a',
-                height: Platform.OS === 'ios' ? SCREEN_HEIGHT * 0.18 : 64,
-                backgroundColor: 'transparent',
+                height: Platform.OS === 'ios' ? SCREEN_HEIGHT * 0.15 : 56,
               }}
-              itemStyle={{ height: SCREEN_HEIGHT * 0.18 }}
-              dropdownIconColor={isDark ? '#FFFFFF' : '#0f172a'}
+              className="justify-center overflow-hidden"
             >
-              <Picker.Item
-                label="No seleccionado"
-                value=""
-                color={isDark ? '#666' : '#999'}
-              />
-              <Picker.Item
-                label="Masculino"
-                value="male"
-                color={isDark ? '#FFF' : '#000'}
-              />
-              <Picker.Item
-                label="Femenino"
-                value="female"
-                color={isDark ? '#FFF' : '#000'}
-              />
-            </Picker>
-          </View>
+              <Picker
+                selectedValue={gender}
+                onValueChange={(itemValue) => onGenderChange(itemValue)}
+                mode={Platform.OS === 'android' ? 'dropdown' : 'dialog'}
+                style={{
+                  color: isDark ? '#f8fafc' : '#0f172a',
+                  height: Platform.OS === 'ios' ? SCREEN_HEIGHT * 0.15 : 56,
+                  backgroundColor: 'transparent',
+                }}
+                itemStyle={{ height: Platform.OS === 'ios' ? SCREEN_HEIGHT * 0.15 : 56 }}
+                dropdownIconColor={isDark ? '#f8fafc' : '#0f172a'}
+              >
+                <Picker.Item
+                  label="No seleccionado"
+                  value=""
+                  color={isDark ? '#94a3b8' : '#94a3b8'}
+                />
+                <Picker.Item
+                  label="Masculino"
+                  value="male"
+                  color={isDark ? '#f8fafc' : '#0f172a'}
+                />
+                <Picker.Item
+                  label="Femenino"
+                  value="female"
+                  color={isDark ? '#f8fafc' : '#0f172a'}
+                />
+              </Picker>
+            </View>
+          </InputCard>
         </View>
-      </View>
+      </ScrollView>
 
-      <View className="items-center mb-[34px]">
-        <Text className="text-center text-sm text-slate-500 dark:text-zinc-400 mb-8 px-6 leading-5">
-          Usaremos estos datos para darte planes mas personalizados
-        </Text>
-
-        <TouchableOpacity
-          className="w-full bg-[#00c2e0] py-5 rounded-2xl items-center shadow-md"
-          onPress={handleContinue}
-          activeOpacity={0.8}
-        >
-          <Text className="text-white text-lg font-bold">Continuar</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      <OnboardingFooter
+        onPress={handleContinue}
+        disabled={!gender}
+        buttonLabel="Continuar"
+        helperText="Usaremos estos datos para darte planes más personalizados"
+        helperIcon={
+          <View className="w-10 h-10 rounded-lg bg-white dark:bg-slate-800 items-center justify-center border border-slate-200 dark:border-slate-800">
+            <Ionicons name="sparkles-outline" size={20} className="text-slate-500 dark:text-slate-400" />
+          </View>
+        }
+      />
+    </View>
   );
 }

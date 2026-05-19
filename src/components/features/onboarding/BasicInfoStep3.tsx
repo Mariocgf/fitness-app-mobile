@@ -1,15 +1,23 @@
+import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import {
-  Platform,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  useColorScheme,
-  View,
+    Platform,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    useColorScheme,
+    View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
+import InputCard from '@/src/components/common/InputCard';
+import OnboardingFooter from '@/src/components/common/OnboardingFooter';
+import OnboardingHeader from '@/src/components/common/OnboardingHeader';
+import ProgressBar from '@/src/components/common/ProgressBar';
 import { Goal } from '@/src/types/goal';
+
+/** Total de pasos del onboarding básico */
+const TOTAL_ONBOARDING_STEPS = 3;
 
 interface BasicInfoStep3Props {
   goal: string;
@@ -21,9 +29,9 @@ interface BasicInfoStep3Props {
   isLoading: boolean;
 }
 
-
 /**
  * Paso 3 del onboarding: Selección de objetivo (grid 2×2).
+ * Diseño según imagen de referencia y colores de colors.md.
  */
 export default function BasicInfoStep3({
   goal,
@@ -46,105 +54,103 @@ export default function BasicInfoStep3({
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={{ flexGrow: 1 }}
-      className="px-8"
-      showsVerticalScrollIndicator={false}
-    >
-      <View className="flex-1 pt-2">
-        {/* Botón Atrás nativo */}
+    <View className="flex-1 bg-slate-100 dark:bg-slate-950">
+      {/* StatusBar con estilo adecuado */}
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+
+      {/* Barra de progreso - paso 2 (último del onboarding básico) */}
+      <ProgressBar currentStep={2} totalSteps={TOTAL_ONBOARDING_STEPS} />
+
+      {/* Botón Atrás */}
+      <View className="px-6">
         <TouchableOpacity
           onPress={onBack}
-          className="flex-row items-center mb-4 -ml-1 self-start py-2"
+          className="flex-row items-center py-2 -ml-1 self-start"
           activeOpacity={0.6}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Ionicons
             name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
             size={Platform.OS === 'ios' ? 28 : 24}
-            className="text-slate-900 dark:text-white"
+            color={isDark ? '#f8fafc' : '#0f172a'}
           />
           {Platform.OS === 'ios' && (
-            <Text className="text-lg text-slate-900 dark:text-white -ml-1">
+            <Text className="text-lg text-slate-900 dark:text-slate-50 -ml-1">
               Atrás
             </Text>
           )}
         </TouchableOpacity>
+      </View>
 
-        <Text className="text-[34px] font-bold text-slate-900 dark:text-white">
-          Tu objetivo
-        </Text>
-        <Text className="text-lg text-slate-500 dark:text-zinc-400 mb-10">
-          ¿Qué quieres lograr?
-        </Text>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        className="px-6"
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View className="pt-2">
+          <OnboardingHeader
+            title={"Datos\nbásicos"}
+            subtitle="Necesitamos algunos datos para personalizar tu experiencia Wellium."
+          />
 
-        {/* Grid 2×2 de opciones */}
-        <View className="flex-row flex-wrap justify-between">
-          {isLoading ? (
-            <View className="w-full py-20 items-center justify-center">
-              <Text className="text-slate-500 dark:text-zinc-400">Cargando objetivos...</Text>
-            </View>
-          ) : (
-            goals.map((option) => {
-              const isSelected = goal === option.id;
+          {/* Card: Objetivo */}
+          <InputCard>
+            <Text className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+              ¿Qué quieres lograr?
+            </Text>
 
-              return (
-                <TouchableOpacity
-                  key={option.id}
-                  onPress={() => onGoalChange(option.id)}
-                  activeOpacity={0.7}
-                  className={`w-[48%] mb-4 py-6 px-4 rounded-2xl items-center justify-center border-2 ${
-                    isSelected
-                      ? 'border-[#00c2e0] bg-cyan-50 dark:bg-cyan-950'
-                      : 'border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800'
-                  }`}
-                  style={
-                    !isSelected
-                      ? {
-                          // Sombra sutil para las tarjetas no seleccionadas
-                          shadowColor: '#000',
-                          shadowOffset: { width: 0, height: 1 },
-                          shadowOpacity: 0.06,
-                          shadowRadius: 4,
-                          elevation: 1,
-                        }
-                      : {
-                          // Sombra cyan para la seleccionada
-                          shadowColor: '#00c2e0',
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.2,
-                          shadowRadius: 8,
-                          elevation: 3,
-                        }
-                  }
-                >
-                  <Text
-                    className={`text-base font-semibold text-center ${
-                      isSelected
-                        ? 'text-[#00c2e0]'
-                        : 'text-slate-800 dark:text-zinc-200'
-                    }`}
-                  >
-                    {option.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })
-          )}
+            {isLoading ? (
+              <View className="py-10 items-center justify-center">
+                <Text className="text-slate-500 dark:text-slate-400">
+                  Cargando objetivos...
+                </Text>
+              </View>
+            ) : (
+              <View className="flex-row flex-wrap justify-between">
+                {goals.map((option) => {
+                  const isSelected = goal === option.id;
+
+                  return (
+                    <TouchableOpacity
+                      key={option.id}
+                      onPress={() => onGoalChange(option.id)}
+                      activeOpacity={0.7}
+                      className={`w-[48%] mb-3 py-4 px-3 rounded-xl items-center justify-center border ${
+                        isSelected
+                          ? 'border-zinc-950 dark:border-zinc-50 bg-zinc-950 dark:bg-zinc-50'
+                          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
+                      }`}
+                    >
+                      <Text
+                        className={`text-sm font-medium text-center ${
+                          isSelected
+                            ? 'text-white dark:text-slate-900'
+                            : 'text-slate-900 dark:text-slate-50'
+                        }`}
+                      >
+                        {option.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </InputCard>
         </View>
-      </View>
+      </ScrollView>
 
-      <View className="items-center mb-[34px]">
-        <TouchableOpacity
-          className="w-full bg-[#00c2e0] py-5 rounded-2xl items-center shadow-md"
-          onPress={handleContinue}
-          activeOpacity={0.8}
-        >
-          <Text className="text-white text-lg font-bold">
-            Continuar
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      <OnboardingFooter
+        onPress={handleContinue}
+        disabled={!goal || isSubmitting}
+        buttonLabel="Continuar"
+        helperText="Usaremos estos datos para darte planes más personalizados"
+        helperIcon={
+          <View className="w-10 h-10 rounded-lg bg-white dark:bg-slate-800 items-center justify-center border border-slate-200 dark:border-slate-800">
+            <Ionicons name="sparkles-outline" size={20} color={isDark ? '#94a3b8' : '#64748b'} />
+          </View>
+        }
+      />
+    </View>
   );
 }

@@ -1,3 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
@@ -7,8 +11,15 @@ import {
   useColorScheme,
   View,
 } from 'react-native';
-import { Image } from 'expo-image';
+
+import OnboardingFooter from '@/src/components/common/OnboardingFooter';
+import OnboardingHeader from '@/src/components/common/OnboardingHeader';
+import ProgressBar from '@/src/components/common/ProgressBar';
 import { Module } from '@/src/types/user';
+
+/** Degradado de las tarjetas: #0F172B opaco al 0% → #334E91 al 25% de opacidad al 100% */
+const CARD_GRADIENT_COLORS = ['#0F172B', 'rgba(51,78,145,0.25)'] as const;
+const CARD_GRADIENT_LOCATIONS = [0, 1] as const;
 
 interface ModuleSelectionStepProps {
   modules: Module[];
@@ -21,7 +32,7 @@ interface ModuleSelectionStepProps {
 
 /**
  * Paso de selección de módulos del onboarding.
- * Muestra tarjetas visuales con imagen de fondo para cada módulo + opción "Experiencia completa".
+ * Fondo slate-100/slate-950. Tarjetas con imagen y degradado #0F172B → transparente.
  */
 export default function ModuleSelectionStep({
   modules,
@@ -31,9 +42,6 @@ export default function ModuleSelectionStep({
   isSubmitting,
   isLoading,
 }: ModuleSelectionStepProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
   const allModuleIds = useMemo(() => modules.map((m) => m.id), [modules]);
   const isAllSelected =
     modules.length > 0 && allModuleIds.every((id) => selectedModuleIds.includes(id));
@@ -62,158 +70,162 @@ export default function ModuleSelectionStep({
     onContinue();
   };
 
+  /** Iconos para cada módulo según su nombre */
+  const getModuleIcon = (name: string) => {
+    switch (name.toLowerCase()) {
+      case 'fitness':
+        return 'barbell-outline';
+      case 'nutrición':
+      case 'nutrition':
+        return 'nutrition-outline';
+      case 'salud':
+      case 'health':
+        return 'heart-outline';
+      default:
+        return 'star-outline';
+    }
+  };
+
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   return (
-    <ScrollView
-      contentContainerStyle={{ flexGrow: 1 }}
-      className="px-8"
-      showsVerticalScrollIndicator={false}
+    <View className="flex-1 bg-slate-100 dark:bg-slate-950">
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+
+      {/* Barra de progreso */}
+      <ProgressBar currentStep={0} totalSteps={1} />
+
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        className="px-6"
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View className="pt-4">
+          <OnboardingHeader
+            title={"Elige tu\nenfoque."}
+            subtitle="Personaliza tu experiencia Wellium."
+          />
+
+          {isLoading ? (
+            <View className="flex-1 items-center justify-center py-20">
+              <ActivityIndicator size="large" color="#18181b" />
+              <Text className="text-slate-500 dark:text-slate-400 mt-4">
+                Cargando módulos...
+              </Text>
+            </View>
+          ) : (
+            <View className="gap-3">
+              {/* Tarjetas de módulos individuales */}
+              {modules.map((module) => {
+                const isSelected = selectedModuleIds.includes(module.id);
+
+                return (
+                  <ModuleCard
+                    key={module.id}
+                    imageUri={module.imageUrl}
+                    iconName={getModuleIcon(module.name) as any}
+                    name={module.name}
+                    description={module.description}
+                    isSelected={isSelected}
+                    onPress={() => toggleModule(module.id)}
+                  />
+                );
+              })}
+
+              {/* Opción "Todo incluido" (frontend-only) */}
+              {modules.length > 0 && (
+                <ModuleCard
+                  imageUri="https://res.cloudinary.com/dtyfqh3ip/image/upload/v1777030694/all_bryaa9.webp"
+                  iconName="star-outline"
+                  name="Todo incluido"
+                  description="Acceso total a todos los módulos."
+                  isSelected={isAllSelected}
+                  onPress={toggleAll}
+                />
+              )}
+            </View>
+          )}
+        </View>
+      </ScrollView>
+
+      <OnboardingFooter
+        onPress={handleContinue}
+        disabled={selectedModuleIds.length === 0 || isLoading}
+        buttonLabel="Continuar"
+        helperText="Podrás añadir o quitar módulos en cualquier momento desde tu perfil."
+        helperIcon={
+          <View className="w-10 h-10 rounded-lg bg-white dark:bg-slate-800 items-center justify-center border border-slate-200 dark:border-slate-800">
+            <Ionicons name="options-outline" size={20} color={isDark ? '#94a3b8' : '#64748b'} />
+          </View>
+        }
+      />
+    </View>
+  );
+}
+
+/** Props internas de la tarjeta de módulo */
+interface ModuleCardProps {
+  imageUri: string;
+  iconName: string;
+  name: string;
+  description: string;
+  isSelected: boolean;
+  onPress: () => void;
+}
+
+/**
+ * Tarjeta reutilizable para cada módulo en la pantalla de selección.
+ * Imagen de fondo a la derecha, degradado oscuro sobre el contenido a la izquierda.
+ */
+function ModuleCard({ imageUri, iconName, name, description, isSelected, onPress }: ModuleCardProps) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      className="rounded-2xl overflow-hidden"
+      style={{ height: 100 }}
     >
-      <View className="flex-1 pt-8">
-        <Text className="text-[34px] font-bold text-slate-900 dark:text-white">
-          Modulos
-        </Text>
-        <Text className="text-lg text-slate-500 dark:text-zinc-400 mb-8">
-          Personaliza la experiencia
-        </Text>
+      {/* Imagen de fondo */}
+      <Image
+        source={{ uri: imageUri }}
+        style={{ position: 'absolute', width: '100%', height: '100%' }}
+        contentFit="cover"
+        transition={300}
+      />
 
-        {isLoading ? (
-          <View className="flex-1 items-center justify-center py-20">
-            <ActivityIndicator size="large" color="#00c2e0" />
-            <Text className="text-slate-500 dark:text-zinc-400 mt-4">
-              Cargando módulos...
-            </Text>
-          </View>
-        ) : (
-          <View className="gap-4 ">
-            {/* Tarjetas de módulos individuales */}
-            {modules.map((module) => {
-              const isSelected = selectedModuleIds.includes(module.id);
+      {/* Degradado oscuro de izquierda a transparente */}
+      <LinearGradient
+        colors={CARD_GRADIENT_COLORS}
+        locations={CARD_GRADIENT_LOCATIONS}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={{ position: 'absolute', width: '100%', height: '100%' }}
+      />
 
-              return (
-                <TouchableOpacity
-                  key={module.id}
-                  onPress={() => toggleModule(module.id)}
-                  activeOpacity={0.85}
-                  className={`rounded-2xl overflow-hidden border-2 ${
-                    isSelected
-                      ? 'border-[#00c2e0]'
-                      : 'border-transparent'
-                  }`}
-                  style={{
-                    height: 100,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.12,
-                    shadowRadius: 6,
-                    elevation: 3,
-                  }}
-                >
-                  {/* Imagen de fondo */}
-                  <Image
-                    source={{ uri: module.imageUrl }}
-                    style={{
-                      position: 'absolute',
-                      width: '100%',
-                      height: '100%',
-                    }}
-                    contentFit="cover"
-                    transition={300}
-                  />
+      {/* Contenido: Icono + Texto + Checkmark */}
+      <View className="flex-1 flex-row items-center px-5 py-4">
+        {/* Icono en círculo semitransparente */}
+        <View className="w-12 h-12 rounded-full bg-white/20 items-center justify-center mr-4">
+          <Ionicons name={iconName as any} size={24} color="#ffffff" />
+        </View>
 
-                  {/* Gradiente oscuro para legibilidad del texto */}
-                  <View
-                    style={{
-                      position: 'absolute',
-                      width: '100%',
-                      height: '100%',
-                      backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                    }}
-                  />
+        {/* Texto */}
+        <View className="flex-1">
+          <Text className="text-white text-lg font-bold">{name}</Text>
+          <Text className="text-white/75 text-sm mt-0.5">{description}</Text>
+        </View>
 
-                  {/* Contenido */}
-                  <View className="flex-1 justify-center px-5">
-                    <Text className="text-white text-lg font-bold">
-                      {module.name}
-                    </Text>
-                    <Text className="text-white/80 text-sm mt-0.5">
-                      {module.description}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-
-            {/* Opción "Experiencia completa" (frontend-only) */}
-            {modules.length > 0 && (
-              <TouchableOpacity
-                onPress={toggleAll}
-                activeOpacity={0.85}
-                className={`rounded-2xl overflow-hidden border-2 ${
-                  isAllSelected
-                    ? 'border-[#00c2e0]'
-                    : 'border-transparent'
-                }`}
-                style={{
-                  height: 100,
-                  shadowColor: '#00c2e0',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 8,
-                  elevation: 3,
-                }}
-              >
-                {/* Imagen de fondo */}
-                <Image
-                  source={{ uri: 'https://res.cloudinary.com/dtyfqh3ip/image/upload/v1777030694/all_bryaa9.webp' }}
-                  style={{
-                    position: 'absolute',
-                    width: '100%',
-                    height: '100%',
-                  }}
-                  contentFit="cover"
-                  transition={300}
-                />
-
-                {/* Gradiente oscuro para legibilidad del texto */}
-                <View
-                  style={{
-                    position: 'absolute',
-                    width: '100%',
-                    height: '100%',
-                    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                  }}
-                />
-
-                <View className="flex-1 justify-center px-5">
-                  <Text className="text-white text-lg font-bold">
-                    Experiencia completa
-                  </Text>
-                  <Text className="text-white/80 text-sm mt-0.5">
-                    Acceso total a todos los módulos.
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+        {/* Checkmark */}
+        <View className={`w-8 h-8 rounded-full items-center justify-center ${
+          isSelected ? 'bg-white' : 'border-2 border-white/50'
+        }`}>
+          {isSelected && (
+            <Ionicons name="checkmark" size={18} color="#0F172B" />
+          )}
+        </View>
       </View>
-
-      <View className="items-center mb-[34px] mt-8">
-        <Text className="text-center text-sm text-slate-500 dark:text-zinc-400 mb-8 px-6 leading-5">
-          Podrás añadir o quitar módulos en cualquier momento desde tu perfil.
-        </Text>
-
-        <TouchableOpacity
-          className="w-full bg-[#00c2e0] py-5 rounded-2xl items-center shadow-md"
-          onPress={handleContinue}
-          disabled={isLoading}
-          activeOpacity={0.8}
-        >
-          <Text className="text-white text-lg font-bold">
-            Continuar
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+    </TouchableOpacity>
   );
 }

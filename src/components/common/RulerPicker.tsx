@@ -1,12 +1,12 @@
+import * as Haptics from 'expo-haptics';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  ScrollView,
-  Text,
-  useColorScheme,
-  useWindowDimensions,
-  View,
+    ScrollView,
+    Text,
+    useColorScheme,
+    useWindowDimensions,
+    View,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
 
 interface RulerPickerProps {
   label: string;
@@ -46,7 +46,7 @@ export default function RulerPicker({
   const totalTicks = Math.floor((max - min) / step);
   const containerWidth = SCREEN_WIDTH - 64;
 
-  // Pre-render ticks
+  // Pre-render ticks con colores slate según colors.md
   const ticks = useMemo(() => {
     const items = [];
     for (let i = 0; i <= totalTicks; i++) {
@@ -54,15 +54,18 @@ export default function RulerPicker({
       const isMajor = value % 10 === 0;
       const isMid = value % 5 === 0 && !isMajor;
 
-      let tickHeight = 20;
-      let tickColor = isDark ? '#555' : '#ccc';
+      let tickHeight = 16;
+      // slate-300 claro / slate-600 oscuro
+      let tickColor = isDark ? '#475569' : '#cbd5e1';
 
       if (isMajor) {
-        tickHeight = 44;
-        tickColor = isDark ? '#aaa' : '#333';
+        tickHeight = 36;
+        // slate-900 claro / slate-50 oscuro
+        tickColor = isDark ? '#f8fafc' : '#0f172a';
       } else if (isMid) {
-        tickHeight = 32;
-        tickColor = isDark ? '#777' : '#888';
+        tickHeight = 24;
+        // slate-500 claro / slate-400 oscuro
+        tickColor = isDark ? '#94a3b8' : '#64748b';
       }
 
       items.push(
@@ -112,24 +115,34 @@ export default function RulerPicker({
   }, [initial, min, step]);
 
   return (
-    <View className="items-center mb-6">
-      {/* Label */}
-      <Text className="text-lg font-semibold text-slate-800 dark:text-zinc-200 mb-4">
+    <View className="mb-2">
+      {/* Label arriba a la izquierda */}
+      <Text className="text-sm text-slate-500 dark:text-slate-400 mb-2">
         {label}
       </Text>
 
+      {/* Valor actual centrado */}
+      <View className="items-center mb-2">
+        <Text className="text-2xl text-slate-900 dark:text-slate-50 font-semibold">
+          {currentValue}{' '}
+          <Text className="text-base text-slate-500 dark:text-slate-400 font-normal">
+            {unit}
+          </Text>
+        </Text>
+      </View>
+
       {/* Ruler container */}
-      <View style={{ width: containerWidth, height: 80, justifyContent: 'center' }} className="relative">
-        {/* Indicador central fijo — pixel-perfect */}
+      <View style={{ width: containerWidth, height: 60, justifyContent: 'center' }} className="relative">
+        {/* Indicador central fijo — más grueso */}
         <View
           pointerEvents="none"
           style={{
             position: 'absolute',
-            left: (containerWidth / 2) - (TICK_WIDTH / 2),
-            top: 14,
-            width: TICK_WIDTH,
-            height: 52,
-            backgroundColor: isDark ? '#fff' : '#000',
+            left: (containerWidth / 2) - 2,
+            top: 8,
+            width: 4,
+            height: 44,
+            backgroundColor: isDark ? '#f8fafc' : '#0f172a',
             zIndex: 10,
             borderRadius: 2,
           }}
@@ -147,17 +160,12 @@ export default function RulerPicker({
           contentContainerStyle={{
             paddingHorizontal: (containerWidth / 2) - (TICK_SPACING / 2),
             alignItems: 'flex-end',
-            height: 60,
+            height: 50,
           }}
         >
           {ticks}
         </ScrollView>
       </View>
-
-      {/* Valor actual */}
-      <Text className="text-base text-slate-700 dark:text-zinc-300 mt-2 font-medium">
-        {currentValue} {unit}
-      </Text>
     </View>
   );
 }

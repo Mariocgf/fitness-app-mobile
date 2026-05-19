@@ -1,3 +1,4 @@
+import { getGlobalGoals } from '@/src/services/goal.service';
 import {
   acceptTerms,
   getModules,
@@ -5,26 +6,25 @@ import {
   setBasicInfo,
   setSelectedModules,
 } from '@/src/services/onboarding.service';
-import { getGlobalGoals } from '@/src/services/goal.service';
 import { Goal } from '@/src/types/goal';
 import { useAuth, useUser } from '@clerk/clerk-expo';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { View } from 'react-native';
 
 import { FullPageLoader } from '@/src/components/common/FullPageLoader';
+import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
 import BasicInfoStep1 from '@/src/components/features/onboarding/BasicInfoStep1';
 import BasicInfoStep2 from '@/src/components/features/onboarding/BasicInfoStep2';
 import BasicInfoStep3 from '@/src/components/features/onboarding/BasicInfoStep3';
-import PrivacyTermsStep from '@/src/components/features/onboarding/PrivacyTermsStep';
-import ModuleSelectionStep from '@/src/components/features/onboarding/ModuleSelectionStep';
 import ModuleConfigRouter from '@/src/components/features/onboarding/ModuleConfigRouter';
-import { useOnboardingStorage } from '@/src/hooks/use-onboarding-storage';
+import ModuleSelectionStep from '@/src/components/features/onboarding/ModuleSelectionStep';
+import PrivacyTermsStep from '@/src/components/features/onboarding/PrivacyTermsStep';
 import { useModuleConfigStorage } from '@/src/hooks/use-module-config-storage';
+import { useOnboardingStorage } from '@/src/hooks/use-onboarding-storage';
 import { BasicInfoPayload, Module } from '@/src/types/user';
-import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
 
 /** Orden fijo de configuración de módulos */
 const MODULE_ORDER = ['Health', 'Fitness', 'Nutrition'];
@@ -52,6 +52,7 @@ export default function OnboardingScreen() {
     saveConfigStep,
     loadConfigStep,
     setOnboardingCompleted,
+    clearOnboardingCompleted,
   } = useModuleConfigStorage();
 
   // Estado general
@@ -86,6 +87,9 @@ export default function OnboardingScreen() {
   useEffect(() => {
     const initialize = async () => {
       try {
+        // Limpiar flags locales al iniciar — el backend es la única fuente de verdad
+        await AsyncStorage.multiRemove(['@onboarding_completed', '@onboarding_module_config_step']);
+
         const token = await getToken();
 
         // 1. Consultar estado del backend (fuente de verdad)
@@ -103,6 +107,9 @@ export default function OnboardingScreen() {
           router.replace('/(tabs)');
           return;
         }
+
+        // El backend confirma que NO está completo: limpiar flag local corrupto si existiera
+        await clearOnboardingCompleted();
 
         if (status === 'AWAITING_TERMS_ACCEPTANCE' || status === 'AWAITNG_TERMS_ACCEPTANCE') {
           setStep(-2);
@@ -127,10 +134,13 @@ export default function OnboardingScreen() {
           if (savedModules && savedModules.length > 0) {
             setActiveModules(sortModules(savedModules));
           }
-          // Restaurar el índice de configuración
+          // Restaurar el índice de configuración (validar que no esté fuera de rango)
           const savedStep = await loadConfigStep();
-          if (savedStep !== null) {
+          if (savedStep !== null && savedModules && savedStep < savedModules.length) {
             setConfigIndex(savedStep);
+          } else {
+            setConfigIndex(0);
+            await saveConfigStep(0);
           }
           // Restaurar el objetivo global seleccionado (para Nutrition)
           const draft = await loadDraft();
@@ -394,7 +404,7 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-white dark:bg-zinc-900">
+    <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-slate-100 dark:bg-slate-950">
       {step === -2 && (
         <PrivacyTermsStep
           onContinue={handleAcceptTerms}

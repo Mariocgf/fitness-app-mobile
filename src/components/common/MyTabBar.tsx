@@ -172,7 +172,7 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   const [pressedKey, setPressedKey]   = useState<string | null>(null);
 
   /** Contexto de la vista de detalle de rutina para opciones contextuales */
-  const { isDetailVisible, isSwapMode, actions: routineActions } = useRoutineDetailContext();
+  const { isDetailVisible, isSwapMode, actions: routineActions, onGenerateRoutine } = useRoutineDetailContext();
 
   /** Progreso de animación del menú: 0 = cerrado, 1 = abierto */
   const menuProgress = useSharedValue(0);
@@ -251,13 +251,17 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
         routineActions.onExitSwapMode();
         return;
       }
+      if (key === 'generate-routine' && onGenerateRoutine) {
+        onGenerateRoutine();
+        return;
+      }
       onFabAction?.(key);
     };
 
     // 220ms > 185ms del closeMenu para asegurar que el Modal del menú ya
     // se desmontó antes de pedir abrir otro Modal.
     setTimeout(run, 220);
-  }, [closeMenu, onFabAction, routineActions]);
+  }, [closeMenu, onFabAction, routineActions, onGenerateRoutine]);
 
   const onFabPressIn  = useCallback(() => { fabScale.value = withSpring(0.92, PRESS_SPRING); }, [fabScale]);
   const onFabPressOut = useCallback(() => { fabScale.value = withSpring(1,    PRESS_SPRING); }, [fabScale]);

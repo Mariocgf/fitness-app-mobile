@@ -22,7 +22,7 @@ export default function HomeScreen() {
   const [isFetchingData, setIsFetchingData] = useState(true);
   const cardRef = useRef<View>(null);
 
-  const { setDetailVisible } = useRoutineDetailContext();
+  const { setDetailVisible, setOnGenerateRoutine } = useRoutineDetailContext();
   
   const backgroundColor = useThemeColor({ light: '#FFFFFF', dark: '#000000' }, 'background');
 
@@ -129,6 +129,16 @@ export default function HomeScreen() {
       setCardState('initial');
     }
   };
+
+  const handleGenerateRef = useRef(handleGenerate);
+  useEffect(() => {
+    handleGenerateRef.current = handleGenerate;
+  });
+
+  useEffect(() => {
+    setOnGenerateRoutine(() => () => handleGenerateRef.current());
+    return () => setOnGenerateRoutine(null);
+  }, [setOnGenerateRoutine]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor }}>
