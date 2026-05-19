@@ -6,13 +6,14 @@ import * as Haptics from 'expo-haptics';
 import { useCallback, useState } from 'react';
 import { Modal, Platform, Pressable, Text, View } from 'react-native';
 import Animated, {
-  Easing,
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
+    Easing,
+    interpolate,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
+    withTiming,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -86,8 +87,8 @@ function TabItem({
   return (
     <Pressable
       onPress={onPress}
-      className="items-center justify-center py-2 px-3"
-      style={{ minWidth: 56 }}
+      className="items-center justify-center"
+      style={{ width: 72, height: 56 }}
     >
       <Ionicons
         name={(isFocused ? icons.filled : icons.outline) as any}
@@ -167,6 +168,7 @@ interface MyTabBarProps extends BottomTabBarProps {
 export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabBarProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
 
   const [isMenuOpen, setIsMenuOpen]   = useState(false);
   const [pressedKey, setPressedKey]   = useState<string | null>(null);
@@ -315,6 +317,9 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
     opacity: interpolate(menuProgress.value, [0, 1], [0, 1]),
   }));
 
+  /** El tab bar se oculta cuando la vista de detalle de rutina está abierta */
+  if (isDetailVisible) return null;
+
   // ── Colores dinámicos del FAB y de los iconos del menú según la vista activa ──
   const getThemeColors = () => {
     if (isDetailVisible || activeRouteName === 'fitness') {
@@ -378,7 +383,7 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
           className="absolute self-center z-50"
           style={[
             {
-              bottom: 108,
+              bottom: Math.max(insets.bottom, 8) + 8 + 56 + 16,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 8 },
               shadowOpacity: 0.18,
@@ -420,14 +425,14 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
 
       {/* Tab Bar principal */}
       <View
-        className={`absolute bottom-6 self-center flex-row items-center rounded-full ${
+        className={`absolute self-center flex-row items-center rounded-full ${
           isDark
             ? 'bg-zinc-900 border border-zinc-800'
             : 'bg-white border border-zinc-200'
         }`}
         style={{
+          bottom: Math.max(insets.bottom, 8) + 8,
           paddingHorizontal: 8,
-          paddingVertical: 6,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: isDark ? 0.4 : 0.1,
@@ -453,21 +458,21 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
           />
         ))}
 
-        {/* Botón FAB central */}
+        {/* Botón FAB central — dentro del tab bar */}
         <Pressable
           onPress={toggleMenu}
           onPressIn={onFabPressIn}
           onPressOut={onFabPressOut}
           className="items-center justify-center mx-2"
-          style={{ marginTop: -20 }}
+          style={{ width: 72, height: 56 }}
         >
           <Animated.View
             className="items-center justify-center"
             style={[
               {
-                width: 56,
-                height: 56,
-                borderRadius: 28,
+                width: 48,
+                height: 48,
+                borderRadius: 24,
                 backgroundColor: fabBg,
                 shadowColor: fabBg,
                 shadowOffset: { width: 0, height: 4 },

@@ -1,15 +1,15 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  DeviceEventEmitter,
-  Keyboard,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useColorScheme,
-  View,
+    DeviceEventEmitter,
+    Keyboard,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useColorScheme,
+    View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 interface TagSelectItem {
   id: string;
@@ -25,6 +25,8 @@ interface TagSelectProps {
   onSelectionChange: (ids: string[]) => void;
   /** Placeholder del input de búsqueda */
   placeholder?: string;
+  /** Si false, solo muestra el buscador sin los tags seleccionados */
+  showSelectedList?: boolean;
 }
 
 /**
@@ -38,6 +40,7 @@ export default function TagSelect({
   selectedIds,
   onSelectionChange,
   placeholder = 'Seleccionar - Opcional',
+  showSelectedList = true,
 }: TagSelectProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -129,9 +132,9 @@ export default function TagSelect({
           onPress={() => inputRef.current?.focus()}
           className={`flex-row items-center border rounded-xl px-4 ${
             isOpen
-              ? 'border-slate-400 dark:border-zinc-500'
-              : 'border-gray-200 dark:border-zinc-700'
-          } bg-white dark:bg-zinc-800`}
+              ? 'border-slate-400 dark:border-slate-500'
+              : 'border-slate-200 dark:border-slate-800'
+          } bg-white dark:bg-slate-900`}
           style={{ height: 50 }}
         >
           <TextInput
@@ -227,7 +230,7 @@ export default function TagSelect({
         )}
       </View>
 
-      {selectedItems.length > 0 && (
+      {showSelectedList && selectedItems.length > 0 && (
         <View
           style={{
             flexDirection: 'row',

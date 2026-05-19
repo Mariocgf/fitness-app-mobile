@@ -1,4 +1,5 @@
 import { getGlobalGoals } from '@/src/services/goal.service';
+import { getActiveModules } from '@/src/services/module.service';
 import {
   acceptTerms,
   getModules,
@@ -130,13 +131,39 @@ export default function OnboardingScreen() {
         // Si ya seleccionó módulos pero falta configuración
         if (status === 'AWAITING_MODULE_CONFIG') {
           // Restaurar los módulos activos desde local
-          const savedModules = await loadSelectedModules();
+          let savedModules = await loadSelectedModules();
+
+          // Fallback: si el storage local no los tiene (reinstall, cache limpia,
+          // otro dispositivo), el backend es la fuente de verdad.
+          if (!savedModules || savedModules.length === 0) {
+            try {
+              const [activeNames, allModules] = await Promise.all([
+                getActiveModules(token),
+                getModules(token),
+              ]);
+              const activeNameSet = new Set(activeNames.map((m) => m.name));
+              const reconstructed = allModules.filter((m) => activeNameSet.has(m.name));
+
+              if (reconstructed.length > 0) {
+                savedModules = reconstructed;
+                await saveSelectedModules(reconstructed);
+              }
+            } catch (err) {
+              console.error('Error reconstruyendo módulos activos desde backend:', err);
+            }
+          }
+
           if (savedModules && savedModules.length > 0) {
             setActiveModules(sortModules(savedModules));
+          } else {
+            // No se pudo determinar los módulos activos: volver a selección
+            setStep(3);
+            return;
           }
+
           // Restaurar el índice de configuración (validar que no esté fuera de rango)
           const savedStep = await loadConfigStep();
-          if (savedStep !== null && savedModules && savedStep < savedModules.length) {
+          if (savedStep !== null && savedStep < savedModules.length) {
             setConfigIndex(savedStep);
           } else {
             setConfigIndex(0);
@@ -376,7 +403,6 @@ export default function OnboardingScreen() {
       await clearAllModuleConfig();
       await clearDraft();
       await setOnboardingCompleted();
-      setIsTransitioning(false);
       router.replace('/(tabs)');
     } else {
       // Avanzar al siguiente módulo y persistir

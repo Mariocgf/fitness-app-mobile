@@ -55,7 +55,7 @@ export interface FitnessProfilePayload {
   trainingHistory: string;
   preferredWorkoutDays: number[];
   availableEquipment: EquipmentSelection[];
-  workoutLocation: string;
+  workoutLocation?: string;
   sessionDurationPreference: number;
   subGoals: string[];
 }

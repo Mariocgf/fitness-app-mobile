@@ -19,7 +19,7 @@ interface ProgressBarProps {
 export default function ProgressBar({ currentStep, totalSteps, inverted = false }: ProgressBarProps) {
   return (
     <View
-      className={`flex-row items-center justify-between px-6 gap-2 py-3 ${
+      className={`flex-row items-center justify-between px-6 gap-2 py-4 ${
         inverted ? 'bg-transparent' : 'bg-slate-100 dark:bg-slate-950'
       }`}
     >

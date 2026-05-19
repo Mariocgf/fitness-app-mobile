@@ -1,38 +1,40 @@
 import { useAuth } from '@clerk/clerk-expo';
+import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   DeviceEventEmitter,
-  Platform,
   Pressable,
   ScrollView,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
-import BackButton from '@/src/components/common/BackButton';
+import CheckableCard from '@/src/components/common/CheckableCard';
 import EquipmentSelect from '@/src/components/common/EquipmentSelect';
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
 import OnboardingHeader from '@/src/components/common/OnboardingHeader';
+import ProgressBar from '@/src/components/common/ProgressBar';
 import RulerPicker from '@/src/components/common/RulerPicker';
+import SectionCard from '@/src/components/common/SectionCard';
 import SelectableCard from '@/src/components/common/SelectableCard';
 import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
+import WeekDayPicker from '@/src/components/common/WeekDayPicker';
 import { useModuleConfigStorage } from '@/src/hooks/use-module-config-storage';
-import {
-  Equipment,
-  EquipmentSelection,
-  EXPERIENCE_LEVEL_OPTIONS,
-  TRAINING_HISTORY_OPTIONS,
-  WEEKDAY_OPTIONS,
-  WORKOUT_LOCATION_OPTIONS,
-  SubGoal,
-} from '@/src/types/fitness';
 import {
   getEquipments,
   getSubGoals,
   submitFitnessProfile,
 } from '@/src/services/fitness.service';
+import {
+  Equipment,
+  EquipmentSelection,
+  EXPERIENCE_LEVEL_OPTIONS,
+  SubGoal,
+  TRAINING_HISTORY_OPTIONS,
+  WEEKDAY_OPTIONS,
+} from '@/src/types/fitness';
 
 interface FitnessConfigStepProps {
   /** Color de marca del módulo Fitness (para el botón Continuar) */
@@ -85,7 +87,6 @@ export default function FitnessConfigStep({
   const [sessionDuration, setSessionDuration] = useState(60);
 
   // ── Estado pantalla 3 ──
-  const [workoutLocation, setWorkoutLocation] = useState<string>('');
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [selectedEquipment, setSelectedEquipment] = useState<EquipmentSelection[]>([]);
   const [isLoadingEquipment, setIsLoadingEquipment] = useState(false);
@@ -106,7 +107,6 @@ export default function FitnessConfigStep({
           setHasFlexibleTime(draft.hasFlexibleTime);
         if (draft.sessionDurationPreference)
           setSessionDuration(draft.sessionDurationPreference);
-        if (draft.workoutLocation) setWorkoutLocation(draft.workoutLocation);
         if (draft.availableEquipment)
           setSelectedEquipment(Array.isArray(draft.availableEquipment) ? draft.availableEquipment : []);
       }
@@ -169,7 +169,6 @@ export default function FitnessConfigStep({
       preferredWorkoutDays: selectedDays,
       hasFlexibleTime,
       sessionDurationPreference: hasFlexibleTime ? 0 : sessionDuration,
-      workoutLocation,
       availableEquipment: selectedEquipment,
     });
   }, [
@@ -179,7 +178,6 @@ export default function FitnessConfigStep({
     selectedDays,
     hasFlexibleTime,
     sessionDuration,
-    workoutLocation,
     selectedEquipment,
   ]);
 
@@ -211,7 +209,6 @@ export default function FitnessConfigStep({
             id: String(e.id),
             qty: Number(e.qty),
           })),
-          workoutLocation: String(workoutLocation),
           sessionDurationPreference: hasFlexibleTime ? 0 : sessionDuration,
           subGoals: selectedSubGoalIds,
         },
@@ -229,19 +226,35 @@ export default function FitnessConfigStep({
 
   // ── Helpers de selección ──
 
-  const toggleDay = (dayValue: number) => {
-    setSelectedDays((prev) =>
-      prev.includes(dayValue)
-        ? prev.filter((d) => d !== dayValue)
-        : [...prev, dayValue]
-    );
-  };
-
   const toggleSubGoal = (id: string) => {
     setSelectedSubGoalIds((prev) =>
       prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]
     );
   };
+
+  const incrementEquipment = (id: string) => {
+    setSelectedEquipment((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, qty: e.qty + 1 } : e))
+    );
+  };
+
+  const decrementEquipment = (id: string) => {
+    setSelectedEquipment((prev) => {
+      const item = prev.find((e) => e.id === id);
+      if (!item) return prev;
+      if (item.qty <= 1) return prev.filter((e) => e.id !== id);
+      return prev.map((e) => (e.id === id ? { ...e, qty: e.qty - 1 } : e));
+    });
+  };
+
+  const removeEquipment = (id: string) => {
+    setSelectedEquipment((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  const selectedWithDetails = selectedEquipment.map((sel) => ({
+    ...sel,
+    name: equipmentList.find((eq) => eq.id === sel.id)?.name ?? '',
+  }));
 
   // ═══════════════════════════════════════════════════════════════════
   // PANTALLA 1: Experiencia + Actividad
@@ -249,63 +262,63 @@ export default function FitnessConfigStep({
   if (subStep === 0) {
     return (
       <View className="flex-1">
+        <ProgressBar currentStep={subStep} totalSteps={4} />
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32, paddingTop: 32 }}
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 32, paddingBottom: 16 }}
           showsVerticalScrollIndicator={false}
         >
           <OnboardingHeader
-            title="Perfil de entrenamiento"
-            subtitle="Ajustemos los detalles para tu rutina ideal"
+            title={"Perfil de\nentrenamiento"}
+            subtitle="Conocer tu experiencia nos ayudará a ajustar la intensidad de tus entrenamientos."
           />
 
-          {/* Nivel de experiencia */}
-          <Text className="text-xl font-semibold text-slate-800 dark:text-zinc-200">
-            Nivel de experiencia
-          </Text>
-          <Text className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
-            ¿Cuál es tu punto de partida?
-          </Text>
+          {/* Card: Nivel de experiencia */}
+          <SectionCard
+            icon={<Ionicons name="bar-chart" size={20} color="#64748b" />}
+            title="Nivel de experiencia"
+            subtitle="¿Cuál es tu punto de partida?"
+            className="mb-4"
+          >
+            <View className="flex-row flex-wrap gap-3">
+              {EXPERIENCE_LEVEL_OPTIONS.map((option) => (
+                <SelectableCard
+                  key={option.value}
+                  isSelected={experienceLevel === option.value}
+                  brandColor={brandColor}
+                  label={option.label}
+                  onPress={() => setExperienceLevel(option.value)}
+                  size="half"
+                />
+              ))}
+            </View>
+          </SectionCard>
 
-          <View className="flex-row flex-wrap gap-3 mb-8">
-            {EXPERIENCE_LEVEL_OPTIONS.map((option) => (
-              <SelectableCard
-                key={option.value}
-                isSelected={experienceLevel === option.value}
-                brandColor={brandColor}
-                label={option.label}
-                onPress={() => setExperienceLevel(option.value)}
-                size="auto"
-              />
-            ))}
-          </View>
-
-          {/* Nivel de actividad (trainingHistory) */}
-          <Text className="text-xl font-semibold text-slate-800 dark:text-zinc-200">
-            Nivel de actividad
-          </Text>
-          <Text className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
-            Define tu punto de partida
-          </Text>
-
-          <View className="flex-row flex-wrap justify-between">
-            {TRAINING_HISTORY_OPTIONS.map((option) => (
-              <SelectableCard
-                key={option.value}
-                isSelected={trainingHistory === option.value}
-                brandColor={brandColor}
-                label={option.label}
-                onPress={() => setTrainingHistory(option.value)}
-                size="half"
-                textSize="sm"
-              />
-            ))}
-          </View>
+          {/* Card: Nivel de actividad (trainingHistory) */}
+          <SectionCard
+            icon={<Ionicons name="timer-outline" size={20} color="#64748b" />}
+            title="Nivel de actividad"
+            subtitle="¿Hace cuánto entrenas?"
+          >
+            <View className="flex-row flex-wrap gap-3">
+              {TRAINING_HISTORY_OPTIONS.map((option) => (
+                <SelectableCard
+                  key={option.value}
+                  isSelected={trainingHistory === option.value}
+                  brandColor={brandColor}
+                  label={option.label}
+                  onPress={() => setTrainingHistory(option.value)}
+                  size="half"
+                  textSize="sm"
+                />
+              ))}
+            </View>
+          </SectionCard>
         </ScrollView>
 
         <OnboardingFooter
-          brandColor={brandColor}
           onPress={handleContinueStep0}
-          helperText="Puedes editar estos datos luego."
+          helperText="Usaremos estos datos para darte planes más personalizados. Puedes editarlos luego."
+          helperIcon={<Ionicons name="sparkles-outline" size={18} color="#64748b" />}
         />
       </View>
     );
@@ -318,52 +331,50 @@ export default function FitnessConfigStep({
     return (
       <SwipeBackWrapper onSwipeBack={() => setSubStep(0)}>
         <View className="flex-1">
-          <BackButton onPress={() => setSubStep(0)} color={brandColor} />
+          <ProgressBar currentStep={subStep} totalSteps={4} />
 
           <ScrollView
-            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32, paddingTop: 16 }}
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 32, paddingBottom: 16 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
             <OnboardingHeader
-              title="Perfil de entrenamiento"
-              subtitle="Ajustemos los detalles para tu rutina ideal"
+              title={"Perfil de\nentrenamiento"}
+              subtitle="Define tu enfoque principal para personalizar tus rutinas y progresión."
             />
 
-            <Text className="text-xl font-semibold text-slate-800 dark:text-zinc-200">
-              Tu objetivo
-            </Text>
-            <Text className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
-              ¿Qué quieres lograr?
-            </Text>
-
-            {isLoadingSubGoals ? (
-              <View className="py-10 items-center">
-                <ActivityIndicator size="large" color={brandColor} />
-                <Text className="text-slate-500 dark:text-zinc-400 mt-4">
-                  Cargando objetivos...
-                </Text>
-              </View>
-            ) : (
-              <View style={{ gap: 12 }}>
-                {subGoals.map((goal) => (
-                  <SelectableCard
-                    key={goal.id}
-                    isSelected={selectedSubGoalIds.includes(goal.id)}
-                    brandColor={brandColor}
-                    label={goal.name}
-                    description={goal.description}
-                    onPress={() => toggleSubGoal(goal.id)}
-                  />
-                ))}
-              </View>
-            )}
+            <SectionCard
+              icon={<Ionicons name="ribbon-outline" size={20} color="#64748b" />}
+              title="Sub objetivo"
+              subtitle="¿Qué quieres lograr?"
+            >
+              {isLoadingSubGoals ? (
+                <View className="py-6 items-center">
+                  <ActivityIndicator size="large" color={brandColor} />
+                  <Text className="text-slate-500 dark:text-slate-400 mt-4">
+                    Cargando objetivos...
+                  </Text>
+                </View>
+              ) : (
+                <View className="gap-3">
+                  {subGoals.map((goal) => (
+                    <CheckableCard
+                      key={goal.id}
+                      isSelected={selectedSubGoalIds.includes(goal.id)}
+                      label={goal.name}
+                      description={goal.description}
+                      onPress={() => toggleSubGoal(goal.id)}
+                    />
+                  ))}
+                </View>
+              )}
+            </SectionCard>
           </ScrollView>
 
           <OnboardingFooter
-            brandColor={brandColor}
             onPress={() => setSubStep(2)}
-            helperText={`Estos sub-objetivos están adaptados a tu meta principal: ${globalGoalName}\nPuedes editar estos datos luego.`}
+            helperText="Usaremos estos datos para darte planes más personalizados. Puedes editarlos luego."
+            helperIcon={<Ionicons name="sparkles-outline" size={18} color="#64748b" />}
           />
         </View>
       </SwipeBackWrapper>
@@ -374,102 +385,84 @@ export default function FitnessConfigStep({
   // PANTALLA 3: Disponibilidad + Duración de sesión
   // ═══════════════════════════════════════════════════════════════════
   if (subStep === 2) {
-    const weekendSelectedColor = '#f87171'; // red-400
-
     return (
       <SwipeBackWrapper onSwipeBack={() => setSubStep(1)}>
-      <View className="flex-1">
-        <BackButton onPress={() => setSubStep(1)} color={brandColor} />
+        <View className="flex-1">
+          <ProgressBar currentStep={subStep} totalSteps={4} />
 
-        <ScrollView
-          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32 }}
-          showsVerticalScrollIndicator={false}
-        >
-          <OnboardingHeader
-            title="Perfil de entrenamiento"
-            subtitle="Ajustemos los detalles para tu rutina ideal"
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 32, paddingBottom: 16 }}
+            showsVerticalScrollIndicator={false}
+          >
+            <OnboardingHeader
+              title={"Perfil de\nentrenamiento"}
+              subtitle="Adaptaremos tus entrenamientos a tu rutina y tiempo disponible."
+            />
+
+            {/* Card: Disponibilidad */}
+            <SectionCard
+              icon={<Ionicons name="calendar-outline" size={20} color="#64748b" />}
+              title="Disponibilidad"
+              subtitle="¿Qué días tenés disponibles?"
+              className="mb-4"
+            >
+              <WeekDayPicker
+                days={WEEKDAY_OPTIONS}
+                selectedDays={selectedDays}
+                onChange={setSelectedDays}
+              />
+            </SectionCard>
+
+            {/* Card: Duración de sesión */}
+            <SectionCard
+              icon={<Ionicons name="time-outline" size={20} color="#64748b" />}
+              title="Duración"
+              subtitle="¿De cuánto tiempo dispónes?"
+            >
+              <View className="flex-row gap-3 mb-2">
+                <View className="flex-1">
+                  <SelectableCard
+                    isSelected={hasFlexibleTime}
+                    brandColor={brandColor}
+                    label="Tengo tiempo"
+                    onPress={() => setHasFlexibleTime(true)}
+                    textSize="sm"
+                    size="auto"
+                  />
+                </View>
+                <View className="flex-1">
+                  <SelectableCard
+                    isSelected={!hasFlexibleTime}
+                    brandColor={brandColor}
+                    label="Elegir tiempo"
+                    onPress={() => setHasFlexibleTime(false)}
+                    textSize="sm"
+                    size="auto"
+                  />
+                </View>
+              </View>
+
+              {/* RulerPicker — solo si "Elegir tiempo" */}
+              {!hasFlexibleTime && (
+                <RulerPicker
+                  label="Tiempo"
+                  min={15}
+                  max={120}
+                  initial={sessionDuration}
+                  step={5}
+                  unit="min"
+                  onValueChange={setSessionDuration}
+                />
+              )}
+            </SectionCard>
+          </ScrollView>
+
+          <OnboardingFooter
+            onPress={() => setSubStep(3)}
+            helperText="Usaremos estos datos para darte planes más personalizados. Puedes editarlos luego."
+            helperIcon={<Ionicons name="sparkles-outline" size={18} color="#64748b" />}
           />
-
-          {/* Disponibilidad */}
-          <Text className="text-xl font-semibold text-slate-800 dark:text-zinc-200">
-            Disponibilidad
-          </Text>
-          <Text className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
-            ¿Cuántos días entrenarás?
-          </Text>
-
-          <View className="flex-row justify-between mb-8">
-            {WEEKDAY_OPTIONS.map((day) => {
-              const isSelected = selectedDays.includes(day.value);
-              return (
-                <TouchableOpacity
-                  key={day.value}
-                  onPress={() => toggleDay(day.value)}
-                  activeOpacity={0.7}
-                  className={`w-11 h-11 rounded-xl items-center justify-center border-2 ${
-                    isSelected ? '' : 'border-gray-200 dark:border-zinc-700'
-                  }`}
-                  style={[
-                    isSelected && {
-                      backgroundColor: day.isWeekend ? weekendSelectedColor : brandColor,
-                      borderColor: day.isWeekend ? weekendSelectedColor : brandColor,
-                    },
-                  ]}
-                >
-                  <Text
-                    className={`text-sm font-bold ${
-                      isSelected ? 'text-white' : 'text-slate-600 dark:text-zinc-400'
-                    }`}
-                  >
-                    {day.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Duración de sesión */}
-          <Text className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
-            ¿De cuánto tiempo dispones por sesión?
-          </Text>
-
-          <View className="flex-row gap-3 mb-6">
-            <SelectableCard
-              isSelected={hasFlexibleTime}
-              brandColor={brandColor}
-              label="Tengo tiempo"
-              onPress={() => setHasFlexibleTime(true)}
-              textSize="sm"
-            />
-            <SelectableCard
-              isSelected={!hasFlexibleTime}
-              brandColor={brandColor}
-              label="Elegir tiempo"
-              onPress={() => setHasFlexibleTime(false)}
-              textSize="sm"
-            />
-          </View>
-
-          {/* RulerPicker — solo si "Elegir tiempo" */}
-          {!hasFlexibleTime && (
-            <RulerPicker
-              label="Tiempo"
-              min={15}
-              max={120}
-              initial={sessionDuration}
-              step={5}
-              unit="min"
-              onValueChange={setSessionDuration}
-            />
-          )}
-        </ScrollView>
-
-        <OnboardingFooter
-          brandColor={brandColor}
-          onPress={() => setSubStep(3)}
-          helperText="Puedes editar estos datos luego."
-        />
-      </View>
+        </View>
       </SwipeBackWrapper>
     );
   }
@@ -479,88 +472,114 @@ export default function FitnessConfigStep({
   // ═══════════════════════════════════════════════════════════════════
   return (
     <SwipeBackWrapper onSwipeBack={() => setSubStep(2)}>
-    <View className="flex-1">
-      <BackButton onPress={() => setSubStep(2)} color={brandColor} />
+      <View className="flex-1">
+        <ProgressBar currentStep={3} totalSteps={4} />
 
-      <View className="flex-1 px-8">
         <Pressable
-          style={{ flex: 1, paddingTop: 16 }}
+          style={{ flex: 1 }}
           onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
         >
-          <OnboardingHeader
-            title="Perfil de entrenamiento"
-            subtitle="Ajustemos los detalles para tu rutina ideal"
-          />
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 32, paddingBottom: 16 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <OnboardingHeader
+              title={"Perfil de\nentrenamiento"}
+              subtitle="Conocer tu equipamiento nos ayudará a crear entrenamientos más precisos."
+            />
 
-          {/* Entorno */}
-          <Text className="text-xl font-semibold text-slate-800 dark:text-zinc-200">
-            Entorno
-          </Text>
-          <Text className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
-            ¿Dónde entrenarás hoy?
-          </Text>
+            {/* Card: Equipamiento - buscador */}
+            <SectionCard
+              icon={<Ionicons name="barbell-outline" size={20} color="#64748b" />}
+              title="Equipamiento"
+              subtitle="¿Con qué materiales cuentas?"
+              className="mb-4"
+            >
+              {isLoadingEquipment ? (
+                <View className="py-6 items-center">
+                  <ActivityIndicator size="large" color={brandColor} />
+                  <Text className="text-slate-500 dark:text-slate-400 mt-4">
+                    Cargando equipamiento...
+                  </Text>
+                </View>
+              ) : (
+                <EquipmentSelect
+                  equipments={equipmentList}
+                  selectedEquipment={selectedEquipment}
+                  onSelectionChange={setSelectedEquipment}
+                  placeholder="Buscar equipamiento"
+                  showSelectedList={false}
+                />
+              )}
+            </SectionCard>
 
-          <View className="flex-row gap-3 mb-8">
-            {WORKOUT_LOCATION_OPTIONS.map((option) => (
-              <SelectableCard
-                key={option.value}
-                isSelected={workoutLocation === option.value}
-                brandColor={brandColor}
-                label={option.label}
-                onPress={() => setWorkoutLocation(option.value)}
-              />
-            ))}
-          </View>
+            {/* Lista de equipamiento seleccionado */}
+            {selectedWithDetails.length > 0 && (
+              <View>
+                <View className="flex-row justify-between items-center mb-3">
+                  <Text className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                    Seleccionadas ({selectedEquipment.length})
+                  </Text>
+                  <TouchableOpacity onPress={() => setSelectedEquipment([])}>
+                    <Text className="text-sm text-slate-500 dark:text-slate-400">
+                      Borrar todas
+                    </Text>
+                  </TouchableOpacity>
+                </View>
 
-          {/* Equipamiento */}
-          <Text className="text-xl font-semibold text-slate-800 dark:text-zinc-200">
-            Equipamiento
-          </Text>
-          <Text className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
-            ¿Con qué materiales cuentas?
-          </Text>
-
-          {isLoadingEquipment ? (
-            <View className="py-10 items-center">
-              <ActivityIndicator size="large" color={brandColor} />
-              <Text className="text-slate-500 dark:text-zinc-400 mt-4">
-                Cargando equipamiento...
-              </Text>
-            </View>
-          ) : (
-            <View className="flex-1 z-50">
-              <EquipmentSelect
-                equipments={equipmentList}
-                selectedEquipment={selectedEquipment}
-                onSelectionChange={setSelectedEquipment}
-                placeholder="Seleccionar - Opcional"
-              />
-            </View>
-          )}
+                {selectedWithDetails.map((item) => (
+                  <View
+                    key={String(item.id)}
+                    className="flex-row items-center px-4 py-3 mb-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl"
+                  >
+                    <Text className="flex-1 text-base text-slate-900 dark:text-slate-50">
+                      {item.name}
+                    </Text>
+                    <View className="flex-row items-center gap-3">
+                      {/* Pill - qty + */}
+                      <View className="flex-row items-center border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 gap-3">
+                        <TouchableOpacity
+                          onPress={() => decrementEquipment(String(item.id))}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Text className="text-base font-medium text-slate-500 dark:text-slate-400">
+                            -
+                          </Text>
+                        </TouchableOpacity>
+                        <Text className="text-sm font-semibold text-slate-900 dark:text-slate-50 min-w-[16px] text-center">
+                          {item.qty}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => incrementEquipment(String(item.id))}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Text className="text-base font-medium text-slate-500 dark:text-slate-400">
+                            +
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => removeEquipment(String(item.id))}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#94a3b8" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </ScrollView>
         </Pressable>
 
-        {/* Footer */}
-        <View className="items-center mb-[34px] mt-4">
-          <Text className="text-center text-sm text-slate-500 dark:text-zinc-400 mb-4 px-6 leading-5">
-            Puedes editar estos datos luego.
-          </Text>
-          <TouchableOpacity
-            style={[
-              { backgroundColor: brandColor },
-              isSubmitting && { opacity: 0.7 },
-            ]}
-            className="w-full py-5 rounded-2xl items-center shadow-md"
-            onPress={handleSubmit}
-            disabled={isSubmitting}
-            activeOpacity={0.8}
-          >
-            <Text className="text-white text-lg font-bold">
-              Continuar
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <OnboardingFooter
+          onPress={handleSubmit}
+          disabled={isSubmitting}
+          helperText="Usaremos estos datos para darte planes más personalizados. Puedes editarlos luego."
+          helperIcon={<Ionicons name="sparkles-outline" size={18} color="#64748b" />}
+        />
       </View>
-    </View>
     </SwipeBackWrapper>
   );
 }

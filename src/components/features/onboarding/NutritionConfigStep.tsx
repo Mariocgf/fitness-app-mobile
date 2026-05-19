@@ -1,42 +1,43 @@
-import React, { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  DeviceEventEmitter,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
 import { useAuth } from '@clerk/clerk-expo';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Text, View } from 'react-native';
 
-import BackButton from '@/src/components/common/BackButton';
-import OnboardingFooter from '@/src/components/common/OnboardingFooter';
-import OnboardingHeader from '@/src/components/common/OnboardingHeader';
-import SelectableCard from '@/src/components/common/SelectableCard';
-import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
-import TagSelect from '@/src/components/common/TagSelect';
+import NutritionAllergyStep from '@/src/components/features/onboarding/NutritionAllergyStep';
+import NutritionDietStyleStep from '@/src/components/features/onboarding/NutritionDietStyleStep';
+import NutritionSubGoalStep from '@/src/components/features/onboarding/NutritionSubGoalStep';
 import { useModuleConfigStorage } from '@/src/hooks/use-module-config-storage';
 import {
-  getFoodAllergies,
-  getDietaryPreferences,
-  getSubGoals,
-  submitNutritionProfile,
+    getDietaryPreferences,
+    getFoodAllergies,
+    getSubGoals,
+    submitNutritionProfile,
 } from '@/src/services/nutrition.service';
 import { NutritionItem, SubGoal } from '@/src/types/nutrition';
 
 interface NutritionConfigStepProps {
+  /** Color de marca del módulo Nutrition */
   brandColor: string;
+  /** ID del módulo actual */
   moduleId: string;
+  /** Nombre de la meta global elegida */
   globalGoalName: string;
+  /** Callback al finalizar toda la configuración */
   onComplete: () => void;
+  /** Indica si se está enviando al backend */
   isSubmitting: boolean;
+  /** Setter para controlar el estado de envío desde el padre */
   setIsSubmitting: (v: boolean) => void;
 }
 
+/**
+ * Orquestador del módulo Nutrition durante el onboarding.
+ * Gestiona estado global y delega el render a:
+ *   - NutritionSubGoalStep (subStep 0)
+ *   - NutritionDietStep    (subStep 1 → POST)
+ */
 export default function NutritionConfigStep({
   brandColor,
   moduleId,
-  globalGoalName,
   onComplete,
   isSubmitting,
   setIsSubmitting,
@@ -124,123 +125,47 @@ export default function NutritionConfigStep({
     return (
       <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color={brandColor} />
-        <Text className="text-slate-500 dark:text-zinc-400 mt-4">
+        <Text className="text-slate-500 dark:text-slate-400 mt-4">
           Cargando datos de nutrición...
         </Text>
       </View>
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // PANTALLA 1: Sub-objetivos
-  // ═══════════════════════════════════════════════════════════════════
+  // ── SubStep 0: Sub-objetivos ──
   if (subStep === 0) {
     return (
-      <View className="flex-1">
-        <ScrollView
-          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32, paddingTop: 32 }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <OnboardingHeader
-            title="Plan de nutrición"
-            subtitle="Define tus metas alimenticias para personalizar tus recetas"
-          />
-
-          <Text className="text-xl font-semibold text-slate-800 dark:text-zinc-200">
-            Tu objetivo
-          </Text>
-          <Text className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
-            ¿Qué quieres lograr?
-          </Text>
-
-          <View style={{ gap: 12 }}>
-            {subGoals.map((goal) => (
-              <SelectableCard
-                key={goal.id}
-                isSelected={selectedSubGoalIds.includes(goal.id)}
-                brandColor={brandColor}
-                label={goal.name}
-                description={goal.description}
-                onPress={() => toggleSubGoal(goal.id)}
-              />
-            ))}
-          </View>
-        </ScrollView>
-
-        {/* Footer fijo con texto del objetivo global */}
-        <OnboardingFooter
-          brandColor={brandColor}
-          onPress={() => setSubStep(1)}
-          helperText={`Estos sub-objetivos están adaptados a tu meta principal: ${globalGoalName}\nPuedes editar estos datos luego.`}
-        />
-      </View>
+      <NutritionSubGoalStep
+        subGoals={subGoals}
+        selectedSubGoalIds={selectedSubGoalIds}
+        onToggleSubGoal={toggleSubGoal}
+        onContinue={() => setSubStep(1)}
+      />
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // PANTALLA 2: Alergias + Estilo de dieta → POST
-  // ═══════════════════════════════════════════════════════════════════
-  return (
-    <SwipeBackWrapper onSwipeBack={() => setSubStep(0)}>
-    <View className="flex-1">
-      <BackButton onPress={() => setSubStep(0)} color={brandColor} />
-
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32 }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Pressable
-          style={{ flex: 1, paddingTop: 16 }}
-          onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
-        >
-          <OnboardingHeader
-            title="Plan de nutrición"
-            subtitle="Define tus metas alimenticias para personalizar tus recetas"
-          />
-
-          {/* Alergias — zIndex alto para que el dropdown flote sobre el segundo select */}
-          <View style={{ zIndex: 10 }}>
-            <Text className="text-xl font-semibold text-slate-800 dark:text-zinc-200">
-              ¿Tienes alguna alergia?
-            </Text>
-            <Text className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
-              Selecciona las que apliquen
-            </Text>
-            <TagSelect
-              items={allergies}
-              selectedIds={selectedAllergyIds}
-              onSelectionChange={setSelectedAllergyIds}
-              placeholder="Seleccionar - Opcional"
-            />
-          </View>
-
-          {/* Estilo de dieta */}
-          <View style={{ zIndex: 1, marginTop: 24 }}>
-            <Text className="text-xl font-semibold text-slate-800 dark:text-zinc-200">
-              Selecciona tu estilo de dieta
-            </Text>
-            <Text className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
-              Selecciona las que apliquen
-            </Text>
-            <TagSelect
-              items={dietaryPreferences}
-              selectedIds={selectedDietIds}
-              onSelectionChange={setSelectedDietIds}
-              placeholder="Seleccionar - Opcional"
-            />
-          </View>
-        </Pressable>
-      </ScrollView>
-
-      <OnboardingFooter
-        brandColor={brandColor}
-        onPress={handleSubmit}
-        disabled={isSubmitting}
-        helperText="Puedes editar estos datos luego."
+  // ── SubStep 1: Alergias ──
+  if (subStep === 1) {
+    return (
+      <NutritionAllergyStep
+        allergies={allergies}
+        selectedAllergyIds={selectedAllergyIds}
+        onAllergyChange={setSelectedAllergyIds}
+        onContinue={() => setSubStep(2)}
+        onBack={() => setSubStep(0)}
       />
-    </View>
-    </SwipeBackWrapper>
+    );
+  }
+
+  // ── SubStep 2: Estilo de dieta → POST ──
+  return (
+    <NutritionDietStyleStep
+      dietaryPreferences={dietaryPreferences}
+      selectedDietIds={selectedDietIds}
+      onDietChange={setSelectedDietIds}
+      onSubmit={handleSubmit}
+      isSubmitting={isSubmitting}
+      onBack={() => setSubStep(1)}
+    />
   );
 }

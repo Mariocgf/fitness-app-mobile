@@ -1,0 +1,43 @@
+import React from 'react';
+import { Text, View } from 'react-native';
+
+interface SectionCardProps {
+  /** Ícono a mostrar en el círculo izquierdo */
+  icon: React.ReactNode;
+  /** Título de la sección */
+  title: string;
+  /** Subtítulo descriptivo */
+  subtitle: string;
+  /** Contenido de la sección */
+  children: React.ReactNode;
+  /** Clases adicionales para el contenedor (ej: "mb-4") */
+  className?: string;
+}
+
+/**
+ * Tarjeta de sección reutilizable para onboarding.
+ * Muestra ícono en círculo, título, subtítulo y contenido.
+ * Sin sombra — solo borde slate-200 según design system.
+ */
+export default function SectionCard({ icon, title, subtitle, children, className = '' }: SectionCardProps) {
+  return (
+    <View
+      className={`bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 ${className}`}
+    >
+      <View className="flex-row items-center mb-4">
+        <View className="w-11 h-11 bg-slate-100 dark:bg-slate-800 rounded-full items-center justify-center mr-3">
+          {icon}
+        </View>
+        <View className="flex-1">
+          <Text className="text-base font-bold text-slate-900 dark:text-slate-50">
+            {title}
+          </Text>
+          <Text className="text-sm text-slate-500 dark:text-slate-400">
+            {subtitle}
+          </Text>
+        </View>
+      </View>
+      {children}
+    </View>
+  );
+}

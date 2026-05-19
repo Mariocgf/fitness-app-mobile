@@ -1,24 +1,28 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Alert, Dimensions, ActivityIndicator } from 'react-native';
+import { SessionSlider } from '@/src/components/common/SessionSlider';
+import { ExerciseActionButtons } from '@/src/components/features/ExerciseActionButtons';
+import { ExerciseTimerCard } from '@/src/components/features/ExerciseTimerCard';
+import { useColorScheme } from '@/src/hooks/use-color-scheme';
+import { adjustExerciseLoad } from '@/src/services/exercise.service';
+import { ExerciseLog, SessionDay, SessionExercise, SessionLog } from '@/src/types/session';
+import { formatReps, formatTime, formatTimeSpan } from '@/src/utils/format.utils';
+import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
   FadeIn,
+  FadeInDown,
   FadeOut,
-  SlideInUp,
-  SlideOutDown,
-  SlideInDown,
-  SlideOutUp,
+  FadeOutUp,
+  LinearTransition,
 } from 'react-native-reanimated';
-import { useAuth } from '@clerk/clerk-expo';
-import { SessionDay, SessionLog, ExerciseLog, SessionExercise } from '@/src/types/session';
-import { adjustExerciseLoad } from '@/src/services/exercise.service';
-import { formatTime, formatReps, formatTimeSpan } from '@/src/utils/format.utils';
-import { RPESlider } from './RPESlider';
-import { ClockCircle } from '@/src/components/common/ClockCircle';
-import { InstructionsModal } from './InstructionsModal';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ExerciseGif } from './ExerciseGif';
+import { InstructionsModal } from './InstructionsModal';
 
 type Phase = 'COUNTDOWN' | 'EXERCISE' | 'REST' | 'SUMMARY';
+type RepetitionMode = 'partial' | 'all';
 
 interface ActiveSessionViewProps {
   routineId: string;
@@ -38,8 +42,9 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
   onCancel,
 }) => {
   const { getToken } = useAuth();
-  const { width: screenWidth } = Dimensions.get('window');
-  const dynamicClockSize = screenWidth * 0.40; // 40% del ancho de pantalla
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
 
   const [phase, setPhase] = useState<Phase>('COUNTDOWN');
   const [countdown, setCountdown] = useState(3);
@@ -56,6 +61,8 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
   const [showInstructions, setShowInstructions] = useState(false);
   const [exerciseTimeLeft, setExerciseTimeLeft] = useState<number | null>(null);
   const [isAdjustingLoad, setIsAdjustingLoad] = useState(false);
+  const [repetitionMode, setRepetitionMode] = useState<RepetitionMode>('partial');
+  const [partialReps, setPartialReps] = useState(0);
 
   const currentExercise = exercises[exerciseIndex];
   const totalSets = parseInt(currentExercise?.sets) || 1;
@@ -63,6 +70,16 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
 
   const isTimeBased = currentExercise?.repType === 'Timed';
   const timeBasedDuration = isTimeBased ? parseInt(currentExercise?.durationSeconds || '0', 10) : 0;
+  const repetitionMax = useMemo(() => {
+    const current = parseInt(currentExercise?.currentRep || '0', 10);
+    const max = parseInt(currentExercise?.maxRep || '0', 10);
+    const min = parseInt(currentExercise?.minRep || '0', 10);
+    return current || max || min || 0;
+  }, [currentExercise?.currentRep, currentExercise?.maxRep, currentExercise?.minRep]);
+  const nextExercise = currentSet < totalSets
+    ? currentExercise
+    : exercises[exerciseIndex + 1] || currentExercise;
+  const canUpdateRpe = !rpeSaved && !isAdjustingLoad && (rpe < 4 || rpe > 6);
 
   /* ── countdown ── */
   useEffect(() => {
@@ -118,6 +135,12 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
   }, [phase, isTimeBased, timeBasedDuration, exerciseIndex, currentSet]);
 
   useEffect(() => {
+    if (phase !== 'REST') return;
+    setRepetitionMode('partial');
+    setPartialReps(Math.round(repetitionMax / 2));
+  }, [phase, repetitionMax, exerciseIndex, currentSet]);
+
+  useEffect(() => {
     if (phase !== 'EXERCISE' || !isTimeBased || exerciseTimeLeft === null || exerciseTimeLeft <= 0) return;
     const t = setInterval(() => {
       setExerciseTimeLeft((prev) => {
@@ -152,8 +175,7 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
   );
 
   const advanceAfterRest = useCallback(() => {
-    // Guarda RPE (si el usuario no presionó "Guardar", valor por defecto 5)
-    if (!rpeSaved) saveCurrentLog(5);
+    if (!rpeSaved) saveCurrentLog(rpe);
 
     if (currentSet < totalSets) {
       setCurrentSet((s) => s + 1);
@@ -164,7 +186,7 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
     setRpeSaved(false);
     setRpe(5);
     setPhase('EXERCISE');
-  }, [currentSet, totalSets, rpeSaved, saveCurrentLog]);
+  }, [currentSet, totalSets, rpe, rpeSaved, saveCurrentLog]);
 
   const handleFinishSet = useCallback(() => {
     const isLastSet = currentSet >= totalSets;
@@ -297,166 +319,316 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
     );
   }
 
-  /* ══════════════════════ EXERCISE / REST ══════════════════════ */
-  return (
-    <View className="flex-1 bg-zinc-950 p-4 pt-14">
-      <Text className="text-white text-xl font-bold text-center mb-6">
-        Entrenamiento
-      </Text>
+  /* ══════════════════════ EXERCISE ══════════════════════ */
+  if (phase === 'EXERCISE') {
+    return (
+      <View className="flex-1 bg-slate-100 dark:bg-slate-950">
+        <StatusBar style={isDark ? 'light' : 'dark'} />
 
-      <View className="flex-1 justify-between">
-        {/* ──── zona superior ──── */}
-        <View className="w-full mb-4">
-          {phase === 'EXERCISE' ? (
-            <Animated.View
-              key={`ex-${exerciseIndex}-${currentSet}`}
-              entering={SlideInDown.duration(400)}
-              exiting={SlideOutUp.duration(300)}
-              className="items-center w-full"
+        {/* Zona blanca: desde barra de estado hasta el timer */}
+        <View
+          style={{ paddingTop: insets.top }}
+          className="bg-white dark:bg-slate-900 rounded-b-3xl overflow-hidden"
+        >
+          {/* Header: < | nombre del ejercicio | (i) */}
+          <View className="flex-row items-center px-4 pt-3 pb-3 gap-3">
+            <TouchableOpacity
+              onPress={onCancel}
+              className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 items-center justify-center"
             >
-              {/* GIF del ejercicio */}
-              <View className="bg-zinc-900 rounded-3xl overflow-hidden w-full aspect-square mb-4 items-center justify-center relative">
-                {currentExercise.gifUrl ? (
-                  <ExerciseGif uri={currentExercise.gifUrl} />
-                ) : (
-                  <Ionicons name="image-outline" size={60} color="#555" />
-                )}
-
-                {/* Botón flotante de información */}
-                <TouchableOpacity
-                  onPress={() => setShowInstructions(true)}
-                  className="absolute top-4 right-4 bg-zinc-800/80 p-2 rounded-full z-10 border border-white/10"
-                >
-                  <Ionicons name="information-circle-outline" size={24} color="#d9f99d" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Chips de estadísticas */}
-              <View className="bg-zinc-900 rounded-2xl py-4 px-2 w-full flex-row justify-between border border-zinc-800">
-                <View className="items-center flex-1">
-                  <Text className="text-lime-300 font-bold text-lg">
-                    {currentSet}/{totalSets}
-                  </Text>
-                  <Text className="text-zinc-400 text-xs">Series</Text>
-                </View>
-                <View className="w-px bg-zinc-800" />
-                <View className="items-center flex-1">
-                  <Text className="text-lime-300 font-bold text-lg">
-                    {formatReps(currentExercise)}
-                  </Text>
-                  <Text className="text-zinc-400 text-xs">Repeticiones</Text>
-                </View>
-                <View className="w-px bg-zinc-800" />
-                <View className="items-center flex-1">
-                  <Text className="text-lime-300 font-bold text-lg">
-                    {currentExercise.rest}s
-                  </Text>
-                  <Text className="text-zinc-400 text-xs">Descanso</Text>
-                </View>
-                <View className="w-px bg-zinc-800" />
-                <View className="items-center flex-1">
-                  <Text className="text-lime-300 font-bold text-lg">
-                    {currentExercise.weight}
-                  </Text>
-                  <Text className="text-zinc-400 text-xs">Peso</Text>
-                </View>
-              </View>
-            </Animated.View>
-          ) : (
-            <Animated.View
-              key="rest-view"
-              entering={SlideInUp.duration(400)}
-              exiting={SlideOutDown.duration(300)}
-              className="items-center w-full"
+              <Ionicons name="chevron-back" size={20} color={isDark ? '#f1f5f9' : '#334155'} />
+            </TouchableOpacity>
+            <Text
+              className="flex-1 text-center text-slate-900 dark:text-slate-50 font-semibold text-base"
+              numberOfLines={2}
             >
-              {/* Reloj grande de descanso */}
-              <ClockCircle
-                isRestPhase
-                restTimeLeft={restTimeLeft}
-                initialRest={initialRest}
-                globalTime={globalTime}
-              />
+              {currentExercise.name}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowInstructions(true)}
+              className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 items-center justify-center"
+            >
+              <Ionicons name="information-circle-outline" size={20} color={isDark ? '#f1f5f9' : '#334155'} />
+            </TouchableOpacity>
+          </View>
 
-              {/* Slider de RPE */}
-              <View className="w-full mt-8">
-                <Text className="text-white font-bold text-lg ml-2 mb-2">
-                  Esfuerzo percibido
-                </Text>
-                <View className="bg-zinc-900 rounded-2xl border border-zinc-800 pb-2">
-                  <RPESlider value={rpe} onValueChange={setRpe} disabled={rpeSaved || isAdjustingLoad} />
-                </View>
-
-                <TouchableOpacity
-                  className={`w-full p-4 rounded-xl items-center mt-4 ${rpeSaved ? 'bg-zinc-700' : 'bg-lime-300'
-                    }`}
-                  disabled={rpeSaved || isAdjustingLoad}
-                  onPress={handleSaveRpe}
-                >
-                  {isAdjustingLoad ? (
-                    <ActivityIndicator color="#000" size="small" />
-                  ) : (
-                    <Text className={`font-bold text-base ${rpeSaved ? 'text-zinc-500' : 'text-black'}`}>
-                      {rpe >= 4 && rpe <= 6
-                        ? 'Guardar RPE'
-                        : 'Guardar y actualizar serie'}
-                    </Text>
-                  )}
-                </TouchableOpacity>
+          {/* GIF cuadrado */}
+          <View className="w-full aspect-square">
+            {currentExercise.gifUrl ? (
+              <ExerciseGif uri={currentExercise.gifUrl} />
+            ) : (
+              <View className="flex-1 items-center justify-center">
+                <Ionicons name="image-outline" size={60} color="#94a3b8" />
               </View>
-            </Animated.View>
-          )}
+            )}
+          </View>
+
+          {/* Timer + barra de progreso — key fuerza remount en cada serie/ejercicio */}
+          <ExerciseTimerCard
+            key={`timer-${exerciseIndex}-${currentSet}`}
+            mode={isTimeBased ? 'countdown' : 'stopwatch'}
+            time={isTimeBased ? (exerciseTimeLeft ?? 0) : globalTime}
+            totalDuration={isTimeBased ? timeBasedDuration : undefined}
+            remainingLabel={
+              isTimeBased && exerciseTimeLeft !== null
+                ? formatTime(exerciseTimeLeft)
+                : undefined
+            }
+          />
         </View>
 
-        {/* ──── acciones inferiores ──── */}
-        <View className="w-full flex-1 justify-end">
-          {phase === 'EXERCISE' ? (
-            /* Fase de ejercicio: reloj + botón Finalizar Serie */
-            <View className="flex-row items-center justify-between mb-4 flex-1">
-              <View className="flex-1 items-center justify-center">
-                <ClockCircle
-                  isRestPhase={false}
-                  restTimeLeft={0}
-                  initialRest={0}
-                  globalTime={globalTime}
-                  sizeOverride={dynamicClockSize}
-                  isExerciseCountdown={isTimeBased}
-                  exerciseTimeLeft={exerciseTimeLeft !== null ? exerciseTimeLeft : undefined}
-                  exerciseInitialTime={timeBasedDuration}
-                />
-              </View>
-              <TouchableOpacity
-                className="bg-lime-300 rounded-2xl w-1/2 h-[120px] justify-center items-center ml-4"
-                onPress={handleFinishSet}
-              >
-                <Text className="text-black font-bold text-xl text-center">
-                  {'Finalizar\nSerie'}
-                </Text>
-              </TouchableOpacity>
+        {/* Zona gris: chips + botones de acción */}
+        <View className="flex-1 px-4 pt-4 pb-6 gap-4">
+          {/* Chips: Series | Repeticiones | Peso | Descanso */}
+          <View className="bg-white dark:bg-slate-900 rounded-2xl px-2 py-2 flex-row justify-between">
+            <View className="items-center flex-1">
+              <Text className="text-slate-500 dark:text-slate-400 text-sm text-center">Series</Text>
+              <Text className="text-lime-400 text-lg font-bold text-center">
+                {currentSet}/{totalSets}
+              </Text>
             </View>
-          ) : (
-            /* Fase de descanso: botón Finalizar Descanso */
-            <View className="flex-1 mb-4 mt-8 justify-center">
-              <TouchableOpacity
-                className="bg-lime-300 rounded-2xl w-full h-[120px] justify-center items-center"
-                onPress={handleFinishRest}
-              >
-                <Text className="text-black font-bold text-xl text-center">
-                  Finalizar Descanso
-                </Text>
-              </TouchableOpacity>
+            <View className="items-center flex-1">
+              <Text className="text-slate-500 dark:text-slate-400 text-sm text-center">Repeticiones</Text>
+              <Text className="text-lime-400 text-lg font-bold text-center">
+                {formatReps(currentExercise)}
+              </Text>
             </View>
-          )}
+            <View className="items-center flex-1">
+              <Text className="text-slate-500 dark:text-slate-400 text-sm text-center">Peso</Text>
+              <Text className="text-lime-400 text-lg font-bold text-center">
+                {currentExercise.weight}
+              </Text>
+            </View>
+            <View className="items-center flex-1">
+              <Text className="text-slate-500 dark:text-slate-400 text-sm text-center">Descanso</Text>
+              <Text className="text-lime-400 text-lg font-bold text-center">
+                {currentExercise.rest}s
+              </Text>
+            </View>
+          </View>
 
+          {/* Tres botones de acción — flex-1 para ocupar el espacio restante */}
+          <View className="flex-1">
+            <ExerciseActionButtons
+              onEdit={() => console.log('edit')}
+              onFlag={handleFinishSessionEarly}
+              onNext={handleFinishSet}
+            />
+          </View>
+        </View>
+
+        {/* Modal de instrucciones */}
+        {currentExercise && (
+          <InstructionsModal
+            visible={showInstructions}
+            onClose={() => setShowInstructions(false)}
+            exerciseId={currentExercise.exerciseId}
+            exerciseName={currentExercise.name}
+          />
+        )}
+      </View>
+    );
+  }
+
+  /* ══════════════════════ REST ══════════════════════ */
+  return (
+    <View
+      style={{ paddingTop: insets.top }}
+      className="flex-1 bg-slate-100 dark:bg-slate-950"
+    >
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+
+      <Animated.View
+        entering={FadeIn.duration(250)}
+        layout={LinearTransition.springify().damping(18)}
+        className="flex-1 px-6 pb-8"
+      >
+        <View className="flex-row items-center justify-center pt-3 pb-5">
           <TouchableOpacity
-            className="bg-red-500 w-full py-4 rounded-xl items-center"
+            onPress={onCancel}
+            className="absolute left-0 w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 items-center justify-center"
+          >
+            <Ionicons name="chevron-back" size={28} color={isDark ? '#f1f5f9' : '#020617'} />
+          </TouchableOpacity>
+          <Text className="text-slate-900 dark:text-slate-50 text-base font-medium">
+            Descanso
+          </Text>
+        </View>
+
+        <Animated.View
+          key={`rest-timer-${restTimeLeft}`}
+          entering={FadeIn.duration(180)}
+          className="items-center mb-7"
+        >
+          <Text className="text-slate-900 dark:text-slate-50 text-5xl font-black italic mb-4">
+            {formatTime(restTimeLeft)}
+          </Text>
+          <View className="w-full flex-row items-center gap-3">
+            <View
+              className="h-3 rounded-full bg-slate-900 dark:bg-slate-50"
+              style={{
+                flex: initialRest > 0 ? Math.max((initialRest - restTimeLeft) / initialRest, 0.01) : 1,
+              }}
+            />
+            <View
+              className="h-3 rounded-full bg-slate-300 dark:bg-slate-700"
+              style={{
+                flex: initialRest > 0 ? Math.max(restTimeLeft / initialRest, 0.01) : 0.01,
+              }}
+            />
+            <Text className="text-slate-900 dark:text-slate-50 text-lg w-14 text-right">
+              {formatTime(globalTime)}
+            </Text>
+          </View>
+        </Animated.View>
+
+        <Animated.View
+          entering={FadeInDown.duration(250)}
+          layout={LinearTransition.springify().damping(18)}
+          className="mb-8"
+        >
+          <Text className="text-slate-900 dark:text-slate-50 font-bold text-xl mb-3">
+            Esfuerzo percibido
+          </Text>
+          <SessionSlider
+            value={rpe}
+            onValueChange={setRpe}
+            min={0}
+            max={10}
+            disabled={rpeSaved || isAdjustingLoad}
+          />
+          <TouchableOpacity
+            className={`w-full h-12 rounded-full items-center justify-center mt-2 border ${
+              canUpdateRpe
+                ? 'bg-slate-900 dark:bg-slate-50 border-slate-900 dark:border-slate-50'
+                : 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700'
+            }`}
+            disabled={!canUpdateRpe}
+            onPress={handleSaveRpe}
+          >
+            {isAdjustingLoad ? (
+              <ActivityIndicator color={isDark ? '#020617' : '#ffffff'} size="small" />
+            ) : (
+              <Text
+                className={`font-medium text-base ${
+                  canUpdateRpe
+                    ? 'text-white dark:text-slate-900'
+                    : 'text-slate-900 dark:text-slate-50'
+                }`}
+              >
+                Actualizar
+              </Text>
+            )}
+          </TouchableOpacity>
+        </Animated.View>
+
+        <Animated.View
+          entering={FadeInDown.delay(80).duration(250)}
+          layout={LinearTransition.springify().damping(18)}
+          className="bg-white dark:bg-slate-900 rounded-3xl -mx-6 px-6 pt-6 pb-4 mb-4"
+        >
+          <Text className="text-slate-900 dark:text-slate-50 font-bold text-xl mb-4">
+            Repeticiones realizadas
+          </Text>
+
+          <View className="flex-row gap-4 mb-4">
+            <TouchableOpacity
+              onPress={() => setRepetitionMode('partial')}
+              className={`flex-1 h-12 rounded-full items-center justify-center ${
+                repetitionMode === 'partial'
+                  ? 'bg-black dark:bg-slate-50'
+                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700'
+              }`}
+            >
+              <Text
+                className={`text-base ${
+                  repetitionMode === 'partial'
+                    ? 'text-white dark:text-slate-900'
+                    : 'text-slate-900 dark:text-slate-50'
+                }`}
+              >
+                Parcial
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setRepetitionMode('all')}
+              className={`flex-1 h-12 rounded-full items-center justify-center ${
+                repetitionMode === 'all'
+                  ? 'bg-black dark:bg-slate-50'
+                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700'
+              }`}
+            >
+              <Text
+                className={`text-base ${
+                  repetitionMode === 'all'
+                    ? 'text-white dark:text-slate-900'
+                    : 'text-slate-900 dark:text-slate-50'
+                }`}
+              >
+                Todas
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {repetitionMode === 'partial' ? (
+            <Animated.View
+              entering={FadeInDown.duration(220)}
+              exiting={FadeOutUp.duration(180)}
+              layout={LinearTransition.springify().damping(18)}
+            >
+              <SessionSlider
+                value={partialReps}
+                onValueChange={setPartialReps}
+                min={0}
+                max={repetitionMax}
+              />
+              <TouchableOpacity className="w-full h-12 rounded-full items-center justify-center mt-2 bg-black dark:bg-slate-50">
+                <Text className="text-white dark:text-slate-900 font-medium text-base">
+                  Actualizar
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
+          ) : null}
+        </Animated.View>
+
+        <Animated.View
+          entering={FadeInDown.delay(120).duration(250)}
+          className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 flex-row items-center gap-4 mb-3"
+        >
+          <View className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800">
+            {nextExercise?.gifUrl ? (
+              <ExerciseGif uri={nextExercise.gifUrl} />
+            ) : (
+              <View className="flex-1 items-center justify-center">
+                <Ionicons name="image-outline" size={28} color="#94a3b8" />
+              </View>
+            )}
+          </View>
+          <View className="flex-1">
+            <Text className="text-slate-900 dark:text-slate-50 text-lg font-semibold">
+              Proximo ejercicio
+            </Text>
+            <Text className="text-slate-900 dark:text-slate-50 text-sm" numberOfLines={2}>
+              {nextExercise?.name}
+            </Text>
+          </View>
+        </Animated.View>
+
+        <View className="flex-row gap-3 mt-auto">
+          <TouchableOpacity
+            className="flex-1 h-[88px] rounded-3xl bg-red-500 items-center justify-center"
             onPress={handleFinishSessionEarly}
           >
-            <Text className="text-white font-bold text-lg">
-              Finalizar sesión
-            </Text>
+            <Ionicons name="flag" size={42} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="flex-1 h-[88px] rounded-3xl bg-lime-400 items-center justify-center"
+            onPress={handleFinishRest}
+          >
+            <Ionicons name="arrow-forward" size={54} color="black" />
           </TouchableOpacity>
         </View>
-      </View>
+      </Animated.View>
 
       {/* Modal de instrucciones */}
       {currentExercise && (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Text, TouchableOpacity } from 'react-native';
 
 interface SelectableCardProps {
   /** Si el card está seleccionado */
@@ -44,33 +44,16 @@ export default function SelectableCard({
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
-      className={`py-4 px-5 rounded-2xl border-2 bg-white dark:bg-zinc-800 items-center justify-center ${sizeClass}`}
-      style={[
-        {
-          borderColor: isSelected ? brandColor : '#e5e7eb',
-        },
+      className={`py-4 px-5 rounded-2xl border-2 items-center justify-center ${sizeClass} ${
         isSelected
-          ? {
-              shadowColor: brandColor,
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.2,
-              shadowRadius: 8,
-              elevation: 3,
-            }
-          : {
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.06,
-              shadowRadius: 4,
-              elevation: 1,
-            },
-      ] as ViewStyle[]}
+          ? 'bg-zinc-950 dark:bg-zinc-50 border-zinc-950 dark:border-zinc-50'
+          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+      }`}
     >
       <Text
         className={`${textSizeClass} font-semibold text-center ${
-          isSelected ? '' : 'text-slate-800 dark:text-zinc-200'
+          isSelected ? 'text-white dark:text-slate-900' : 'text-slate-800 dark:text-zinc-200'
         }`}
-        style={isSelected ? { color: brandColor } : undefined}
       >
         {label}
       </Text>

@@ -1,18 +1,18 @@
 import { Equipment, EquipmentSelection } from '@/src/types/fitness';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  DeviceEventEmitter,
-  Keyboard,
-  LayoutAnimation,
-  Platform,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  UIManager,
-  useColorScheme,
-  View,
+    DeviceEventEmitter,
+    Keyboard,
+    LayoutAnimation,
+    Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    UIManager,
+    useColorScheme,
+    View,
 } from 'react-native';
 
 // Habilitar LayoutAnimation en Android
@@ -32,6 +32,8 @@ interface EquipmentSelectProps {
   onSelectionChange: (items: EquipmentSelection[]) => void;
   /** Placeholder del input de búsqueda */
   placeholder?: string;
+  /** Si false, solo muestra el buscador sin la lista de seleccionados */
+  showSelectedList?: boolean;
 }
 
 /**
@@ -43,6 +45,7 @@ export default function EquipmentSelect({
   selectedEquipment,
   onSelectionChange,
   placeholder = 'Seleccionar - Opcional',
+  showSelectedList = true,
 }: EquipmentSelectProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -164,7 +167,7 @@ export default function EquipmentSelect({
   };
 
   return (
-    <View className="flex-1 z-50">
+    <View style={showSelectedList ? { flex: 1 } : undefined} className="z-50">
       {/* Input con búsqueda */}
       <View className="z-50">
         <TouchableOpacity
@@ -172,9 +175,9 @@ export default function EquipmentSelect({
           onPress={() => inputRef.current?.focus()}
           className={`flex-row items-center border rounded-xl px-4 ${
             isOpen
-              ? 'border-slate-400 dark:border-zinc-500'
-              : 'border-gray-200 dark:border-zinc-700'
-          } bg-white dark:bg-zinc-800`}
+              ? 'border-slate-400 dark:border-slate-500'
+              : 'border-slate-200 dark:border-slate-800'
+          } bg-white dark:bg-slate-900`}
           style={{ height: 50 }}
         >
           <TextInput
@@ -217,7 +220,7 @@ export default function EquipmentSelect({
         {/* Dropdown de resultados (Posicionado de forma absoluta) */}
         {isOpen && filteredItems.length > 0 && (
           <View
-            className="absolute left-0 right-0 border border-gray-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 overflow-hidden z-50"
+            className="absolute left-0 right-0 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 overflow-hidden z-50"
             style={{
               top: 54, // just below the input (50 height + 4 margin)
               maxHeight: 200,
@@ -237,9 +240,9 @@ export default function EquipmentSelect({
                   key={item.id}
                   onPress={() => handleSelect(item)}
                   activeOpacity={0.6}
-                  className="flex-row items-center px-4 py-3 border-b border-gray-100 dark:border-zinc-700/50"
+                  className="flex-row items-center px-4 py-3 border-b border-slate-100 dark:border-slate-800/50"
                 >
-                  <Text className="flex-1 text-base text-slate-800 dark:text-zinc-200">
+                  <Text className="flex-1 text-base text-slate-900 dark:text-slate-50">
                     {item.name}
                   </Text>
                 </TouchableOpacity>
@@ -251,7 +254,7 @@ export default function EquipmentSelect({
 
       {/* Lista de equipamiento seleccionado con controles de cantidad */}
       <View className="flex-1 z-0 mt-3">
-        {selectedWithDetails.length > 0 && (
+        {showSelectedList && selectedWithDetails.length > 0 && (
           <ScrollView 
             className="flex-1" 
             showsVerticalScrollIndicator={false}

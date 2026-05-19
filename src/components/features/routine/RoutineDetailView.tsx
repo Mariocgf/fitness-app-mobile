@@ -1,5 +1,7 @@
+import { DarkSheetLayout } from '@/src/components/common/DarkSheetLayout';
 import { ExerciseDetailView } from '@/src/components/features/routine/ExerciseDetailView';
 import { SwapCandidateModal } from '@/src/components/features/routine/SwapCandidateModal';
+import { useColorScheme } from '@/src/hooks/use-color-scheme';
 import { confirmSwapExercises, getSwapSuggestions } from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { HealthWarning, Routine, RoutineExercise, SwapSuggestionItem, WarningLevel } from '@/src/types/routine';
@@ -75,8 +77,8 @@ interface RoutineDetailViewProps {
   onRoutineUpdated: (routine: Routine) => void;
 }
 
-/** Altura estimada del tab bar flotante + margen para no tapar contenido */
-const TAB_BAR_CLEARANCE = 100;
+/** Altura de la bottom bar de la vista de detalle (Play + Opciones) */
+const BOTTOM_BAR_HEIGHT = 80;
 
 export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
   routine,
@@ -88,8 +90,11 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
 }) => {
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [selectedExercise, setSelectedExercise] = useState<RoutineExercise | null>(null);
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark'; // usado en el dropdown
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const { getToken } = useAuth();
   const { isSwapMode, setSwapMode, setActions } = useRoutineDetailContext();
@@ -298,16 +303,36 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
     return () => setActions(null);
   }, [setActions]);
 
+  /* ── Menú de opciones ───────────────────────────────────────────────────── */
+
+  const menuItems = useMemo(() => {
+    const close = () => setIsOptionsOpen(false);
+    const swapHasActivity = loadingItems.size > 0 || Object.keys(suggestions).length > 0;
+    if (isSwapMode) {
+      return [
+        ...(selectedForSwap.size > 0 || swapHasActivity ? [
+          { icon: 'flash' as const,    label: 'Sugerencia automática', onPress: () => { close(); requestSuggestions(false); }, destructive: false },
+          { icon: 'sparkles' as const, label: 'Sugerencia con IA',     onPress: () => { close(); requestSuggestions(true);  }, destructive: false },
+        ] : []),
+        { icon: 'close-circle' as const, label: 'Salir del modo editar', onPress: () => { close(); exitSwapMode(); }, destructive: true },
+      ];
+    }
+    return [
+      { icon: 'refresh' as const,         label: 'Regenerar rutina',   onPress: () => { close(); onRegenerate();  }, destructive: false },
+      { icon: 'swap-horizontal' as const, label: 'Cambiar ejercicios', onPress: () => { close(); enterSwapMode(); }, destructive: false },
+    ];
+  }, [isSwapMode, selectedForSwap.size, loadingItems.size, suggestions, onRegenerate, enterSwapMode, requestSuggestions, exitSwapMode]);
+
   /* ── Helpers de render ─────────────────────────────────────────────────── */
 
-  /** Cantidad de ejercicios con sugerencia lista a través de todos los días. */
+  /** Cantidad de ejercicios con sugerencia lista. */
   const readyCount = Object.keys(suggestions).length;
-  /** Cantidad de ejercicios donde el usuario eligió un reemplazo (no "mantener actual"). */
+  /** Cantidad de ejercicios donde el usuario eligió un reemplazo. */
   const pickedCount = useMemo(
     () => Object.values(picks).filter((v) => v !== null).length,
     [picks],
   );
-  /** Está activo algún sub-flujo de swap (loading o sugerencias listas o pendientes). */
+  /** Está activo algún sub-flujo de swap (loading o sugerencias listas). */
   const hasSwapActivity = loadingItems.size > 0 || readyCount > 0;
 
   /** Estilo animado del contenedor: interpola de card → fullscreen */
@@ -337,243 +362,268 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
   const activeDay = sortedDays[activeDayIndex] || sortedDays[0];
 
   return (
-    <Animated.View style={containerStyle} className="bg-[#18181b]">
-      {/* Fondo que transiciona del color de la card al color de la vista */}
+    <Animated.View style={containerStyle} className="bg-slate-900">
+      {/* Fondo de transición: siempre oscuro */}
       <Animated.View
         style={contentOpacity}
-        className="absolute inset-0 bg-white dark:bg-zinc-950"
+        className="absolute inset-0 bg-slate-900"
       />
 
       {/* Contenido con fade-in progresivo */}
       <Animated.View style={[{ flex: 1 }, contentOpacity]}>
-        {/* Header con safe area top */}
-        <View
-          style={{ paddingTop: insets.top + 8 }}
-          className="flex-row items-center px-6 pb-3 border-b border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950"
+        <DarkSheetLayout
+          header={
+            <>
+              {/* Header: botón X + título centrado */}
+              <View style={{ paddingTop: insets.top + 12 }} className="px-4 pb-3">
+                <View className="items-end mb-3">
+                  <TouchableOpacity onPress={handleClose} className="bg-white/10 p-2 rounded-full">
+                    <Ionicons name="close" size={20} style={{ color: '#94a3b8' }} />
+                  </TouchableOpacity>
+                </View>
+                <View className="items-center">
+                  {isGenerating ? (
+                    <>
+                      <SkeletonItem className="w-48 h-7 rounded-md mb-2" />
+                      <SkeletonItem className="w-32 h-4 rounded-md" />
+                    </>
+                  ) : (
+                    <>
+                      <Text className="text-white text-2xl font-bold text-center">
+                        {routine.name}
+                      </Text>
+                      <Text style={{ color: '#94a3b8' }} className="text-sm mt-1 text-center">
+                        Rutina de {sortedDays.length} días
+                      </Text>
+                    </>
+                  )}
+                </View>
+              </View>
+
+              {/* Selector de días */}
+              {isGenerating ? (
+                <View className="flex-row gap-3 px-4 pb-4">
+                  <SkeletonItem className="w-20 h-9 rounded-full" />
+                  <SkeletonItem className="w-20 h-9 rounded-full" />
+                  <SkeletonItem className="w-20 h-9 rounded-full" />
+                </View>
+              ) : (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16, gap: 10 }}
+                >
+                  {sortedDays.map((day, index) => {
+                    const isActive = activeDayIndex === index;
+                    return (
+                      <TouchableOpacity
+                        key={day.id}
+                        onPress={() => { setActiveDayIndex(index); setSelectedExercise(null); }}
+                        className={`px-5 py-2 rounded-full border ${
+                          isActive ? 'bg-lime-400 border-lime-400' : 'border-white/20'
+                        }`}
+                      >
+                        <Text
+                          className="font-semibold text-sm"
+                          style={{ color: isActive ? '#0f172a' : '#e2e8f0' }}
+                        >
+                          {day.day}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
+            </>
+          }
         >
-          <TouchableOpacity
-            onPress={handleClose}
-            className="bg-zinc-100 dark:bg-white/10 p-2 rounded-full mr-3"
-          >
-            <Ionicons name="arrow-back" size={20} className="text-zinc-700 dark:text-white" />
-          </TouchableOpacity>
-          <View className="flex-1">
+          <ScrollView showsVerticalScrollIndicator={false}>
             {isGenerating ? (
-              <>
-                <SkeletonItem className="w-48 h-6 rounded-md mb-2" />
-                <SkeletonItem className="w-32 h-4 rounded-md" />
-              </>
+              <View className="px-4 py-4 gap-4" style={{ paddingBottom: BOTTOM_BAR_HEIGHT + 80 }}>
+                <SkeletonItem className="w-full h-24 rounded-2xl mb-2" />
+                <SkeletonItem className="w-full h-28 rounded-2xl" />
+                <SkeletonItem className="w-full h-28 rounded-2xl" />
+                <SkeletonItem className="w-full h-28 rounded-2xl" />
+              </View>
             ) : (
               <>
-                <Text className="text-zinc-900 dark:text-white text-xl font-bold" numberOfLines={1}>
-                  {routine.name}
-                </Text>
-                <Text className="text-zinc-500 dark:text-zinc-400 text-xs">
-                  Rutina de {sortedDays.length} días • Semana 1
-                </Text>
-              </>
-            )}
-          </View>
-        </View>
-
-        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-          {isGenerating ? (
-            <View className="px-4 py-4 gap-4" style={{ paddingBottom: TAB_BAR_CLEARANCE + 80 }}>
-              <View className="flex-row gap-3 mb-2">
-                <SkeletonItem className="w-24 h-10 rounded-full" />
-                <SkeletonItem className="w-24 h-10 rounded-full" />
-                <SkeletonItem className="w-24 h-10 rounded-full" />
-              </View>
-              <SkeletonItem className="w-full h-24 rounded-2xl mb-2" />
-              <SkeletonItem className="w-full h-28 rounded-2xl" />
-              <SkeletonItem className="w-full h-28 rounded-2xl" />
-              <SkeletonItem className="w-full h-28 rounded-2xl" />
-            </View>
-          ) : (
-            <>
-              {/* Tabs de días */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                className="px-4 py-4"
-                contentContainerStyle={{ gap: 12 }}
-              >
-                {sortedDays.map((day, index) => {
-                  const isActive = activeDayIndex === index;
-                  return (
-                    <TouchableOpacity
-                      key={day.id}
-                      onPress={() => {
-                        setActiveDayIndex(index);
-                        setSelectedExercise(null);
-                      }}
-                      className={`px-6 py-2 rounded-full border ${
-                        isActive
-                          ? 'bg-lime-300 border-lime-300'
-                          : 'bg-transparent border-zinc-300 dark:border-white/20'
-                      }`}
-                    >
-                      <Text className={`font-bold ${
-                        isActive ? 'text-black' : 'text-zinc-700 dark:text-white'
-                      }`}>
-                        Día {index + 1}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-
-              {/* Resumen del día activo */}
-              <View className="mx-4 bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4 mb-4 border border-zinc-200 dark:border-white/10">
-                <View className="flex-row items-center gap-4">
-                  <View className="bg-lime-500/10 dark:bg-lime-500/15 p-3 rounded-xl">
-                    <Ionicons name="body-outline" size={32} className="text-zinc-900 dark:text-lime-300" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-zinc-900 dark:text-white font-bold text-lg">
-                      {activeDay.day}
-                    </Text>
-                    <View className="flex-row items-center mt-1">
-                      <Ionicons name="barbell-outline" size={14} className="text-zinc-500 dark:text-zinc-400" />
-                      <Text className="text-zinc-500 dark:text-zinc-400 text-xs ml-1 mr-3">
-                        {activeDay.exercises.length} ejercicios
-                      </Text>
-                      <Ionicons name="time-outline" size={14} className="text-zinc-500 dark:text-zinc-400" />
-                      <Text className="text-zinc-500 dark:text-zinc-400 text-xs ml-1">
-                        {activeDay.approxTimeSession}
-                      </Text>
+                {/* Banner de health warning suave (Medium/Low) */}
+                {isSwapMode && softWarning && (
+                  <View className={`mx-4 mt-4 rounded-2xl p-3 border flex-row items-start gap-2 ${
+                    softWarning.level === 'Medium'
+                      ? 'bg-amber-500/10 border-amber-500/30'
+                      : 'bg-white border-slate-200'
+                  }`}>
+                    <Ionicons
+                      name={softWarning.level === 'Medium' ? 'warning-outline' : 'information-circle-outline'}
+                      size={18}
+                      className={softWarning.level === 'Medium' ? 'text-amber-500' : 'text-slate-400'}
+                    />
+                    <View className="flex-1">
+                      {softWarning.warnings.map((w, i) => (
+                        <Text key={i} className="text-slate-700 text-xs leading-4">
+                          {w.message}
+                        </Text>
+                      ))}
                     </View>
                   </View>
-                </View>
-              </View>
+                )}
 
-              {/* Banner de health warning suave (Medium/Low) */}
-              {isSwapMode && softWarning && (
-                <View className={`mx-4 mb-3 rounded-2xl p-3 border flex-row items-start gap-2 ${
-                  softWarning.level === 'Medium'
-                    ? 'bg-amber-500/10 border-amber-500/30'
-                    : 'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-white/10'
-                }`}>
-                  <Ionicons
-                    name={softWarning.level === 'Medium' ? 'warning-outline' : 'information-circle-outline'}
-                    size={18}
-                    className={softWarning.level === 'Medium' ? 'text-amber-500' : 'text-zinc-500 dark:text-zinc-400'}
-                  />
-                  <View className="flex-1">
-                    {softWarning.warnings.map((w, i) => (
-                      <Text key={i} className="text-zinc-700 dark:text-zinc-300 text-xs leading-4">
-                        {w.message}
-                      </Text>
-                    ))}
+                {/* Indicador de modo swap */}
+                {isSwapMode && (
+                  <View className="mx-4 mt-4 rounded-2xl p-3 bg-lime-400/10 border border-lime-400/30 flex-row items-center gap-2">
+                    <Ionicons name="swap-horizontal" size={18} className="text-lime-600" />
+                    <Text className="text-lime-700 text-xs font-semibold flex-1">
+                      {readyCount > 0
+                        ? 'Tocá los ejercicios con sugerencia lista para elegir el reemplazo.'
+                        : 'Marcá los ejercicios que querés cambiar y presioná el botón para pedir sugerencias.'}
+                    </Text>
                   </View>
+                )}
+
+                {/* Lista de ejercicios */}
+                <View
+                  className="px-4 pt-4"
+                  style={{ paddingBottom: insets.bottom + BOTTOM_BAR_HEIGHT + 20 }}
+                >
+                  {activeDay.exercises.map((exercise, idx) => (
+                    <SwapAwareExerciseItem
+                      key={exercise.id}
+                      exercise={exercise}
+                      index={idx}
+                      isSwapMode={isSwapMode}
+                      isSelected={selectedForSwap.has(exercise.id)}
+                      isLoading={loadingItems.has(exercise.id)}
+                      suggestion={suggestions[exercise.id]}
+                      pickExerciseId={picks[exercise.id]}
+                      onPress={() => {
+                        if (!isSwapMode) {
+                          setSelectedExercise(exercise);
+                          return;
+                        }
+                        if (suggestions[exercise.id]) {
+                          setOpenCandidateFor(exercise.id);
+                        } else {
+                          toggleExerciseSelection(exercise.id);
+                        }
+                      }}
+                    />
+                  ))}
                 </View>
-              )}
+              </>
+            )}
+          </ScrollView>
+        </DarkSheetLayout>
 
-              {/* Indicador de modo swap */}
-              {isSwapMode && (
-                <View className="mx-4 mb-3 rounded-2xl p-3 bg-lime-500/10 dark:bg-lime-500/15 border border-lime-500/30 flex-row items-center gap-2">
-                  <Ionicons name="swap-horizontal" size={18} className="text-zinc-900 dark:text-lime-300" />
-                  <Text className="text-zinc-900 dark:text-lime-300 text-xs font-semibold flex-1">
-                    {readyCount > 0
-                      ? 'Tocá los ejercicios con sugerencia lista para elegir el reemplazo.'
-                      : 'Marcá los ejercicios que querés cambiar y presioná el botón para pedir sugerencias.'}
-                  </Text>
-                </View>
-              )}
-
-              {/* Lista de ejercicios */}
-              <View style={{ paddingBottom: TAB_BAR_CLEARANCE + 80 }} className="px-4">
-                {activeDay.exercises.map((exercise, idx) => (
-                  <SwapAwareExerciseItem
-                    key={exercise.id}
-                    exercise={exercise}
-                    index={idx}
-                    isSwapMode={isSwapMode}
-                    isSelected={selectedForSwap.has(exercise.id)}
-                    isLoading={loadingItems.has(exercise.id)}
-                    suggestion={suggestions[exercise.id]}
-                    pickExerciseId={picks[exercise.id]}
-                    onPress={() => {
-                      if (!isSwapMode) {
-                        setSelectedExercise(exercise);
-                        return;
-                      }
-                      if (suggestions[exercise.id]) {
-                        setOpenCandidateFor(exercise.id);
-                      } else {
-                        toggleExerciseSelection(exercise.id);
-                      }
-                    }}
-                  />
-                ))}
-              </View>
-            </>
-          )}
-        </ScrollView>
-
-        {/* Botón fijo: Comenzar sesión / Aplicar cambios — con clearance para el tab bar */}
+        {/* Bottom bar: Play/Aplicar + Opciones */}
         {!isGenerating && (
           <View
-            style={{ bottom: TAB_BAR_CLEARANCE }}
-            className="absolute w-full p-4 bg-white dark:bg-zinc-950 border-t border-zinc-200 dark:border-white/10 z-10"
+            className="absolute w-full px-4 z-10"
+            style={{ bottom: insets.bottom + 8 }}
           >
-            {isSwapMode && hasSwapActivity ? (
+            <View className="flex-row gap-3 items-center">
+              {/* Botón principal: Play (normal) o Aplicar cambios (swap con picks) */}
               <TouchableOpacity
-                disabled={isApplying || pickedCount === 0}
-                className={`rounded-2xl p-4 flex-row justify-center items-center gap-2 ${
-                  pickedCount === 0 ? 'bg-zinc-300 dark:bg-zinc-800' : 'bg-lime-300'
-                }`}
-                onPress={applySwaps}
-              >
-                {isApplying ? (
-                  <ActivityIndicator color="#000" />
-                ) : (
-                  <Ionicons name="checkmark-circle" size={24} className="text-black" />
-                )}
-                <View className="items-center">
-                  <Text className={`font-bold text-base ${
-                    pickedCount === 0 ? 'text-zinc-500 dark:text-zinc-500' : 'text-black'
-                  }`}>
-                    Aplicar cambios
-                  </Text>
-                  <Text className={`text-xs ${
-                    pickedCount === 0 ? 'text-zinc-500 dark:text-zinc-500' : 'text-black/60'
-                  }`}>
-                    {pickedCount === 0
-                      ? 'Elegí un reemplazo para continuar'
-                      : `${pickedCount} ${pickedCount === 1 ? 'reemplazo' : 'reemplazos'} elegido${pickedCount === 1 ? '' : 's'}`}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                className="bg-lime-300 rounded-2xl p-4 flex-row justify-center items-center gap-2"
-                disabled={isSwapMode}
-                style={{ opacity: isSwapMode ? 0.5 : 1 }}
+                className="flex-1 bg-slate-900 dark:bg-slate-950 rounded-full items-center justify-center"
+                style={{ height: 60, opacity: (isSwapMode && hasSwapActivity && pickedCount === 0) ? 0.45 : 1 }}
+                disabled={isApplying || (isSwapMode && hasSwapActivity && pickedCount === 0)}
                 onPress={() => {
-                  handleClose();
-                  router.push({
-                    pathname: '/session',
-                    params: {
-                      routineId: routine.id,
-                      dayData: JSON.stringify(activeDay),
-                    },
-                  });
+                  if (isSwapMode && hasSwapActivity) {
+                    applySwaps();
+                  } else if (!isSwapMode) {
+                    handleClose();
+                    router.push({
+                      pathname: '/session',
+                      params: {
+                        routineId: routine.id,
+                        dayData: JSON.stringify(activeDay),
+                      },
+                    });
+                  }
                 }}
               >
-                <Ionicons name="play-circle" size={24} className="text-black" />
-                <View className="items-center">
-                  <Text className="text-black font-bold text-base">
-                    Comenzar Día {activeDayIndex + 1}
-                  </Text>
-                  <Text className="text-black/60 text-xs">
-                    {activeDay.exercises.length} ejercicios • {activeDay.approxTimeSession}
-                  </Text>
-                </View>
+                {isApplying ? (
+                  <ActivityIndicator color="#a3e635" />
+                ) : isSwapMode && hasSwapActivity ? (
+                  <Ionicons name="checkmark" size={26} style={{ color: '#a3e635' }} />
+                ) : (
+                  <Ionicons name="play" size={26} style={{ color: '#a3e635' }} />
+                )}
               </TouchableOpacity>
-            )}
+
+              {/* Botón de opciones */}
+              <TouchableOpacity
+                className="bg-slate-900 dark:bg-slate-950 rounded-full items-center justify-center"
+                style={{ width: 60, height: 60 }}
+                onPress={() => setIsOptionsOpen(true)}
+              >
+                <Ionicons name="ellipsis-horizontal" size={22} style={{ color: '#f8fafc' }} />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
+
+
+        {/* Dropdown de opciones — posicionado sobre el botón */}
+        <Modal
+          visible={isOptionsOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsOptionsOpen(false)}
+        >
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => setIsOptionsOpen(false)}
+          >
+            <View
+              style={{
+                position: 'absolute',
+                bottom: insets.bottom + 76,
+                right: 16,
+                width: 230,
+                backgroundColor: isDark ? '#334155' : '#1e293b',
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'transparent',
+                borderRadius: 16,
+                overflow: 'hidden',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.35,
+                shadowRadius: 16,
+                elevation: 12,
+              }}
+            >
+              {menuItems.map((item, i) => (
+                <TouchableOpacity
+                  key={item.label}
+                  onPress={item.onPress}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 18,
+                    paddingVertical: 15,
+                    gap: 14,
+                    borderBottomWidth: i < menuItems.length - 1 ? 1 : 0,
+                    borderBottomColor: 'rgba(255,255,255,0.07)',
+                  }}
+                >
+                  <Ionicons
+                    name={item.icon}
+                    size={19}
+                    style={{ color: item.destructive ? '#f87171' : '#94a3b8' }}
+                  />
+                  <Text style={{
+                    color: item.destructive ? '#f87171' : '#f1f5f9',
+                    fontSize: 15,
+                    fontWeight: '500',
+                  }}>
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Pressable>
+        </Modal>
 
         {/* Overlay interno de detalle de ejercicio */}
         {selectedExercise && (
@@ -706,35 +756,35 @@ const SwapAwareExerciseItem: React.FC<SwapAwareExerciseItemProps> = ({
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={onPress}
-        className={`flex-row bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-3 border-2 items-center ${borderClass}`}
+        className={`flex-row bg-white dark:bg-slate-900 rounded-2xl p-3 border items-center ${borderClass}`}
       >
+        {/* Número en círculo lime sólido */}
+        <View className="w-8 h-8 rounded-full bg-lime-400 items-center justify-center mr-3 shrink-0">
+          <Text className="text-slate-900 text-xs font-bold">{index + 1}</Text>
+        </View>
+
         {/* Imagen / GIF */}
         {(pickedCandidate?.gifUrl ?? exercise.gifUrl) ? (
           <Image
             source={{ uri: (pickedCandidate?.gifUrl ?? exercise.gifUrl) as string }}
-            className="w-20 h-20 bg-white rounded-xl"
+            className="w-20 h-20 bg-slate-100 dark:bg-slate-700 rounded-xl mr-3"
             resizeMode="cover"
           />
         ) : (
-          <View className="w-20 h-20 bg-zinc-200 dark:bg-zinc-800 rounded-xl items-center justify-center">
-            <Ionicons name="image-outline" size={24} className="text-zinc-400" />
+          <View className="w-20 h-20 bg-slate-100 dark:bg-slate-700 rounded-xl items-center justify-center mr-3">
+            <Ionicons name="image-outline" size={22} className="text-slate-400" />
           </View>
         )}
 
-        <View className="flex-1 ml-4">
-          <View className="flex-row items-center gap-2 mb-1">
-            <View className="w-6 h-6 rounded-full bg-lime-500/10 dark:bg-lime-500/15 items-center justify-center">
-              <Text className="text-zinc-900 dark:text-lime-300 text-xs font-bold">{index + 1}</Text>
-            </View>
-            <Text
-              className={`font-bold text-base flex-1 ${
-                pickedCandidate ? 'text-zinc-500 dark:text-zinc-500 line-through' : 'text-zinc-900 dark:text-white'
-              }`}
-              numberOfLines={1}
-            >
-              {exercise.name}
-            </Text>
-          </View>
+        <View className="flex-1">
+          <Text
+            className={`font-bold text-sm mb-1 ${
+              pickedCandidate ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-slate-50'
+            }`}
+            numberOfLines={2}
+          >
+            {exercise.name}
+          </Text>
 
           {/* Sub-línea: cambia según estado */}
           {isLoading ? (

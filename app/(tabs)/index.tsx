@@ -1,7 +1,7 @@
 import { ActionCard, CardState } from '@/src/components/features/home/ActionCard';
+import { DietCard } from '@/src/components/features/home/DietCard';
 import { GreetingHeader } from '@/src/components/features/home/GreetingHeader';
 import { CardLayout, RoutineDetailView } from '@/src/components/features/routine/RoutineDetailView';
-import { useThemeColor } from '@/src/hooks/use-theme-color';
 import { getActiveModules } from '@/src/services/module.service';
 import { generateRoutine, getActiveRoutine, regenerateRoutine } from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
@@ -9,7 +9,7 @@ import { Routine } from '@/src/types/routine';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
@@ -24,7 +24,7 @@ export default function HomeScreen() {
 
   const { setDetailVisible, setOnGenerateRoutine } = useRoutineDetailContext();
   
-  const backgroundColor = useThemeColor({ light: '#FFFFFF', dark: '#000000' }, 'background');
+  // Fondo base según colors.md: slate-100 (light) / slate-950 (dark)
 
   /** Obtiene el primer nombre del usuario autenticado */
   const userName = user?.firstName ?? 'Usuario';
@@ -141,18 +141,48 @@ export default function HomeScreen() {
   }, [setOnGenerateRoutine]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor }}>
+    <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-950">
       <ScrollView contentContainerClassName="pt-6 pb-10">
         <GreetingHeader userName={userName} avatarUrl={user?.imageUrl} />
-        
-        <ActionCard
-          ref={cardRef}
-          cardState={cardState}
-          onGenerate={handleGenerate}
-          onViewPlan={handleViewPlan}
-          routine={routine}
-          isLoadingInitial={isFetchingData}
-        />
+
+        {cardState !== 'success' ? (
+          <>
+            {/* Sección: sin planes activos */}
+            <View className="px-4 mb-1">
+              <Text className="text-xl font-bold text-slate-900 dark:text-slate-50">
+                ¡Comienza ahora!
+              </Text>
+            </View>
+            <ActionCard
+              ref={cardRef}
+              cardState={cardState}
+              onGenerate={handleGenerate}
+              onViewPlan={handleViewPlan}
+              routine={routine}
+              isLoadingInitial={isFetchingData}
+            />
+            <DietCard />
+          </>
+        ) : (
+          <>
+            {/* Diet siempre visible, incluso con rutina activa */}
+            <DietCard />
+            {/* Sección: planes activos */}
+            <View className="px-4 mt-6 mb-1">
+              <Text className="text-xl font-bold text-slate-900 dark:text-slate-50">
+                Planes activos
+              </Text>
+            </View>
+            <ActionCard
+              ref={cardRef}
+              cardState={cardState}
+              onGenerate={handleGenerate}
+              onViewPlan={handleViewPlan}
+              routine={routine}
+              isLoadingInitial={isFetchingData}
+            />
+          </>
+        )}
       </ScrollView>
 
       {/* Vista expandida: se anima desde la posición de la card */}

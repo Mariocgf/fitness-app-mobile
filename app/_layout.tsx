@@ -1,11 +1,15 @@
 import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-expo';
+import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import * as NavigationBar from 'expo-navigation-bar';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import './global.css';
 
 import { FullPageLoader } from '@/src/components/common/FullPageLoader';
@@ -201,7 +205,16 @@ function RootNavigator() {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  
+
+  // Configura la barra de navegación nativa de Android (solo Android).
+  // Sin esto, en SDK 52+ la barra es transparente y el contenido se dibuja detrás.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    NavigationBar.setPositionAsync('relative');
+    NavigationBar.setBackgroundColorAsync(colorScheme === 'dark' ? '#020617' : '#f1f5f9');
+    NavigationBar.setButtonStyleAsync(colorScheme === 'dark' ? 'light' : 'dark');
+  }, [colorScheme]);
+
   // Initialize query client for react-query
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
@@ -213,17 +226,21 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <ClerkProvider
-          publishableKey={publishableKey}
-          tokenCache={tokenCache}
-        >
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <RootNavigator />
-            <StatusBar style="auto" />
-          </ThemeProvider>
-        </ClerkProvider>
-      </QueryClientProvider>
+      <ActionSheetProvider>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <ClerkProvider
+            publishableKey={publishableKey}
+            tokenCache={tokenCache}
+          >
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <RootNavigator />
+              <StatusBar style="auto" />
+            </ThemeProvider>
+          </ClerkProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+      </ActionSheetProvider>
     </GestureHandlerRootView>
   );
 }
