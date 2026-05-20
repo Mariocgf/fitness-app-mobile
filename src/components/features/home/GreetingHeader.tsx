@@ -1,10 +1,15 @@
-import React from 'react';
-import { View, Pressable, Image } from 'react-native';
-import { useRouter } from 'expo-router';
-import { getGreetingByTime } from '@/src/utils/time';
-import { ThemedText } from '@/src/components/common/themed-text';
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from '@/src/hooks/use-color-scheme';
+import { useRouter } from 'expo-router';
+import { cssInterop } from 'nativewind';
+import React from 'react';
+import { Image, Pressable, View } from 'react-native';
+
+import { ThemedText } from '@/src/components/common/themed-text';
+import { getGreetingByTime } from '@/src/utils/time';
+
+cssInterop(Ionicons, {
+  className: { target: 'style', nativeStyleToProp: { color: true } },
+});
 
 interface GreetingHeaderProps {
   userName: string;
@@ -14,8 +19,6 @@ interface GreetingHeaderProps {
 export const GreetingHeader: React.FC<GreetingHeaderProps> = ({ userName, avatarUrl }) => {
   const greeting = getGreetingByTime();
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
 
   return (
     <View className="mb-6 px-4 flex-row items-center justify-between">
@@ -32,25 +35,18 @@ export const GreetingHeader: React.FC<GreetingHeaderProps> = ({ userName, avatar
       {/* Avatar → Perfil */}
       <Pressable
         onPress={() => router.push('/profile')}
-        className="items-center justify-center"
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          overflow: 'hidden',
-          backgroundColor: isDark ? '#27272a' : '#f4f4f5',
-        }}
+        className="w-11 h-11 rounded-full overflow-hidden items-center justify-center bg-zinc-100 dark:bg-zinc-800"
       >
         {avatarUrl ? (
           <Image
             source={{ uri: avatarUrl }}
-            style={{ width: 44, height: 44, borderRadius: 22 }}
+            className="w-11 h-11 rounded-full"
           />
         ) : (
           <Ionicons
             name="person"
             size={22}
-            color={isDark ? '#a1a1aa' : '#71717a'}
+            className="text-zinc-500 dark:text-zinc-400"
           />
         )}
       </Pressable>

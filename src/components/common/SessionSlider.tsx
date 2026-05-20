@@ -1,10 +1,12 @@
-import React, { useRef } from 'react';
-import { LayoutChangeEvent, Text, View } from 'react-native';
+import React from 'react';
+import { Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+    Easing,
     useAnimatedStyle,
+    useDerivedValue,
     useSharedValue,
-    withSpring,
+    withTiming,
 } from 'react-native-reanimated';
 
 interface SessionSliderProps {
@@ -15,8 +17,13 @@ interface SessionSliderProps {
   disabled?: boolean;
 }
 
-const THUMB_SIZE = 32;
-const SPRING_CONFIG = { damping: 15, stiffness: 200 };
+const THUMB_SIZE = 36;
+const TRACK_HEIGHT = 6;
+const LABEL_WIDTH = 28;
+const OUTER_GAP = 10;
+const INNER_GAP = 6;
+
+const EASE_OUT = Easing.out(Easing.cubic);
 
 export const SessionSlider: React.FC<SessionSliderProps> = ({
   value,
@@ -25,122 +32,132 @@ export const SessionSlider: React.FC<SessionSliderProps> = ({
   max = 10,
   disabled = false,
 }) => {
-  const trackLayoutRef = useRef({ width: 0 });
+  const trackWidthSV = useSharedValue(0);
+  const trackOffsetXSV = useSharedValue(0);
+
   const thumbScale = useSharedValue(1);
+
+  const pct = max === min ? 0 : (value - min) / (max - min);
+  const isAtMin = value === min;
+  const isAtMax = value === max;
+
+  const thumbCenterInTrack = useDerivedValue(() => pct * trackWidthSV.value);
+
+  const thumbXInRow = useDerivedValue(() =>
+    trackOffsetXSV.value + thumbCenterInTrack.value - THUMB_SIZE / 2
+  );
+
+  const leftLineSV = useDerivedValue(() =>
+    Math.max(0, thumbCenterInTrack.value - THUMB_SIZE / 2 - INNER_GAP)
+  );
+  const rightLineSV = useDerivedValue(() =>
+    Math.max(0, trackWidthSV.value - thumbCenterInTrack.value - THUMB_SIZE / 2 - INNER_GAP)
+  );
 
   const clamp = (v: number) => Math.max(min, Math.min(max, v));
 
-  const resolveValue = (localX: number) => {
-    const trackW = trackLayoutRef.current.width;
-    if (trackW === 0) return value;
-    let pct = localX / trackW;
-    pct = Math.max(0, Math.min(1, pct));
-    return clamp(Math.round(min + pct * (max - min)));
+  const valueFromX = (localX: number) => {
+    const w = trackWidthSV.value;
+    if (w === 0) return value;
+    const trackX = localX - trackOffsetXSV.value;
+    return clamp(Math.round(min + Math.max(0, Math.min(1, trackX / w)) * (max - min)));
   };
 
   const pan = Gesture.Pan()
     .runOnJS(true)
-    .onBegin(() => {
-      thumbScale.value = withSpring(1.15, SPRING_CONFIG);
-    })
+    .onBegin(() => { thumbScale.value = withTiming(1.06, { duration: 120, easing: EASE_OUT }); })
     .onUpdate((e) => {
-      if (!disabled) onValueChange(resolveValue(e.x));
+      if (disabled) return;
+      onValueChange(valueFromX(e.x));
     })
-    .onEnd(() => {
-      thumbScale.value = withSpring(1, SPRING_CONFIG);
-    })
-    .hitSlop({ top: 20, bottom: 20, left: 10, right: 10 });
+    .onEnd(() => { thumbScale.value = withTiming(1, { duration: 150, easing: EASE_OUT }); })
+    .hitSlop({ top: 24, bottom: 24, left: 0, right: 0 });
 
   const tap = Gesture.Tap()
     .runOnJS(true)
     .onEnd((e) => {
-      if (!disabled) onValueChange(resolveValue(e.x));
+      if (disabled) return;
+      onValueChange(valueFromX(e.x));
     });
 
   const composed = Gesture.Race(pan, tap);
 
-  const percentage = max === min ? 0 : (value - min) / (max - min);
+  const thumbStyle = useAnimatedStyle(() => ({
+    position: 'absolute' as const,
+    left: thumbXInRow.value,
+    top: 0,
+    width: THUMB_SIZE,
+    height: THUMB_SIZE,
+    borderRadius: THUMB_SIZE / 2,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    transform: [{ scale: thumbScale.value }],
+  }));
 
-  const isAtEdge = value === min || value === max;
+  const leftLineStyle = useAnimatedStyle(() => ({
+    position: 'absolute' as const,
+    left: 0,
+    top: (THUMB_SIZE - TRACK_HEIGHT) / 2,
+    height: TRACK_HEIGHT,
+    borderRadius: TRACK_HEIGHT,
+    width: leftLineSV.value,
+  }));
 
-  const thumbAnimStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: -THUMB_SIZE / 2 },
-      { scale: thumbScale.value },
-    ],
+  const rightLineStyle = useAnimatedStyle(() => ({
+    position: 'absolute' as const,
+    right: 0,
+    top: (THUMB_SIZE - TRACK_HEIGHT) / 2,
+    height: TRACK_HEIGHT,
+    borderRadius: TRACK_HEIGHT,
+    width: rightLineSV.value,
   }));
 
   const leftLabelStyle = useAnimatedStyle(() => ({
-    opacity: value === min ? 0 : 1,
-    transform: [{ scale: value === min ? 0.8 : 1 }],
+    opacity: withTiming(isAtMin ? 0 : 1, { duration: 150 }),
+    transform: [{ scale: withTiming(isAtMin ? 0.5 : 1, { duration: 150 }) }],
   }));
 
   const rightLabelStyle = useAnimatedStyle(() => ({
-    opacity: value === max ? 0 : 1,
-    transform: [{ scale: value === max ? 0.8 : 1 }],
+    opacity: withTiming(isAtMax ? 0 : 1, { duration: 150 }),
+    transform: [{ scale: withTiming(isAtMax ? 0.5 : 1, { duration: 150 }) }],
   }));
 
   return (
-    <View className="w-full flex-row items-center py-3">
-      <Animated.Text
-        style={leftLabelStyle}
-        className="text-slate-900 dark:text-slate-50 font-bold text-base w-6 text-center"
-      >
-        {min}
-      </Animated.Text>
-
+    <View style={{ paddingVertical: 10 }}>
       <GestureDetector gesture={composed}>
         <View
-          className="flex-1 h-10 justify-center mx-2"
-          onLayout={(e: LayoutChangeEvent) => {
-            trackLayoutRef.current = { width: e.nativeEvent.layout.width };
+          style={{ flexDirection: 'row', alignItems: 'center', gap: OUTER_GAP, height: THUMB_SIZE }}
+          onLayout={(e) => {
+            trackOffsetXSV.value = LABEL_WIDTH + OUTER_GAP;
+            trackWidthSV.value = e.nativeEvent.layout.width - (LABEL_WIDTH + OUTER_GAP) * 2;
           }}
         >
-          <View className="absolute left-0 right-0 flex-row h-[5px] rounded-full overflow-hidden">
-            <View
-              className="h-full bg-slate-900 dark:bg-slate-50 rounded-full"
-              style={{ width: `${percentage * 100}%` }}
-            />
-            <View
-              className="h-full bg-slate-300 dark:bg-slate-700 rounded-full"
-              style={{ width: `${(1 - percentage) * 100}%` }}
-            />
+          <Animated.Text
+            style={[leftLabelStyle, { width: LABEL_WIDTH, textAlign: 'center', fontWeight: '700', fontSize: 15, lineHeight: THUMB_SIZE }]}
+            className="text-slate-900 dark:text-slate-50"
+          >
+            {min}
+          </Animated.Text>
+
+          <View style={{ flex: 1, height: THUMB_SIZE }}>
+            <Animated.View style={leftLineStyle} className="bg-slate-900 dark:bg-slate-50" />
+            <Animated.View style={rightLineStyle} className="bg-slate-200 dark:bg-slate-700" />
           </View>
 
-          <Animated.View
-            style={[
-              {
-                left: `${percentage * 100}%`,
-                width: THUMB_SIZE,
-                height: THUMB_SIZE,
-              },
-              thumbAnimStyle,
-            ]}
-            className={`absolute rounded-full items-center justify-center ${
-              isAtEdge
-                ? 'bg-slate-900 dark:bg-slate-50 border-4 border-lime-400'
-                : 'bg-slate-900 dark:bg-slate-50'
-            }`}
+          <Animated.Text
+            style={[rightLabelStyle, { width: LABEL_WIDTH, textAlign: 'center', fontWeight: '700', fontSize: 15, lineHeight: THUMB_SIZE }]}
+            className="text-slate-900 dark:text-slate-50"
           >
-            <Text
-              className={`font-bold text-xs ${
-                isAtEdge
-                  ? 'text-white dark:text-slate-900'
-                  : 'text-white dark:text-slate-900'
-              }`}
-            >
+            {max}
+          </Animated.Text>
+
+          <Animated.View style={thumbStyle} className="bg-slate-900 dark:bg-slate-50">
+            <Text style={{ fontWeight: '700', fontSize: 13 }} className="text-white dark:text-slate-900">
               {value}
             </Text>
           </Animated.View>
         </View>
       </GestureDetector>
-
-      <Animated.Text
-        style={rightLabelStyle}
-        className="text-slate-900 dark:text-slate-50 font-bold text-base w-6 text-center"
-      >
-        {max}
-      </Animated.Text>
     </View>
   );
 };

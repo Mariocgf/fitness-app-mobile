@@ -1,12 +1,14 @@
-import { useColorScheme } from '@/src/hooks/use-color-scheme';
-import { Routine } from '@/src/types/routine';
 import { Ionicons } from '@expo/vector-icons';
+import { cssInterop } from 'nativewind';
 import React, { forwardRef, useEffect } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
-/** Color de marca del módulo Fitness */
-const FITNESS_COLOR = '#a3e635';
+import { Routine } from '@/src/types/routine';
+
+cssInterop(Ionicons, {
+  className: { target: 'style', nativeStyleToProp: { color: true } },
+});
 
 export type CardState = 'initial' | 'loading' | 'success';
 
@@ -19,9 +21,6 @@ interface ActionCardProps {
 }
 
 export const ActionCard = forwardRef<View, ActionCardProps>(({ cardState, onGenerate, onViewPlan, routine, isLoadingInitial = false }, ref) => {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const sparkleColor = isDark ? '#f8fafc' : '#1e293b';
 
   const sparkleOpacity = useSharedValue(1);
   const sparkleScale = useSharedValue(1);
@@ -49,7 +48,7 @@ export const ActionCard = forwardRef<View, ActionCardProps>(({ cardState, onGene
     >
       {isLoadingInitial ? (
         <View className="flex-row items-center py-3">
-          <ActivityIndicator size="small" color={FITNESS_COLOR} />
+          <ActivityIndicator size="small" color="#a3e635" />
           <Text className="text-slate-500 dark:text-slate-400 ml-3">Sincronizando...</Text>
         </View>
       ) : (
@@ -66,13 +65,12 @@ export const ActionCard = forwardRef<View, ActionCardProps>(({ cardState, onGene
                     No tienes planes activos.{'\n'}Obtén tu primera rutina personalizada ahora.
                   </Text>
                 </View>
-                <Ionicons name="sparkles" size={40} color={sparkleColor} />
+                <Ionicons name="sparkles" size={40} className="text-slate-900 dark:text-slate-50" />
               </View>
               <TouchableOpacity
                 onPress={onGenerate}
                 activeOpacity={0.8}
-                className="py-4 rounded-xl items-center"
-                style={{ backgroundColor: FITNESS_COLOR }}
+                className="py-4 rounded-xl items-center bg-lime-400"
               >
                 <Text className="text-slate-900 font-bold text-base">Generar rutina</Text>
               </TouchableOpacity>
@@ -92,13 +90,10 @@ export const ActionCard = forwardRef<View, ActionCardProps>(({ cardState, onGene
                   </Text>
                 </View>
                 <Animated.View style={animatedStyle}>
-                  <Ionicons name="sparkles" size={40} color={sparkleColor} />
+                  <Ionicons name="sparkles" size={40} className="text-slate-900 dark:text-slate-50" />
                 </Animated.View>
               </View>
-              <View
-                className="py-4 rounded-xl items-center"
-                style={{ backgroundColor: FITNESS_COLOR, opacity: 0.5 }}
-              >
+              <View className="py-4 rounded-xl items-center bg-lime-400 opacity-50">
                 <ActivityIndicator size="small" color="#1e293b" />
               </View>
             </>
@@ -116,24 +111,22 @@ export const ActionCard = forwardRef<View, ActionCardProps>(({ cardState, onGene
                     {routine.days.length} días/semana{'\n'}45 min por sesión.
                   </Text>
                 </View>
-                <Ionicons name="sparkles" size={40} color={sparkleColor} />
+                <Ionicons name="sparkles" size={40} className="text-slate-900 dark:text-slate-50" />
               </View>
               <View className="flex-row gap-3">
                 <TouchableOpacity
                   onPress={onViewPlan}
                   activeOpacity={0.8}
-                  className="flex-1 py-4 rounded-xl items-center"
-                  style={{ backgroundColor: FITNESS_COLOR }}
+                  className="flex-1 py-4 rounded-xl items-center bg-lime-400"
                 >
                   <Text className="text-slate-900 font-bold text-base">Ver rutina</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={onViewPlan}
                   activeOpacity={0.8}
-                  className="px-4 rounded-xl items-center justify-center"
-                  style={{ backgroundColor: isDark ? '#f8fafc' : '#0f172a' }}
+                  className="px-4 rounded-xl items-center justify-center bg-slate-950 dark:bg-slate-50"
                 >
-                  <Ionicons name="play" size={22} color={FITNESS_COLOR} />
+                  <Ionicons name="play" size={22} className="text-lime-400" />
                 </TouchableOpacity>
               </View>
             </>

@@ -1,29 +1,29 @@
+import { useAuth } from '@clerk/clerk-expo';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  DeviceEventEmitter,
-  Pressable,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    DeviceEventEmitter,
+    Pressable,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useAuth } from '@clerk/clerk-expo';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BackButton from '@/src/components/common/BackButton';
 import TagSelect from '@/src/components/common/TagSelect';
 import {
-  getFoodAllergies,
-  getDietaryPreferences,
+    getDietaryPreferences,
+    getFoodAllergies,
 } from '@/src/services/nutrition.service';
 import {
-  getUserFoodAllergies,
-  getUserTypeOfDiets,
-  updateUserFoodAllergies,
-  updateUserTypeOfDiets,
-  UserNutritionItem,
+    getUserFoodAllergies,
+    getUserTypeOfDiets,
+    updateUserFoodAllergies,
+    updateUserTypeOfDiets,
+    UserNutritionItem,
 } from '@/src/services/profile.service';
 import { NutritionItem } from '@/src/types/nutrition';
 
@@ -205,11 +205,8 @@ export default function DietaryConfig({ onBack }: DietaryConfigProps) {
       {/* Botón Guardar */}
       <View className="px-8 pb-32 pt-4">
         <TouchableOpacity
-          style={[
-            { backgroundColor: '#06b6d4' }, // cyan-500
-            isSaving && { opacity: 0.7 },
-          ]}
-          className="w-full py-4 rounded-2xl items-center shadow-md"
+          style={isSaving ? { opacity: 0.7 } : undefined}
+          className="bg-cyan-500 w-full py-4 rounded-2xl items-center shadow-md"
           onPress={handleSave}
           disabled={isSaving}
           activeOpacity={0.8}

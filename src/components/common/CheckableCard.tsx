@@ -1,6 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import { cssInterop } from 'nativewind';
 import React from 'react';
-import { Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
+
+cssInterop(Ionicons, {
+  className: { target: 'style', nativeStyleToProp: { color: true } },
+});
 
 interface CheckableCardProps {
   /** Si está seleccionado */
@@ -19,9 +24,6 @@ interface CheckableCardProps {
  * Sin sombra — borde slate-200 según design system.
  */
 export default function CheckableCard({ isSelected, label, description, onPress }: CheckableCardProps) {
-  const colorScheme = useColorScheme();
-  const checkmarkColor = colorScheme === 'dark' ? '#0f172a' : '#ffffff';
-
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -51,9 +53,9 @@ export default function CheckableCard({ isSelected, label, description, onPress 
         ) : null}
       </View>
       {isSelected ? (
-        <Ionicons name="checkmark-circle" size={24} color={checkmarkColor} />
+        <Ionicons name="checkmark-circle" size={24} className="text-white dark:text-slate-900" />
       ) : (
-        <Ionicons name="ellipse-outline" size={24} color="#94a3b8" />
+        <Ionicons name="ellipse-outline" size={24} className="text-slate-400" />
       )}
     </TouchableOpacity>
   );

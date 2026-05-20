@@ -1,15 +1,20 @@
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { cssInterop } from 'nativewind';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  DeviceEventEmitter,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
+    ActivityIndicator,
+    DeviceEventEmitter,
+    Pressable,
+    ScrollView,
+    Text,
+    View,
 } from 'react-native';
+
+cssInterop(Ionicons, {
+  className: { target: 'style', nativeStyleToProp: { color: true } },
+});
 
 import BackButton from '@/src/components/common/BackButton';
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
@@ -19,9 +24,9 @@ import SearchableSelect from '@/src/components/common/SearchableSelect';
 import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
 import { useModuleConfigStorage } from '@/src/hooks/use-module-config-storage';
 import {
-  getInjuries,
-  getMedicalConditions,
-  submitHealthProfile,
+    getInjuries,
+    getMedicalConditions,
+    submitHealthProfile,
 } from '@/src/services/health.service';
 import { Injury, MedicalCondition } from '@/src/types/health';
 
@@ -93,7 +98,7 @@ export default function HealthConfigStep({
 
   const helperFooter = (
     <View className="w-10 h-10 rounded-lg bg-white dark:bg-slate-800 items-center justify-center border border-slate-200 dark:border-slate-800">
-      <Ionicons name="lock-closed-outline" size={20} color="#64748b" />
+      <Ionicons name="lock-closed-outline" size={20} className="text-slate-500" />
     </View>
   );
 

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { cssInterop } from 'nativewind';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     DeviceEventEmitter,
@@ -10,6 +11,10 @@ import {
     useColorScheme,
     View,
 } from 'react-native';
+
+cssInterop(Ionicons, {
+  className: { target: 'style', nativeStyleToProp: { color: true } },
+});
 
 interface TagSelectItem {
   id: string;
@@ -43,7 +48,7 @@ export default function TagSelect({
   showSelectedList = true,
 }: TagSelectProps) {
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const isDark = colorScheme === 'dark'; // needed for placeholderTextColor (native TextInput prop)
   const inputRef = useRef<TextInput>(null);
 
   const [query, setQuery] = useState('');
@@ -167,25 +172,18 @@ export default function TagSelect({
             <Ionicons
               name={isOpen ? 'chevron-up' : 'chevron-down'}
               size={20}
-              color={isDark ? '#a1a1aa' : '#9ca3af'}
+              className="text-zinc-400 dark:text-zinc-500"
             />
           </TouchableOpacity>
         </TouchableOpacity>
 
         {isOpen && filteredItems.length > 0 && (
           <View
+            className="absolute left-0 right-0 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800"
             style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
               top: 54,
               maxHeight: 200,
               zIndex: 100,
-              borderRadius: 12,
-              overflow: 'hidden',
-              borderWidth: 1,
-              borderColor: isDark ? '#3f3f46' : '#e5e7eb',
-              backgroundColor: isDark ? '#27272a' : '#ffffff',
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.1,
@@ -203,23 +201,10 @@ export default function TagSelect({
                   key={item.id}
                   onPress={() => handleSelect(item)}
                   activeOpacity={0.6}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    borderBottomWidth: 1,
-                    borderBottomColor: isDark
-                      ? 'rgba(63,63,70,0.5)'
-                      : '#f3f4f6',
-                  }}
+                  className="flex-row items-center px-4 py-3 border-b border-zinc-100 dark:border-zinc-700/50"
                 >
                   <Text
-                    style={{
-                      flex: 1,
-                      fontSize: 16,
-                      color: isDark ? '#e4e4e7' : '#1e293b',
-                    }}
+                    className="flex-1 text-base text-slate-900 dark:text-zinc-200"
                   >
                     {item.name}
                   </Text>
@@ -231,37 +216,13 @@ export default function TagSelect({
       </View>
 
       {showSelectedList && selectedItems.length > 0 && (
-        <View
-          style={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            gap: 8,
-            marginTop: 12,
-          }}
-        >
+        <View className="flex-row flex-wrap gap-2 mt-3">
           {selectedItems.map((item) => (
             <View
               key={item.id}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                alignSelf: 'flex-start',
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: isDark ? '#52525b' : '#d1d5db',
-                backgroundColor: isDark ? '#3f3f46' : '#f9fafb',
-              }}
+              className="flex-row items-center self-start px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-700"
             >
-              <Text
-                style={{
-                  color: isDark ? '#e4e4e7' : '#1e293b',
-                  fontSize: 14,
-                  fontWeight: '500',
-                  marginRight: 8,
-                }}
-              >
+              <Text className="text-sm font-medium text-slate-900 dark:text-zinc-200 mr-2">
                 {item.name}
               </Text>
               <TouchableOpacity
@@ -271,7 +232,7 @@ export default function TagSelect({
                 <Ionicons
                   name="close"
                   size={16}
-                  color={isDark ? '#a1a1aa' : '#64748b'}
+                  className="text-slate-500 dark:text-zinc-400"
                 />
               </TouchableOpacity>
             </View>

@@ -7,7 +7,7 @@ import Animated, {
     withTiming,
 } from 'react-native-reanimated';
 
-interface ExerciseTimerCardProps {
+interface TimerCardProps {
   /** Tiempo en segundos a mostrar en formato MM:SS */
   time: number;
   /** Modo cronómetro (reps normales) o cuenta regresiva (ejercicio con tiempo) */
@@ -29,7 +29,7 @@ const toMMSS = (seconds: number): string => {
  * Card de timer reutilizable para la fase de ejercicio y descanso.
  * No maneja su propio timer; recibe el tiempo ya calculado desde el padre.
  */
-export const ExerciseTimerCard: React.FC<ExerciseTimerCardProps> = ({
+export const TimerCard: React.FC<TimerCardProps> = ({
   time,
   mode,
   totalDuration,
@@ -67,9 +67,9 @@ export const ExerciseTimerCard: React.FC<ExerciseTimerCardProps> = ({
   }));
 
   return (
-    <View className="bg-white dark:bg-slate-900 rounded-b-2xl px-6 pt-6 pb-4">
+    <View className="px-6 pt-6 pb-4">
       {/* Tiempo */}
-      <Text className="text-5xl font-black text-center text-slate-900 dark:text-slate-50">
+      <Text className="text-5xl font-black italic text-center text-slate-900 dark:text-slate-50">
         {toMMSS(time)}
       </Text>
 

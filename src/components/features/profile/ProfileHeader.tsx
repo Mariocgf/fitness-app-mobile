@@ -1,15 +1,19 @@
+import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { cssInterop } from 'nativewind';
 import React from 'react';
 import {
-  Image,
-  Platform,
-  Text,
-  TouchableOpacity,
-  useColorScheme,
-  View,
+    Image,
+    Platform,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+cssInterop(Ionicons, {
+  className: { target: 'style', nativeStyleToProp: { color: true } },
+});
 
 interface ProfileHeaderProps {
   /** URL del avatar del usuario (Clerk imageUrl) */
@@ -34,72 +38,34 @@ export default function ProfileHeader({
   email,
   onLogout,
 }: ProfileHeaderProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={{ width: '100%', alignItems: 'center', paddingTop: insets.top + 20, position: 'relative' }}>
+    <View className="w-full items-center relative" style={{ paddingTop: insets.top + 20 }}>
       {/* Botón de logout — esquina superior derecha de la pantalla */}
       <TouchableOpacity
         onPress={onLogout}
         activeOpacity={0.7}
+        className="absolute right-6 w-11 h-11 rounded-full bg-red-400 items-center justify-center z-10"
         style={{
-          position: 'absolute',
           top: insets.top + 10,
-          right: 24,
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          backgroundColor: '#f87171', // red-400
-          alignItems: 'center',
-          justifyContent: 'center',
           shadowColor: '#f87171',
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.4,
           shadowRadius: 6,
           elevation: 5,
-          zIndex: 10,
         }}
       >
-        <Ionicons name="log-out-outline" size={22} color="#ffffff" />
+        <Ionicons name="log-out-outline" size={22} className="text-white" />
       </TouchableOpacity>
 
       {/* Contenedor del avatar */}
-      <View
-        style={{
-          width: 130,
-          height: 130,
-          borderRadius: 65,
-          borderWidth: 3,
-          borderColor: '#f5d6b8',
-          overflow: 'hidden',
-          backgroundColor: isDark ? '#27272a' : '#f1f5f9',
-        }}
-      >
+      <View className="w-[130px] h-[130px] rounded-full border-[3px] border-[#f5d6b8] overflow-hidden bg-slate-100 dark:bg-zinc-800">
         {avatarUrl ? (
-          <Image
-            source={{ uri: avatarUrl }}
-            style={{ width: '100%', height: '100%' }}
-            resizeMode="cover"
-          />
+          <Image source={{ uri: avatarUrl }} className="w-full h-full" resizeMode="cover" />
         ) : (
-          <View
-            style={{
-              width: '100%',
-              height: '100%',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: isDark ? '#3f3f46' : '#e2e8f0',
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 48,
-                fontWeight: 'bold',
-                color: isDark ? '#a1a1aa' : '#64748b',
-              }}
-            >
+          <View className="w-full h-full items-center justify-center bg-slate-200 dark:bg-zinc-700">
+            <Text className="text-5xl font-bold text-slate-500 dark:text-zinc-400">
               {fullName.charAt(0).toUpperCase()}
             </Text>
           </View>
@@ -108,12 +74,8 @@ export default function ProfileHeader({
 
       {/* Card de info del usuario — superpuesta -40px sobre el avatar */}
       <View
+        className="-mt-5 w-[85%] rounded-[20px] overflow-hidden"
         style={{
-          marginTop: -20,
-          width: '85%',
-          borderRadius: 20,
-          overflow: 'hidden',
-          // Sombra
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.08,
@@ -124,42 +86,15 @@ export default function ProfileHeader({
         {Platform.OS === 'ios' ? (
           <BlurView
             intensity={80}
-            tint={isDark ? 'dark' : 'light'}
-            style={{
-              paddingTop: 20,
-              paddingBottom: 20,
-              paddingHorizontal: 24,
-              alignItems: 'flex-start',
-            }}
+            tint="default"
+            className="pt-5 pb-5 px-6 items-start"
           >
-            <CardContent
-              fullName={fullName}
-              email={email}
-              isDark={isDark}
-            />
+            <CardContent fullName={fullName} email={email} />
           </BlurView>
         ) : (
           /* Android: simular blur con fondo semi-transparente */
-          <View
-            style={{
-              paddingTop: 52,
-              paddingBottom: 20,
-              paddingHorizontal: 24,
-              alignItems: 'flex-start',
-              backgroundColor: isDark
-                ? 'rgba(24, 24, 27, 0.92)'
-                : 'rgba(255, 255, 255, 0.92)',
-              borderWidth: 1,
-              borderColor: isDark
-                ? 'rgba(63, 63, 70, 0.5)'
-                : 'rgba(226, 232, 240, 0.6)',
-            }}
-          >
-            <CardContent
-              fullName={fullName}
-              email={email}
-              isDark={isDark}
-            />
+          <View className="pt-[52px] pb-5 px-6 items-start bg-white/90 dark:bg-zinc-900/90 border border-slate-200/60 dark:border-zinc-700/50">
+            <CardContent fullName={fullName} email={email} />
           </View>
         )}
       </View>
@@ -170,43 +105,16 @@ export default function ProfileHeader({
 /**
  * Contenido interno de la card (nombre, Premium, email).
  */
-function CardContent({
-  fullName,
-  email,
-  isDark,
-}: {
-  fullName: string;
-  email: string;
-  isDark: boolean;
-}) {
+function CardContent({ fullName, email }: { fullName: string; email: string }) {
   return (
     <>
-      <Text
-        style={{
-          fontSize: 22,
-          fontWeight: '700',
-          color: isDark ? '#fafafa' : '#0f172a',
-          marginBottom: 2,
-        }}
-      >
+      <Text className="text-[22px] font-bold text-slate-950 dark:text-zinc-50 mb-0.5">
         {fullName}
       </Text>
-      <Text
-        style={{
-          fontSize: 14,
-          fontWeight: '600',
-          color: isDark ? '#a1a1aa' : '#64748b',
-          marginBottom: 2,
-        }}
-      >
+      <Text className="text-sm font-semibold text-slate-500 dark:text-zinc-400 mb-0.5">
         Premium
       </Text>
-      <Text
-        style={{
-          fontSize: 14,
-          color: isDark ? '#71717a' : '#94a3b8',
-        }}
-      >
+      <Text className="text-sm text-slate-400 dark:text-zinc-500">
         {email}
       </Text>
     </>

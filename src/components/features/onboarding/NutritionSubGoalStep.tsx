@@ -1,6 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import { cssInterop } from 'nativewind';
 import React from 'react';
 import { ScrollView, View } from 'react-native';
+
+cssInterop(Ionicons, {
+  className: { target: 'style', nativeStyleToProp: { color: true } },
+});
 
 import CheckableCard from '@/src/components/common/CheckableCard';
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
@@ -44,11 +49,11 @@ export default function NutritionSubGoalStep({
         />
 
         <SectionCard
-          icon={<Ionicons name="flag-outline" size={20} color="#64748b" />}
+          icon={<Ionicons name="flag-outline" size={20} className="text-slate-500" />}
           title="Sub objetivo"
           subtitle="¿Qué quieres lograr?"
         >
-          <View style={{ gap: 12 }}>
+          <View className="gap-3">
             {subGoals.map((goal) => (
               <CheckableCard
                 key={goal.id}
@@ -65,7 +70,7 @@ export default function NutritionSubGoalStep({
       <OnboardingFooter
         onPress={onContinue}
         helperText="Usaremos estos datos para darte planes más personalizados. Puedes editarlos luego."
-        helperIcon={<Ionicons name="sparkles-outline" size={18} color="#64748b" />}
+        helperIcon={<Ionicons name="sparkles-outline" size={18} className="text-slate-500" />}
       />
     </View>
   );

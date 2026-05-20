@@ -1,7 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
+import { cssInterop } from 'nativewind';
 import React from 'react';
-import { Platform, ScrollView, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+
+cssInterop(Ionicons, {
+  className: { target: 'style', nativeStyleToProp: { color: true } },
+});
 
 import InputCard from '@/src/components/common/InputCard';
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
@@ -33,14 +37,8 @@ export default function BasicInfoStep2({
   onContinue,
   onBack,
 }: BasicInfoStep2Props) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
   return (
     <View className="flex-1 bg-slate-100 dark:bg-slate-950">
-      {/* StatusBar con estilo adecuado */}
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-
       {/* Barra de progreso - paso 1 */}
       <ProgressBar currentStep={1} totalSteps={TOTAL_ONBOARDING_STEPS} />
 
@@ -55,7 +53,7 @@ export default function BasicInfoStep2({
           <Ionicons
             name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
             size={Platform.OS === 'ios' ? 28 : 24}
-            color={isDark ? '#f8fafc' : '#0f172a'}
+            className="text-slate-950 dark:text-slate-50"
           />
           {Platform.OS === 'ios' && (
             <Text className="text-lg text-slate-900 dark:text-slate-50 -ml-1">
@@ -109,7 +107,7 @@ export default function BasicInfoStep2({
         helperText="Usaremos estos datos para darte planes más personalizados"
         helperIcon={
           <View className="w-10 h-10 rounded-lg bg-white dark:bg-slate-800 items-center justify-center border border-slate-200 dark:border-slate-800">
-            <Ionicons name="sparkles-outline" size={20} color={isDark ? '#94a3b8' : '#64748b'} />
+            <Ionicons name="sparkles-outline" size={20} className="text-slate-500 dark:text-slate-400" />
           </View>
         }
       />

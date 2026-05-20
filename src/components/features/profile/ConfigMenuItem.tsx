@@ -1,6 +1,11 @@
-import React from 'react';
-import { Text, TouchableOpacity, useColorScheme, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { cssInterop } from 'nativewind';
+import React from 'react';
+import { Text, TouchableOpacity, View } from 'react-native';
+
+cssInterop(Ionicons, {
+  className: { target: 'style', nativeStyleToProp: { color: true } },
+});
 
 interface ConfigMenuItemProps {
   /** Nombre del ícono de Ionicons */
@@ -20,60 +25,24 @@ export default function ConfigMenuItem({
   label,
   onPress,
 }: ConfigMenuItemProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.6}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 18,
-        paddingHorizontal: 20,
-        backgroundColor: isDark ? '#18181b' : '#ffffff',
-        borderBottomWidth: 1,
-        borderBottomColor: isDark ? '#27272a' : '#f1f5f9',
-      }}
+      className="flex-row items-center py-[18px] px-5 bg-white dark:bg-zinc-900 border-b border-slate-100 dark:border-zinc-800"
     >
       {/* Ícono */}
-      <View
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 12,
-          backgroundColor: isDark ? '#27272a' : '#f8fafc',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginRight: 14,
-        }}
-      >
-        <Ionicons
-          name={icon}
-          size={22}
-          color={isDark ? '#a1a1aa' : '#64748b'}
-        />
+      <View className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-zinc-800 items-center justify-center mr-[14px]">
+        <Ionicons name={icon} size={22} className="text-slate-500 dark:text-zinc-400" />
       </View>
 
       {/* Label */}
-      <Text
-        style={{
-          flex: 1,
-          fontSize: 16,
-          fontWeight: '500',
-          color: isDark ? '#e4e4e7' : '#1e293b',
-        }}
-      >
+      <Text className="flex-1 text-base font-medium text-slate-800 dark:text-zinc-200">
         {label}
       </Text>
 
       {/* Flecha */}
-      <Ionicons
-        name="chevron-forward"
-        size={20}
-        color={isDark ? '#52525b' : '#cbd5e1'}
-      />
+      <Ionicons name="chevron-forward" size={20} className="text-slate-300 dark:text-zinc-600" />
     </TouchableOpacity>
   );
 }

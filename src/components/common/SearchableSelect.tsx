@@ -1,5 +1,5 @@
-import { HealthItem } from '@/src/types/health';
 import { Ionicons } from '@expo/vector-icons';
+import { cssInterop } from 'nativewind';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     DeviceEventEmitter,
@@ -11,6 +11,12 @@ import {
     useColorScheme,
     View,
 } from 'react-native';
+
+import { HealthItem } from '@/src/types/health';
+
+cssInterop(Ionicons, {
+  className: { target: 'style', nativeStyleToProp: { color: true } },
+});
 
 const SEVERITY_COLORS: Record<string, string> = {
   Low: '#2dd4bf',    
@@ -44,7 +50,7 @@ export default function SearchableSelect({
   selectedLabel = 'Seleccionadas',
 }: SearchableSelectProps) {
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const isDark = colorScheme === 'dark'; // needed for placeholderTextColor and TextInput style (native props)
   const inputRef = useRef<TextInput>(null);
 
   const [query, setQuery] = useState('');
@@ -116,60 +122,28 @@ export default function SearchableSelect({
     Keyboard.dismiss();
   };
 
-  const cardBg = isDark ? '#1e293b' : '#ffffff';
-  const borderColor = isDark ? '#334155' : '#e2e8f0';
-
   return (
     <View className="gap-3">
       {/* Card principal: encabezado + buscador */}
-      <View
-        style={{
-          backgroundColor: cardBg,
-          borderRadius: 16,
-          padding: 16,
-          borderWidth: 1,
-          borderColor,
-        }}
-      >
+      <View className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
         {/* Encabezado opcional */}
         {cardTitle && (
           <View className="flex-row items-center gap-3 mb-4">
             {cardIconName && (
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: isDark ? '#334155' : '#f1f5f9',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
+              <View className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 items-center justify-center">
                 <Ionicons
                   name={cardIconName as any}
                   size={20}
-                  color={isDark ? '#94a3b8' : '#64748b'}
+                  className="text-slate-500 dark:text-slate-400"
                 />
               </View>
             )}
             <View className="flex-1">
-              <Text
-                style={{
-                  fontSize: 15,
-                  fontWeight: '600',
-                  color: isDark ? '#f1f5f9' : '#0f172a',
-                }}
-              >
+              <Text className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">
                 {cardTitle}
               </Text>
               {cardSubtitle && (
-                <Text
-                  style={{
-                    fontSize: 13,
-                    color: isDark ? '#94a3b8' : '#64748b',
-                    marginTop: 2,
-                  }}
-                >
+                <Text className="text-[13px] text-slate-500 dark:text-slate-400 mt-0.5">
                   {cardSubtitle}
                 </Text>
               )}
@@ -182,18 +156,12 @@ export default function SearchableSelect({
           <TouchableOpacity
             activeOpacity={1}
             onPress={() => inputRef.current?.focus()}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              borderWidth: 1,
-              borderRadius: 12,
-              paddingHorizontal: 16,
-              height: 50,
-              borderColor: isOpen
-                ? isDark ? '#71717a' : '#94a3b8'
-                : isDark ? '#3f3f46' : '#e5e7eb',
-              backgroundColor: isDark ? '#0f172a' : '#f8fafc',
-            }}
+            className={`flex-row items-center border rounded-xl px-4 bg-slate-50 dark:bg-slate-950 ${
+              isOpen
+                ? 'border-zinc-400 dark:border-zinc-500'
+                : 'border-zinc-200 dark:border-zinc-700'
+            }`}
+            style={{ height: 50 }}
           >
             <TextInput
               ref={inputRef}
@@ -222,25 +190,18 @@ export default function SearchableSelect({
               <Ionicons
                 name={isOpen ? 'chevron-up' : 'chevron-down'}
                 size={20}
-                color={isDark ? '#a1a1aa' : '#9ca3af'}
+                className="text-zinc-400 dark:text-zinc-500"
               />
             </TouchableOpacity>
           </TouchableOpacity>
 
           {isOpen && filteredItems.length > 0 && (
             <View
+              className="absolute left-0 right-0 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800"
               style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
                 top: 54,
                 maxHeight: 200,
                 zIndex: 100,
-                borderRadius: 12,
-                overflow: 'hidden',
-                borderWidth: 1,
-                borderColor: isDark ? '#3f3f46' : '#e5e7eb',
-                backgroundColor: isDark ? '#27272a' : '#ffffff',
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.1,
@@ -260,14 +221,7 @@ export default function SearchableSelect({
                       key={item.id}
                       onPress={() => handleSelect(item)}
                       activeOpacity={0.6}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        paddingHorizontal: 16,
-                        paddingVertical: 12,
-                        borderBottomWidth: 1,
-                        borderBottomColor: isDark ? 'rgba(63,63,70,0.5)' : '#f3f4f6',
-                      }}
+                      className="flex-row items-center px-4 py-3 border-b border-zinc-100 dark:border-zinc-700/50"
                     >
                       <View
                         style={{
@@ -278,13 +232,7 @@ export default function SearchableSelect({
                           marginRight: 10,
                         }}
                       />
-                      <Text
-                        style={{
-                          flex: 1,
-                          fontSize: 15,
-                          color: isDark ? '#e4e4e7' : '#1e293b',
-                        }}
-                      >
+                      <Text className="flex-1 text-[15px] text-slate-900 dark:text-zinc-200">
                         {item.name} - {item.severity}
                       </Text>
                     </TouchableOpacity>
@@ -298,25 +246,10 @@ export default function SearchableSelect({
 
       {/* Card de seleccionados */}
       {selectedItems.length > 0 && (
-        <View
-          style={{
-            backgroundColor: cardBg,
-            borderRadius: 16,
-            padding: 16,
-            borderWidth: 1,
-            borderColor,
-            gap: 8,
-          }}
-        >
+        <View className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 gap-2">
           {/* Header: "Seleccionadas (N)" + "Borrar todas" */}
           <View className="flex-row items-center justify-between mb-1">
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: '600',
-                color: isDark ? '#94a3b8' : '#64748b',
-              }}
-            >
+            <Text className="text-sm font-semibold text-slate-500 dark:text-slate-400">
               {selectedLabel} ({selectedItems.length})
             </Text>
             <TouchableOpacity onPress={() => onSelectionChange([])}>
@@ -332,16 +265,7 @@ export default function SearchableSelect({
             return (
               <View
                 key={item.id}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  paddingHorizontal: 14,
-                  paddingVertical: 12,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor,
-                  backgroundColor: isDark ? '#0f172a' : '#f8fafc',
-                }}
+                className="flex-row items-center px-3.5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950"
               >
                 <View
                   style={{
@@ -352,13 +276,7 @@ export default function SearchableSelect({
                     marginRight: 10,
                   }}
                 />
-                <Text
-                  style={{
-                    flex: 1,
-                    fontSize: 15,
-                    color: isDark ? '#e2e8f0' : '#0f172a',
-                  }}
-                >
+                <Text className="flex-1 text-[15px] text-slate-900 dark:text-slate-200">
                   {item.name} - {item.severity}
                 </Text>
                 <TouchableOpacity
@@ -368,7 +286,7 @@ export default function SearchableSelect({
                   <Ionicons
                     name="close"
                     size={18}
-                    color={isDark ? '#94a3b8' : '#64748b'}
+                    className="text-slate-500 dark:text-slate-400"
                   />
                 </TouchableOpacity>
               </View>

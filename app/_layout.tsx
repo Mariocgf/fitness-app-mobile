@@ -225,7 +225,7 @@ export default function RootLayout() {
   }));
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView className="flex-1">
       <ActionSheetProvider>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>

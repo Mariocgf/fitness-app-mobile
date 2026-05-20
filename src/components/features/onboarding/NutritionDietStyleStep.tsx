@@ -1,6 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import { cssInterop } from 'nativewind';
 import React from 'react';
 import { DeviceEventEmitter, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+
+cssInterop(Ionicons, {
+  className: { target: 'style', nativeStyleToProp: { color: true } },
+});
 
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
 import OnboardingHeader from '@/src/components/common/OnboardingHeader';
@@ -64,7 +69,7 @@ export default function NutritionDietStyleStep({
 
             {/* Card: Buscador de estilos de dieta */}
             <SectionCard
-              icon={<Ionicons name="restaurant-outline" size={20} color="#64748b" />}
+              icon={<Ionicons name="restaurant-outline" size={20} className="text-slate-500" />}
               title="Estilo de dieta"
               subtitle="Selecciona todas las que apliquen"
               className="mb-4"
@@ -106,7 +111,7 @@ export default function NutritionDietStyleStep({
                       onPress={() => handleRemove(item.id)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Ionicons name="close" size={18} color="#94a3b8" />
+                      <Ionicons name="close" size={18} className="text-slate-400" />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -119,7 +124,7 @@ export default function NutritionDietStyleStep({
           onPress={onSubmit}
           disabled={isSubmitting}
           helperText="Esta informacion es confidencial y solo se usa para personalizar tu planes."
-          helperIcon={<Ionicons name="lock-closed-outline" size={18} color="#64748b" />}
+          helperIcon={<Ionicons name="lock-closed-outline" size={18} className="text-slate-500" />}
         />
       </View>
     </SwipeBackWrapper>

@@ -1,7 +1,6 @@
 import { DarkSheetLayout } from '@/src/components/common/DarkSheetLayout';
 import { ExerciseDetailView } from '@/src/components/features/routine/ExerciseDetailView';
 import { SwapCandidateModal } from '@/src/components/features/routine/SwapCandidateModal';
-import { useColorScheme } from '@/src/hooks/use-color-scheme';
 import { confirmSwapExercises, getSwapSuggestions } from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { HealthWarning, Routine, RoutineExercise, SwapSuggestionItem, WarningLevel } from '@/src/types/routine';
@@ -13,14 +12,14 @@ import { cssInterop } from 'nativewind';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import Animated, {
-    Easing,
-    Extrapolation,
-    interpolate,
-    runOnJS,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withTiming,
+  Easing,
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -93,8 +92,6 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark'; // usado en el dropdown
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const { getToken } = useAuth();
   const { isSwapMode, setSwapMode, setActions } = useRoutineDetailContext();
@@ -362,11 +359,11 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
   const activeDay = sortedDays[activeDayIndex] || sortedDays[0];
 
   return (
-    <Animated.View style={containerStyle} className="bg-slate-900">
+    <Animated.View style={containerStyle} className="bg-slate-100 dark:bg-slate-950">
       {/* Fondo de transición: siempre oscuro */}
       <Animated.View
         style={contentOpacity}
-        className="absolute inset-0 bg-slate-900"
+        className="absolute inset-0 bg-slate-100 dark:bg-slate-950"
       />
 
       {/* Contenido con fade-in progresivo */}
@@ -377,8 +374,8 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
               {/* Header: botón X + título centrado */}
               <View style={{ paddingTop: insets.top + 12 }} className="px-4 pb-3">
                 <View className="items-end mb-3">
-                  <TouchableOpacity onPress={handleClose} className="bg-white/10 p-2 rounded-full">
-                    <Ionicons name="close" size={20} style={{ color: '#94a3b8' }} />
+                  <TouchableOpacity onPress={handleClose} className="bg-slate-300 dark:bg-slate-700 w-10 h-10 rounded-full items-center justify-center">
+                    <Ionicons name="close" size={20} className='text-slate-900 dark:text-white' />
                   </TouchableOpacity>
                 </View>
                 <View className="items-center">
@@ -389,10 +386,10 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
                     </>
                   ) : (
                     <>
-                      <Text className="text-white text-2xl font-bold text-center">
+                      <Text className="dark:text-white text-2xl font-bold text-center">
                         {routine.name}
                       </Text>
-                      <Text style={{ color: '#94a3b8' }} className="text-sm mt-1 text-center">
+                      <Text className="text-slate-400 text-sm mt-1 text-center">
                         Rutina de {sortedDays.length} días
                       </Text>
                     </>
@@ -420,13 +417,10 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
                         key={day.id}
                         onPress={() => { setActiveDayIndex(index); setSelectedExercise(null); }}
                         className={`px-5 py-2 rounded-full border ${
-                          isActive ? 'bg-lime-400 border-lime-400' : 'border-white/20'
+                          isActive ? 'bg-lime-400 border-lime-400' : 'border-slate-400'
                         }`}
                       >
-                        <Text
-                          className="font-semibold text-sm"
-                          style={{ color: isActive ? '#0f172a' : '#e2e8f0' }}
-                        >
+                        <Text className={`font-semibold text-sm ${isActive ? 'text-black' : 'text-slate-600 dark:text-slate-300'}`}>
                           {day.day}
                         </Text>
                       </TouchableOpacity>
@@ -524,8 +518,8 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
             <View className="flex-row gap-3 items-center">
               {/* Botón principal: Play (normal) o Aplicar cambios (swap con picks) */}
               <TouchableOpacity
-                className="flex-1 bg-slate-900 dark:bg-slate-950 rounded-full items-center justify-center"
-                style={{ height: 60, opacity: (isSwapMode && hasSwapActivity && pickedCount === 0) ? 0.45 : 1 }}
+                className="flex-1 h-[60px] bg-slate-900 dark:bg-slate-950 rounded-full items-center justify-center"
+                style={{ opacity: (isSwapMode && hasSwapActivity && pickedCount === 0) ? 0.45 : 1 }}
                 disabled={isApplying || (isSwapMode && hasSwapActivity && pickedCount === 0)}
                 onPress={() => {
                   if (isSwapMode && hasSwapActivity) {
@@ -545,19 +539,18 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
                 {isApplying ? (
                   <ActivityIndicator color="#a3e635" />
                 ) : isSwapMode && hasSwapActivity ? (
-                  <Ionicons name="checkmark" size={26} style={{ color: '#a3e635' }} />
+                  <Ionicons name="checkmark" size={26} className="text-lime-400" />
                 ) : (
-                  <Ionicons name="play" size={26} style={{ color: '#a3e635' }} />
+                  <Ionicons name="play" size={26} className="text-lime-400" />
                 )}
               </TouchableOpacity>
 
               {/* Botón de opciones */}
               <TouchableOpacity
-                className="bg-slate-900 dark:bg-slate-950 rounded-full items-center justify-center"
-                style={{ width: 60, height: 60 }}
+                className="w-[60px] h-[60px] bg-slate-900 dark:bg-slate-950 rounded-full items-center justify-center"
                 onPress={() => setIsOptionsOpen(true)}
               >
-                <Ionicons name="ellipsis-horizontal" size={22} style={{ color: '#f8fafc' }} />
+                <Ionicons name="ellipsis-horizontal" size={22} className="text-slate-50" />
               </TouchableOpacity>
             </View>
           </View>
@@ -572,20 +565,13 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
           onRequestClose={() => setIsOptionsOpen(false)}
         >
           <Pressable
-            style={{ flex: 1 }}
+            className="flex-1"
             onPress={() => setIsOptionsOpen(false)}
           >
             <View
+              className="absolute right-4 w-[230px] bg-slate-800 dark:bg-slate-700 border border-white/10 rounded-2xl overflow-hidden shadow-2xl"
               style={{
-                position: 'absolute',
                 bottom: insets.bottom + 76,
-                right: 16,
-                width: 230,
-                backgroundColor: isDark ? '#334155' : '#1e293b',
-                borderWidth: 1,
-                borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'transparent',
-                borderRadius: 16,
-                overflow: 'hidden',
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 8 },
                 shadowOpacity: 0.35,
@@ -597,26 +583,14 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
                 <TouchableOpacity
                   key={item.label}
                   onPress={item.onPress}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    paddingHorizontal: 18,
-                    paddingVertical: 15,
-                    gap: 14,
-                    borderBottomWidth: i < menuItems.length - 1 ? 1 : 0,
-                    borderBottomColor: 'rgba(255,255,255,0.07)',
-                  }}
+                  className={`flex-row items-center px-[18px] py-[15px] gap-[14px] ${i < menuItems.length - 1 ? 'border-b border-white/[0.07]' : ''}`}
                 >
                   <Ionicons
                     name={item.icon}
                     size={19}
-                    style={{ color: item.destructive ? '#f87171' : '#94a3b8' }}
+                    className={item.destructive ? 'text-red-400' : 'text-slate-400'}
                   />
-                  <Text style={{
-                    color: item.destructive ? '#f87171' : '#f1f5f9',
-                    fontSize: 15,
-                    fontWeight: '500',
-                  }}>
+                  <Text className={`text-[15px] font-medium ${item.destructive ? 'text-red-400' : 'text-slate-100'}`}>
                     {item.label}
                   </Text>
                 </TouchableOpacity>
@@ -756,7 +730,7 @@ const SwapAwareExerciseItem: React.FC<SwapAwareExerciseItemProps> = ({
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={onPress}
-        className={`flex-row bg-white dark:bg-slate-900 rounded-2xl p-3 border items-center ${borderClass}`}
+        className={`flex-row bg-slate-50 dark:bg-slate-900 rounded-2xl p-3 border items-center ${borderClass}`}
       >
         {/* Número en círculo lime sólido */}
         <View className="w-8 h-8 rounded-full bg-lime-400 items-center justify-center mr-3 shrink-0">
@@ -778,7 +752,7 @@ const SwapAwareExerciseItem: React.FC<SwapAwareExerciseItemProps> = ({
 
         <View className="flex-1">
           <Text
-            className={`font-bold text-sm mb-1 ${
+            className={`font-bold text-base mb-1 ${
               pickedCandidate ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-slate-50'
             }`}
             numberOfLines={2}
@@ -944,7 +918,7 @@ const BlockingWarningModal: React.FC<BlockingWarningModalProps> = ({ payload, on
             </Text>
           </View>
 
-          <ScrollView className="mb-6" style={{ maxHeight: 240 }}>
+          <ScrollView className="mb-6 max-h-60">
             {payload?.warnings.map((w, i) => (
               <View key={i} className="mb-3">
                 <Text className="text-zinc-900 dark:text-white font-semibold text-sm mb-1">

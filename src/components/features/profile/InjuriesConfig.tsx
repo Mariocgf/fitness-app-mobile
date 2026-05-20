@@ -1,54 +1,43 @@
-import React, { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  DeviceEventEmitter,
-  Pressable,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
 import { useAuth } from '@clerk/clerk-expo';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    DeviceEventEmitter,
+    Pressable,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import BackButton from '@/src/components/common/BackButton';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import {
-  getInjuries,
-  getMedicalConditions,
+    getInjuries,
+    getMedicalConditions,
 } from '@/src/services/health.service';
 import {
-  getUserInjuries,
-  getUserMedicalConditions,
-  updateUserInjuries,
-  updateUserMedicalConditions,
-  UserHealthItem,
+    getUserInjuries,
+    getUserMedicalConditions,
+    updateUserInjuries,
+    updateUserMedicalConditions,
+    UserHealthItem,
 } from '@/src/services/profile.service';
 import { Injury, MedicalCondition } from '@/src/types/health';
 
 interface InjuriesConfigProps {
-  /** Callback para volver a la pantalla principal del perfil */
   onBack: () => void;
+  onRegisterBackHandler?: (fn: (() => void) | null) => void;
 }
 
-/**
- * Sub-pantalla de configuración de lesiones y afecciones médicas.
- * Reutiliza SearchableSelect del onboarding de Health.
- */
-export default function InjuriesConfig({ onBack }: InjuriesConfigProps) {
+export default function InjuriesConfig({ onBack, onRegisterBackHandler }: InjuriesConfigProps) {
   const { getToken } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [injuriesList, setInjuriesList] = useState<Injury[]>([]);
-  const [conditionsList, setConditionsList] = useState<MedicalCondition[]>([]);
-  
   const [selectedInjuryIds, setSelectedInjuryIds] = useState<string[]>([]);
-  const [selectedConditionIds, setSelectedConditionIds] = useState<string[]>([]);
-  
   const [initialInjuryIds, setInitialInjuryIds] = useState<string[]>([]);
-  const [initialConditionIds, setInitialConditionIds] = useState<string[]>([]);
-
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -56,29 +45,16 @@ export default function InjuriesConfig({ onBack }: InjuriesConfigProps) {
     const initialize = async () => {
       try {
         const token = await getToken();
-        
-        // Cargar catálogos y datos del usuario en paralelo
-        const [catInjuries, catConditions, userInjuries, userConditions] = await Promise.all([
+        const [catInjuries, userInjuries] = await Promise.all([
           getInjuries(token),
-          getMedicalConditions(token),
           getUserInjuries(token),
-          getUserMedicalConditions(token),
         ]);
-
         setInjuriesList(catInjuries);
-        setConditionsList(catConditions);
-
-        // Mapear IDs actuales
         const uInjIds = userInjuries.map((i: UserHealthItem) => i.id);
-        const uCondIds = userConditions.map((c: UserHealthItem) => c.id);
-
         setSelectedInjuryIds(uInjIds);
         setInitialInjuryIds(uInjIds);
-        
-        setSelectedConditionIds(uCondIds);
-        setInitialConditionIds(uCondIds);
       } catch (e) {
-        console.error('Error cargando datos de salud:', e);
+        console.error('Error cargando lesiones:', e);
         Alert.alert('Error', 'No se pudieron cargar los datos de salud.');
       } finally {
         setIsLoading(false);
@@ -87,26 +63,16 @@ export default function InjuriesConfig({ onBack }: InjuriesConfigProps) {
     initialize();
   }, []);
 
-  /**
-   * Detecta si hay cambios reales comparando arrays de IDs (ignora orden)
-   */
-  const hasChanges = () => {
-    const injuriesChanged = 
-      selectedInjuryIds.length !== initialInjuryIds.length ||
-      selectedInjuryIds.some(id => !initialInjuryIds.includes(id));
-    
-    const conditionsChanged = 
-      selectedConditionIds.length !== initialConditionIds.length ||
-      selectedConditionIds.some(id => !initialConditionIds.includes(id));
+  const hasChanges = () =>
+    selectedInjuryIds.length !== initialInjuryIds.length ||
+    selectedInjuryIds.some((id) => !initialInjuryIds.includes(id));
 
-    return injuriesChanged || conditionsChanged;
-  };
-
-  const handleBack = () => {
+  const backHandlerRef = useRef<() => void>(() => {});
+  backHandlerRef.current = () => {
     if (hasChanges()) {
       Alert.alert(
         'Cambios sin guardar',
-        'Tienes cambios pendientes en tu información de salud. ¿Deseas salir sin guardar?',
+        'Tus cambios en lesiones no se guardaron. ¿Deseas salir de todas formas?',
         [
           { text: 'Cancelar', style: 'cancel' },
           { text: 'Salir sin guardar', style: 'destructive', onPress: onBack },
@@ -117,27 +83,23 @@ export default function InjuriesConfig({ onBack }: InjuriesConfigProps) {
     }
   };
 
+  useEffect(() => {
+    onRegisterBackHandler?.(() => backHandlerRef.current());
+    return () => onRegisterBackHandler?.(null);
+  }, []);
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
       const token = await getToken();
-
-      // Guardar ambos en paralelo
-      await Promise.all([
-        updateUserInjuries(selectedInjuryIds, token),
-        updateUserMedicalConditions(selectedConditionIds, token),
-      ]);
-
-      // Actualizar estados iniciales
+      await updateUserInjuries(selectedInjuryIds, token);
       setInitialInjuryIds([...selectedInjuryIds]);
-      setInitialConditionIds([...selectedConditionIds]);
-
-      Alert.alert('Éxito', 'Limitaciones físicas actualizadas correctamente.', [
+      Alert.alert('Éxito', 'Lesiones actualizadas correctamente.', [
         { text: 'OK', onPress: onBack },
       ]);
     } catch (error) {
-      console.error('Error guardando limitaciones físicas:', error);
-      Alert.alert('Error', 'No se pudieron actualizar las limitaciones físicas.');
+      console.error('Error guardando lesiones:', error);
+      Alert.alert('Error', 'No se pudieron actualizar las lesiones.');
     } finally {
       setIsSaving(false);
     }
@@ -145,80 +107,177 @@ export default function InjuriesConfig({ onBack }: InjuriesConfigProps) {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-zinc-950">
-        <ActivityIndicator size="large" color="#06b6d4" />
-        <Text className="text-slate-500 dark:text-zinc-400 mt-4">
-          Cargando datos de salud...
-        </Text>
+      <View className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" color="#64748b" />
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, paddingTop: insets.top }} className="bg-white dark:bg-zinc-950">
-      <BackButton onPress={handleBack} color="#06b6d4" label="Volver" />
-
-      {/* Título */}
-      <View className="px-8 pt-2 pb-4">
-        <Text className="text-2xl font-bold text-slate-900 dark:text-white">
-          Limitaciones físicas
-        </Text>
-      </View>
-
+    <Pressable
+      style={{ flex: 1 }}
+      onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
+    >
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingTop: 20,
+          paddingBottom: insets.bottom + 100,
+        }}
       >
-        <Pressable
-          style={{ flex: 1 }}
-          onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
-        >
-          {/* Lesiones */}
-          <View style={{ zIndex: 20 }}>
-            <Text className="text-lg font-semibold text-slate-800 dark:text-zinc-200 mb-2">
-              Lesiones
-            </Text>
-            <SearchableSelect
-              items={injuriesList}
-              selectedIds={selectedInjuryIds}
-              onSelectionChange={setSelectedInjuryIds}
-              placeholder="Seleccionar - Opcional"
-            />
-          </View>
-
-          {/* Afecciones médicas */}
-          <View style={{ zIndex: 10, marginTop: 24 }}>
-            <Text className="text-lg font-semibold text-slate-800 dark:text-zinc-200 mb-2">
-              Afecciones médicas
-            </Text>
-            <SearchableSelect
-              items={conditionsList}
-              selectedIds={selectedConditionIds}
-              onSelectionChange={setSelectedConditionIds}
-              placeholder="Seleccionar - Opcional"
-            />
-          </View>
-        </Pressable>
+        <SearchableSelect
+          items={injuriesList}
+          selectedIds={selectedInjuryIds}
+          onSelectionChange={setSelectedInjuryIds}
+          placeholder="Buscar lesión"
+          cardTitle="Lesiones"
+          cardSubtitle="¿Tenés alguna lesión activa?"
+          cardIconName="bandage-outline"
+          selectedLabel="Lesiones"
+        />
       </ScrollView>
 
-      {/* Botón Guardar */}
-      <View className="px-8 pb-32 pt-4">
+      <View style={{ paddingBottom: insets.bottom + 16 }} className="px-4 pt-3">
         <TouchableOpacity
-          style={[
-            { backgroundColor: '#06b6d4' }, // cyan-500
-            isSaving && { opacity: 0.7 },
-          ]}
-          className="w-full py-4 rounded-2xl items-center shadow-md"
           onPress={handleSave}
           disabled={isSaving}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
+          className="w-full py-4 rounded-full items-center bg-slate-950 dark:bg-slate-100"
+          style={{ opacity: isSaving ? 0.7 : 1 }}
         >
-          <Text className="text-white text-lg font-bold">
+          <Text className="text-base font-semibold text-white dark:text-slate-950">
             {isSaving ? 'Guardando...' : 'Guardar'}
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </Pressable>
+  );
+}
+
+/** Vista de configuración de afecciones médicas */
+export function ConditionsConfig({ onBack, onRegisterBackHandler }: InjuriesConfigProps) {
+  const { getToken } = useAuth();
+  const insets = useSafeAreaInsets();
+
+  const [conditionsList, setConditionsList] = useState<MedicalCondition[]>([]);
+  const [selectedConditionIds, setSelectedConditionIds] = useState<string[]>([]);
+  const [initialConditionIds, setInitialConditionIds] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+        const token = await getToken();
+        const [catConditions, userConditions] = await Promise.all([
+          getMedicalConditions(token),
+          getUserMedicalConditions(token),
+        ]);
+        setConditionsList(catConditions);
+        const uCondIds = userConditions.map((c: UserHealthItem) => c.id);
+        setSelectedConditionIds(uCondIds);
+        setInitialConditionIds(uCondIds);
+      } catch (e) {
+        console.error('Error cargando afecciones:', e);
+        Alert.alert('Error', 'No se pudieron cargar los datos de salud.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    initialize();
+  }, []);
+
+  const hasChangesConditions = () =>
+    selectedConditionIds.length !== initialConditionIds.length ||
+    selectedConditionIds.some((id) => !initialConditionIds.includes(id));
+
+  const backHandlerRef = useRef<() => void>(() => {});
+  backHandlerRef.current = () => {
+    if (hasChangesConditions()) {
+      Alert.alert(
+        'Cambios sin guardar',
+        'Tus cambios en afecciones médicas no se guardaron. ¿Deseas salir de todas formas?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Salir sin guardar', style: 'destructive', onPress: onBack },
+        ]
+      );
+    } else {
+      onBack();
+    }
+  };
+
+  useEffect(() => {
+    onRegisterBackHandler?.(() => backHandlerRef.current());
+    return () => onRegisterBackHandler?.(null);
+  }, []);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const token = await getToken();
+      await updateUserMedicalConditions(selectedConditionIds, token);
+      setInitialConditionIds([...selectedConditionIds]);
+      Alert.alert('Éxito', 'Afecciones médicas actualizadas correctamente.', [
+        { text: 'OK', onPress: onBack },
+      ]);
+    } catch (error) {
+      console.error('Error guardando afecciones:', error);
+      Alert.alert('Error', 'No se pudieron actualizar las afecciones médicas.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" color="#64748b" />
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      style={{ flex: 1 }}
+      onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
+    >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingTop: 20,
+          paddingBottom: insets.bottom + 100,
+        }}
+      >
+        <SearchableSelect
+          items={conditionsList}
+          selectedIds={selectedConditionIds}
+          onSelectionChange={setSelectedConditionIds}
+          placeholder="Buscar afección"
+          cardTitle="Afecciones médicas"
+          cardSubtitle="¿Tenés alguna condición médica?"
+          cardIconName="medkit-outline"
+          selectedLabel="Afecciones"
+        />
+      </ScrollView>
+
+      <View style={{ paddingBottom: insets.bottom + 16 }} className="px-4 pt-3">
+        <TouchableOpacity
+          onPress={handleSave}
+          disabled={isSaving}
+          activeOpacity={0.85}
+          className="w-full py-4 rounded-full items-center bg-slate-950 dark:bg-slate-100"
+          style={{ opacity: isSaving ? 0.7 : 1 }}
+        >
+          <Text className="text-base font-semibold text-white dark:text-slate-950">
+            {isSaving ? 'Guardando...' : 'Guardar'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </Pressable>
   );
 }

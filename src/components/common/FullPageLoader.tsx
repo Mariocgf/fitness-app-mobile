@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
-import { Text, useColorScheme, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withTiming,
 } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
@@ -23,9 +23,6 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
  * El mensaje es opcional.
  */
 export const FullPageLoader: React.FC<FullPageLoaderProps> = ({ message }) => {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
   const rotation = useSharedValue(0);
 
   useEffect(() => {
@@ -42,10 +39,7 @@ export const FullPageLoader: React.FC<FullPageLoaderProps> = ({ message }) => {
   }));
 
   return (
-    <View
-      style={{ backgroundColor: isDark ? '#18181b' : '#ffffff' }}
-      className="flex-1 justify-center items-center"
-    >
+    <View className="flex-1 justify-center items-center bg-white dark:bg-zinc-950">
       <Animated.View style={spinStyle}>
         <Svg width={RING_SIZE} height={RING_SIZE} viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}>
           {/* Pista del anillo (fondo sutil) */}
@@ -53,7 +47,7 @@ export const FullPageLoader: React.FC<FullPageLoaderProps> = ({ message }) => {
             cx={RING_SIZE / 2}
             cy={RING_SIZE / 2}
             r={RADIUS}
-            stroke={isDark ? '#27272a' : '#f1f5f9'}
+            stroke="#27272a"
             strokeWidth={STROKE_WIDTH}
             fill="none"
           />

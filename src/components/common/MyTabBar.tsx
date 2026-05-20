@@ -6,12 +6,12 @@ import * as Haptics from 'expo-haptics';
 import { useCallback, useState } from 'react';
 import { Modal, Platform, Pressable, Text, View } from 'react-native';
 import Animated, {
-    Easing,
-    interpolate,
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring,
-    withTiming,
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -87,8 +87,7 @@ function TabItem({
   return (
     <Pressable
       onPress={onPress}
-      className="items-center justify-center"
-      style={{ width: 72, height: 56 }}
+      className="items-center justify-center w-[72px] h-14"
     >
       <Ionicons
         name={(isFocused ? icons.filled : icons.outline) as any}
@@ -323,11 +322,11 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   // ── Colores dinámicos del FAB y de los iconos del menú según la vista activa ──
   const getThemeColors = () => {
     if (isDetailVisible || activeRouteName === 'fitness') {
-      // lime-300
+      // lime-400
       return {
-        fabBg: '#d9f99d',
+        fabBg: '#a3e635',
         fabIconColor: '#18181b',
-        menuIconColor: '#d9f99d',
+        menuIconColor: '#a3e635',
         // En modo edición: lápiz; en detalle normal: ellipsis; en fitness: add
         fabIconName: isSwapMode
           ? 'create-outline'
@@ -337,28 +336,28 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
       };
     }
     if (activeRouteName === 'nutrition') {
-      // amber-500
+      // amber-400
       return {
-        fabBg: '#f59e0b',
-        fabIconColor: '#ffffff',
-        menuIconColor: '#f59e0b',
+        fabBg: '#fbbf24',
+        fabIconColor: '#18181b',
+        menuIconColor: '#fbbf24',
         fabIconName: 'add',
       };
     }
     if (activeRouteName === 'health') {
-      // red-500
+      // rose-600 light / rose-400 dark
       return {
-        fabBg: '#ef4444',
+        fabBg: isDark ? '#fb7185' : '#e11d48',
         fabIconColor: '#ffffff',
-        menuIconColor: '#ef4444',
+        menuIconColor: isDark ? '#fb7185' : '#e11d48',
         fabIconName: 'add',
       };
     }
-    // index / home neutro
+    // index / home — zinc-50 dark / zinc-950 light (Acento Global Marca)
     return {
-      fabBg: isDark ? '#f4f4f5' : '#18181b',
-      fabIconColor: isDark ? '#18181b' : '#ffffff',
-      menuIconColor: isDark ? '#ffffff' : '#18181b',
+      fabBg: isDark ? '#fafafa' : '#09090b',
+      fabIconColor: isDark ? '#09090b' : '#fafafa',
+      menuIconColor: isDark ? '#09090b' : '#fafafa',
       fabIconName: 'add',
     };
   };
@@ -394,9 +393,9 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
           ]}
         >
           {/* Card del menú */}
-          <View className={`rounded-2xl overflow-hidden ${
+          <View className={`rounded-2xl overflow-hidden min-w-[230px] ${
             isDark ? 'bg-zinc-800' : 'bg-white'
-          }`} style={{ minWidth: 230 }}>
+          }`}>
             {menuOptions.map((option) => (
               <FabMenuItem
                 key={option.key}
@@ -425,14 +424,13 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
 
       {/* Tab Bar principal */}
       <View
-        className={`absolute self-center flex-row items-center rounded-full ${
+        className={`absolute self-center flex-row items-center rounded-full py-2 px-2 ${
           isDark
             ? 'bg-zinc-900 border border-zinc-800'
             : 'bg-white border border-zinc-200'
         }`}
         style={{
           bottom: Math.max(insets.bottom, 8) + 8,
-          paddingHorizontal: 8,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: isDark ? 0.4 : 0.1,
@@ -463,8 +461,7 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
           onPress={toggleMenu}
           onPressIn={onFabPressIn}
           onPressOut={onFabPressOut}
-          className="items-center justify-center mx-2"
-          style={{ width: 72, height: 56 }}
+          className="items-center justify-center mx-2 w-[72px] h-14"
         >
           <Animated.View
             className="items-center justify-center"

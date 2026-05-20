@@ -56,24 +56,25 @@ export const ExerciseDetailView: React.FC<ExerciseDetailViewProps> = ({ exercise
       <Animated.View
         entering={SlideInRight.duration(280)}
         exiting={SlideOutRight.duration(220)}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20 }}
+        className="absolute inset-0 z-20"
       >
         <DarkSheetLayout
           header={
             <View style={{ paddingTop: insets.top + 12 }} className="px-4 pb-4">
-              <View className="flex-row items-start gap-3">
+              <View className="w-full flex-row items-center h-11 mb-4">
                 <TouchableOpacity
                   onPress={onBack}
-                  className="bg-white/10 p-2 rounded-full"
-                  style={{ marginTop: 3 }}
+                  className="bg-slate-300 dark:bg-slate-700 flex items-center justify-center w-10 h-10 rounded-full mt-1 "
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Ionicons name="chevron-back" size={20} style={{ color: '#f8fafc' }} />
+                  <Ionicons name="chevron-back" size={24} className='dark:text-slate-100' />
                 </TouchableOpacity>
-                <Text className="flex-1 text-white text-2xl font-bold" style={{ lineHeight: 30 }}>
-                  {exercise.name}
-                </Text>
+              <Text className="flex-1 text-center text-lg font-semibold text-slate-900 dark:text-slate-50">
+                {exercise.name}
+              </Text>
+              <View className="w-10" />
               </View>
+
             </View>
           }
         >
@@ -81,26 +82,17 @@ export const ExerciseDetailView: React.FC<ExerciseDetailViewProps> = ({ exercise
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
           >
-            <View className="px-4" style={{ paddingTop: 16, gap: 12 }}>
+            <View className="px-4 pt-4 gap-4">
               {/* GIF — mismo ancho que las cards */}
-              <View
-                style={{
-                  aspectRatio: 1,
-                  borderRadius: 16,
-                  overflow: 'hidden',
-                  backgroundColor: 'white',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
+              <View className="aspect-square rounded-2xl overflow-hidden bg-white items-center justify-center">
                 {exercise.gifUrl ? (
                   <Image
                     source={{ uri: exercise.gifUrl }}
-                    style={{ width: '100%', height: '100%' }}
+                    className="w-full h-full"
                     resizeMode="contain"
                   />
                 ) : (
-                  <Ionicons name="image-outline" size={64} style={{ color: '#94a3b8' }} />
+                  <Ionicons name="image-outline" size={64} className="text-slate-400" />
                 )}
               </View>
 
@@ -113,20 +105,20 @@ export const ExerciseDetailView: React.FC<ExerciseDetailViewProps> = ({ exercise
               ) : info ? (
                 <>
                   {/* Tarjeta info 2x2 */}
-                  <View className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-white/10">
+                  <View className="bg-slate-100 dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-white/10">
                     <View className="flex-row gap-4 pb-3 border-b border-slate-200 dark:border-white/10">
-                      <InfoCell label="Parte del cuerpo"    value={info.bodyPart?.join(', ')} />
+                      <InfoCell label="Parte del cuerpo" value={info.bodyPart?.join(', ')} />
                       <InfoCell label="Músculos a trabajar" value={info.targetMuscles?.join(', ')} />
                     </View>
                     <View className="flex-row gap-4 pt-3">
                       <InfoCell label="Músculos secundarios" value={info.secundaryMuscles?.join(', ')} />
-                      <InfoCell label="Equipamiento"         value={info.equipments?.join(', ')} />
+                      <InfoCell label="Equipamiento" value={info.equipments?.join(', ')} />
                     </View>
                   </View>
 
                   {/* Instrucciones */}
                   {info.instructions?.length > 0 && (
-                    <View className="mt-4 bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-white/10">
+                    <View className="mt-4 bg-slate-100 dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-white/10">
                       <Text className="text-slate-900 dark:text-white font-bold text-xl text-center mb-4">
                         Instrucciones
                       </Text>

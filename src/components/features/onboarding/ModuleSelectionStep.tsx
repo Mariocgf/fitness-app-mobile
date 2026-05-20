@@ -1,16 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StatusBar } from 'expo-status-bar';
+import { cssInterop } from 'nativewind';
 import React, { useMemo } from 'react';
 import {
-  ActivityIndicator,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  useColorScheme,
-  View,
+    ActivityIndicator,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+
+cssInterop(Ionicons, {
+  className: { target: 'style', nativeStyleToProp: { color: true } },
+});
 
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
 import OnboardingHeader from '@/src/components/common/OnboardingHeader';
@@ -86,13 +89,8 @@ export default function ModuleSelectionStep({
     }
   };
 
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
   return (
     <View className="flex-1 bg-slate-100 dark:bg-slate-950">
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-
       {/* Barra de progreso */}
       <ProgressBar currentStep={0} totalSteps={1} />
 
@@ -157,7 +155,7 @@ export default function ModuleSelectionStep({
         helperText="Podrás añadir o quitar módulos en cualquier momento desde tu perfil."
         helperIcon={
           <View className="w-10 h-10 rounded-lg bg-white dark:bg-slate-800 items-center justify-center border border-slate-200 dark:border-slate-800">
-            <Ionicons name="options-outline" size={20} color={isDark ? '#94a3b8' : '#64748b'} />
+            <Ionicons name="options-outline" size={20} className="text-slate-500 dark:text-slate-400" />
           </View>
         }
       />

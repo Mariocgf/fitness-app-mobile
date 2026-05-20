@@ -142,17 +142,19 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-950">
-      <ScrollView contentContainerClassName="pt-6 pb-10">
+      <ScrollView contentContainerClassName="pt-8 pb-10">
         <GreetingHeader userName={userName} avatarUrl={user?.imageUrl} />
 
         {cardState !== 'success' ? (
           <>
             {/* Sección: sin planes activos */}
-            <View className="px-4 mb-1">
-              <Text className="text-xl font-bold text-slate-900 dark:text-slate-50">
-                ¡Comienza ahora!
-              </Text>
-            </View>
+            {!isFetchingData && (
+              <View className="px-4 mb-2">
+                <Text className="text-xl font-bold text-slate-900 dark:text-slate-50">
+                  ¡Comienza ahora!
+                </Text>
+              </View>
+            )}
             <ActionCard
               ref={cardRef}
               cardState={cardState}
@@ -165,10 +167,15 @@ export default function HomeScreen() {
           </>
         ) : (
           <>
-            {/* Diet siempre visible, incluso con rutina activa */}
+            {/* Sección: dieta */}
+            <View className="px-4 mb-2">
+              <Text className="text-xl font-bold text-slate-900 dark:text-slate-50">
+                ¡Comienza ahora!
+              </Text>
+            </View>
             <DietCard />
             {/* Sección: planes activos */}
-            <View className="px-4 mt-6 mb-1">
+            <View className="px-4 mt-6 mb-2">
               <Text className="text-xl font-bold text-slate-900 dark:text-slate-50">
                 Planes activos
               </Text>

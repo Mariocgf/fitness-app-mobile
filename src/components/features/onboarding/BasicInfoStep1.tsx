@@ -1,16 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
-import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
-    Platform,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    useColorScheme,
-    useWindowDimensions,
-    View,
+  Platform,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  useColorScheme,
+  useWindowDimensions,
+  View,
 } from 'react-native';
 
 import InputCard from '@/src/components/common/InputCard';
@@ -47,8 +46,7 @@ export default function BasicInfoStep1({
   onGenderChange,
   onContinue,
 }: BasicInfoStep1Props) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const isDark = useColorScheme() === 'dark';
   const { height: SCREEN_HEIGHT } = useWindowDimensions();
   const [showDatePicker, setShowDatePicker] = useState(Platform.OS === 'ios');
 
@@ -62,9 +60,6 @@ export default function BasicInfoStep1({
 
   return (
     <View className="flex-1 bg-slate-100 dark:bg-slate-950">
-      {/* StatusBar con estilo adecuado */}
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-
       {/* Barra de progreso */}
       <ProgressBar currentStep={0} totalSteps={TOTAL_ONBOARDING_STEPS} />
 

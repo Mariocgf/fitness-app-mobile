@@ -1,7 +1,12 @@
-import React from 'react';
-import { Text, useColorScheme, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { cssInterop } from 'nativewind';
+import React from 'react';
+import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+cssInterop(Ionicons, {
+  className: { target: 'style', nativeStyleToProp: { color: true } },
+});
 
 import BackButton from '@/src/components/common/BackButton';
 
@@ -15,8 +20,6 @@ interface DataManagementProps {
  * Se completará con funcionalidad real más adelante.
  */
 export default function DataManagement({ onBack }: DataManagementProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
 
   return (
@@ -32,30 +35,11 @@ export default function DataManagement({ onBack }: DataManagementProps) {
 
       {/* Placeholder */}
       <View className="flex-1 items-center justify-center px-8">
-        <Ionicons
-          name="construct-outline"
-          size={64}
-          color={isDark ? '#52525b' : '#cbd5e1'}
-        />
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: '600',
-            color: isDark ? '#71717a' : '#94a3b8',
-            marginTop: 16,
-            textAlign: 'center',
-          }}
-        >
+        <Ionicons name="construct-outline" size={64} className="text-slate-300 dark:text-zinc-600" />
+        <Text className="text-lg font-semibold text-slate-400 dark:text-zinc-500 mt-4 text-center">
           Próximamente
         </Text>
-        <Text
-          style={{
-            fontSize: 14,
-            color: isDark ? '#52525b' : '#cbd5e1',
-            marginTop: 8,
-            textAlign: 'center',
-          }}
-        >
+        <Text className="text-sm text-slate-300 dark:text-zinc-600 mt-2 text-center">
           Aquí podrás gestionar tus datos personales.
         </Text>
       </View>

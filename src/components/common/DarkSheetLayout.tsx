@@ -1,18 +1,16 @@
-import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { View } from 'react-native';
 
 interface DarkSheetLayoutProps {
-  /** Contenido en la zona oscura superior (header, pills, etc.) */
+  /** Contenido en la zona header superior (header, pills, etc.) */
   header: React.ReactNode;
   /** Contenido en la hoja redondeada inferior */
   children: React.ReactNode;
 }
 
 /**
- * Layout de pantalla con zona superior oscura (slate-900) y hoja inferior
- * redondeada (slate-100 / slate-800 en dark). Siempre fuerza status bar "light"
- * porque el header es oscuro.
+ * Layout de pantalla con zona header (slate-100 / slate-950 en dark) y hoja inferior
+ * redondeada (slate-100 / slate-800 en dark). 
  *
  * Uso:
  *   <DarkSheetLayout header={<MiHeader />}>
@@ -20,23 +18,16 @@ interface DarkSheetLayoutProps {
  *   </DarkSheetLayout>
  */
 export const DarkSheetLayout: React.FC<DarkSheetLayoutProps> = ({ header, children }) => (
-  <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
-    <StatusBar style="light" />
+  <View className="flex-1 bg-slate-100 dark:bg-slate-950">
 
-    {/* Zona oscura */}
-    <View style={{ backgroundColor: '#0f172a' }}>
+    {/* Zona header */}
+    <View className="">
       {header}
     </View>
 
     {/* Hoja con radio top */}
     <View
-      style={{
-        flex: 1,
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        overflow: 'hidden',
-      }}
-      className="bg-slate-100 dark:bg-slate-800"
+      className="flex-1 overflow-hidden bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-t-3xl"
     >
       {children}
     </View>

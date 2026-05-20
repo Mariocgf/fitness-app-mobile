@@ -35,8 +35,7 @@ export default function RulerPicker({
   onValueChange,
 }: RulerPickerProps) {
   const { width: SCREEN_WIDTH } = useWindowDimensions();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const isDark = useColorScheme() === 'dark'; // needed for tick colors (computed values in useMemo, cannot use className)
 
   const [currentValue, setCurrentValue] = useState(initial);
   const lastHapticValue = useRef(initial);
@@ -136,13 +135,13 @@ export default function RulerPicker({
         {/* Indicador central fijo — más grueso */}
         <View
           pointerEvents="none"
-          style={{
+          className="bg-slate-900 dark:bg-slate-50"
+        style={{
             position: 'absolute',
             left: (containerWidth / 2) - 2,
             top: 8,
             width: 4,
             height: 44,
-            backgroundColor: isDark ? '#f8fafc' : '#0f172a',
             zIndex: 10,
             borderRadius: 2,
           }}

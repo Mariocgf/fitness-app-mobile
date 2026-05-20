@@ -1,5 +1,5 @@
-import { Equipment, EquipmentSelection } from '@/src/types/fitness';
 import { Ionicons } from '@expo/vector-icons';
+import { cssInterop } from 'nativewind';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     DeviceEventEmitter,
@@ -14,6 +14,12 @@ import {
     useColorScheme,
     View,
 } from 'react-native';
+
+import { Equipment, EquipmentSelection } from '@/src/types/fitness';
+
+cssInterop(Ionicons, {
+  className: { target: 'style', nativeStyleToProp: { color: true } },
+});
 
 // Habilitar LayoutAnimation en Android
 if (
@@ -48,7 +54,7 @@ export default function EquipmentSelect({
   showSelectedList = true,
 }: EquipmentSelectProps) {
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const isDark = colorScheme === 'dark'; // needed for placeholderTextColor (native TextInput prop)
   const inputRef = useRef<TextInput>(null);
 
   const [query, setQuery] = useState('');
@@ -212,7 +218,7 @@ export default function EquipmentSelect({
             <Ionicons
               name={isOpen ? 'chevron-up' : 'chevron-down'}
               size={20}
-              color={isDark ? '#a1a1aa' : '#9ca3af'}
+              className="text-zinc-400 dark:text-zinc-500"
             />
           </TouchableOpacity>
         </TouchableOpacity>
@@ -282,7 +288,7 @@ export default function EquipmentSelect({
                     <Ionicons
                       name="remove"
                       size={18}
-                      color={isDark ? '#d4d4d8' : '#64748b'}
+                      className="text-slate-500 dark:text-zinc-300"
                     />
                   </TouchableOpacity>
 
@@ -299,7 +305,7 @@ export default function EquipmentSelect({
                     <Ionicons
                       name="add"
                       size={18}
-                      color={isDark ? '#d4d4d8' : '#64748b'}
+                      className="text-slate-500 dark:text-zinc-300"
                     />
                   </TouchableOpacity>
                 </View>

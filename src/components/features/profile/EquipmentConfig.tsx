@@ -1,36 +1,43 @@
-import React, { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  DeviceEventEmitter,
-  Pressable,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
 import { useAuth } from '@clerk/clerk-expo';
+import { Ionicons } from '@expo/vector-icons';
+import { cssInterop } from 'nativewind';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    DeviceEventEmitter,
+    Pressable,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import BackButton from '@/src/components/common/BackButton';
+cssInterop(Ionicons, {
+  className: { target: 'style', nativeStyleToProp: { color: true } },
+});
+
 import EquipmentSelect from '@/src/components/common/EquipmentSelect';
 import { getEquipments } from '@/src/services/fitness.service';
 import {
-  getUserEquipment,
-  updateUserEquipment,
-  UserEquipmentItem,
+    getUserEquipment,
+    updateUserEquipment,
+    UserEquipmentItem,
 } from '@/src/services/profile.service';
 import { Equipment, EquipmentSelection } from '@/src/types/fitness';
 
 interface EquipmentConfigProps {
-  /** Callback para volver a la pantalla principal del perfil */
   onBack: () => void;
+  /** Registra el handler de back del componente en el padre */
+  onRegisterBackHandler?: (fn: (() => void) | null) => void;
 }
 
 /**
  * Sub-pantalla de configuración de equipamiento.
- * Reutiliza el componente EquipmentSelect del onboarding de Fitness.
+ * Reutiliza EquipmentSelect del onboarding con el nuevo diseño visual.
  */
-export default function EquipmentConfig({ onBack }: EquipmentConfigProps) {
+export default function EquipmentConfig({ onBack, onRegisterBackHandler }: EquipmentConfigProps) {
   const { getToken } = useAuth();
   const insets = useSafeAreaInsets();
 
@@ -44,14 +51,11 @@ export default function EquipmentConfig({ onBack }: EquipmentConfigProps) {
     const initialize = async () => {
       try {
         const token = await getToken();
-
         const [allEquipments, userEquipments] = await Promise.all([
           getEquipments(token),
           getUserEquipment(token),
         ]);
-
         setEquipmentList(Array.isArray(allEquipments) ? allEquipments : []);
-
         if (Array.isArray(userEquipments)) {
           const mapped: EquipmentSelection[] = userEquipments.map(
             (item: UserEquipmentItem) => ({
@@ -61,7 +65,7 @@ export default function EquipmentConfig({ onBack }: EquipmentConfigProps) {
             })
           );
           setSelectedEquipment(mapped);
-          setInitialEquipment(mapped); // Guardar copia inicial para comparar
+          setInitialEquipment(mapped);
         }
       } catch (e) {
         console.error('Error cargando equipamiento:', e);
@@ -73,45 +77,46 @@ export default function EquipmentConfig({ onBack }: EquipmentConfigProps) {
     initialize();
   }, []);
 
-  /**
-   * Compara la lista actual con la inicial para ver si hay cambios reales.
-   * Ignora el orden.
-   */
+  /** Items seleccionados enriquecidos con nombre completo */
+  const selectedWithDetails = useMemo(
+    () =>
+      selectedEquipment.map((sel) => ({
+        ...sel,
+        name: sel.name || equipmentList.find((eq) => eq.id === sel.id)?.name || '',
+      })),
+    [selectedEquipment, equipmentList]
+  );
+
   const hasChanges = () => {
     if (selectedEquipment.length !== initialEquipment.length) return true;
-
-    // Crear un mapa para búsqueda rápida por ID
-    const initialMap = new Map(initialEquipment.map(item => [item.id, item.qty]));
-
+    const initialMap = new Map(initialEquipment.map((item) => [item.id, item.qty]));
     for (const item of selectedEquipment) {
       const initialQty = initialMap.get(item.id);
-      // Si el ID no existe en la lista inicial o la cantidad cambió
-      if (initialQty === undefined || initialQty !== item.qty) {
-        return true;
-      }
+      if (initialQty === undefined || initialQty !== item.qty) return true;
     }
-
     return false;
   };
 
-  const handleBack = () => {
+  const backHandlerRef = useRef<() => void>(() => {});
+  backHandlerRef.current = () => {
     if (hasChanges()) {
       Alert.alert(
         'Cambios sin guardar',
-        'Tienes cambios en tu lista de equipamiento. ¿Deseas salir sin guardar?',
+        'Tus cambios en equipamiento no se guardaron. ¿Deseas salir de todas formas?',
         [
           { text: 'Cancelar', style: 'cancel' },
-          { 
-            text: 'Salir sin guardar', 
-            style: 'destructive', 
-            onPress: onBack 
-          },
+          { text: 'Salir sin guardar', style: 'destructive', onPress: onBack },
         ]
       );
     } else {
       onBack();
     }
   };
+
+  useEffect(() => {
+    onRegisterBackHandler?.(() => backHandlerRef.current());
+    return () => onRegisterBackHandler?.(null);
+  }, []);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -126,10 +131,7 @@ export default function EquipmentConfig({ onBack }: EquipmentConfigProps) {
         },
         token
       );
-      
-      // Actualizar el estado inicial después de guardar con éxito
       setInitialEquipment([...selectedEquipment]);
-      
       Alert.alert('Éxito', 'Equipamiento actualizado correctamente.', [
         { text: 'OK', onPress: onBack },
       ]);
@@ -141,64 +143,160 @@ export default function EquipmentConfig({ onBack }: EquipmentConfigProps) {
     }
   };
 
+  const handleIncrement = (id: string) => {
+    setSelectedEquipment((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, qty: item.qty + 1 } : item))
+    );
+  };
+
+  const handleDecrement = (id: string) => {
+    const item = selectedEquipment.find((e) => e.id === id);
+    if (!item) return;
+    if (item.qty <= 1) {
+      setSelectedEquipment((prev) => prev.filter((e) => e.id !== id));
+    } else {
+      setSelectedEquipment((prev) =>
+        prev.map((e) => (e.id === id ? { ...e, qty: e.qty - 1 } : e))
+      );
+    }
+  };
+
+  const handleRemove = (id: string) => {
+    setSelectedEquipment((prev) => prev.filter((e) => e.id !== id));
+  };
+
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-zinc-950">
-        <ActivityIndicator size="large" color="#06b6d4" />
-        <Text className="text-slate-500 dark:text-zinc-400 mt-4">
-          Cargando equipamiento...
-        </Text>
+      <View className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" color="#64748b" />
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, paddingTop: insets.top }} className="bg-white dark:bg-zinc-950">
-      <BackButton onPress={handleBack} color="#06b6d4" label="Volver" />
-
-      {/* Título */}
-      <View className="px-8 pt-2 pb-4">
-        <Text className="text-2xl font-bold text-slate-900 dark:text-white">
-          Equipamientos
-        </Text>
-      </View>
-
-      {/* Contenido — EquipmentSelect reutilizado */}
-      <Pressable
-        style={{ flex: 1, paddingHorizontal: 32 }}
-        onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
+    <Pressable
+      style={{ flex: 1 }}
+      onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
+    >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingTop: 20,
+          paddingBottom: insets.bottom + 100,
+          gap: 16,
+        }}
       >
-        <Text className="text-base font-semibold text-slate-800 dark:text-zinc-200 mb-2">
-          Equipamiento disponible
-        </Text>
+        {/* Card header con buscador */}
+        <View
+          className="bg-white dark:bg-slate-800 rounded-2xl p-4"
+          style={{ gap: 12 }}
+        >
+          {/* Título descriptivo */}
+          <View className="flex-row items-center gap-3">
+            <View className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 items-center justify-center">
+              <Ionicons name="barbell-outline" size={20} className="text-slate-500 dark:text-slate-400" />
+            </View>
+            <View>
+              <Text className="text-base font-bold text-slate-900 dark:text-slate-50">
+                Equipamiento
+              </Text>
+              <Text className="text-sm text-slate-500 dark:text-slate-400">
+                ¿Con qué materiales cuentas?
+              </Text>
+            </View>
+          </View>
 
-        <View className="flex-1 z-50">
+          {/* Buscador — solo el input, sin lista de seleccionados interna */}
           <EquipmentSelect
             equipments={equipmentList}
             selectedEquipment={selectedEquipment}
             onSelectionChange={setSelectedEquipment}
-            placeholder="Seleccionar - Opcional"
+            placeholder="Buscar equipamiento"
+            showSelectedList={false}
           />
         </View>
-      </Pressable>
 
-      {/* Botón Guardar */}
-      <View className="px-8 pb-32 pt-4">
+        {/* Lista de seleccionados */}
+        {selectedWithDetails.length > 0 && (
+          <View style={{ gap: 8 }}>
+            {/* Encabezado con contador y "Borrar todas" */}
+            <View className="flex-row items-center justify-between px-1">
+              <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Seleccionadas ({selectedWithDetails.length})
+              </Text>
+              <TouchableOpacity onPress={() => setSelectedEquipment([])}>
+                <Text className="text-sm font-medium text-red-400">
+                  Borrar todas
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Items */}
+            {selectedWithDetails.map((item) => (
+              <View
+                key={item.id}
+                className="flex-row items-center h-[60px] bg-white dark:bg-slate-800 rounded-2xl px-4 border border-slate-200 dark:border-slate-700"
+              >
+                <Text className="flex-1 text-base text-slate-900 dark:text-slate-50">
+                  {item.name}
+                </Text>
+
+                {/* Controles qty con borde */}
+                <View className="flex-row items-center border border-slate-200 dark:border-slate-600 rounded-2xl overflow-hidden mr-4">
+                  <TouchableOpacity
+                    onPress={() => handleDecrement(item.id)}
+                    activeOpacity={0.6}
+                    className="w-9 h-9 items-center justify-center"
+                  >
+                    <Text className="text-xl font-semibold text-slate-500 dark:text-slate-400">-</Text>
+                  </TouchableOpacity>
+
+                  <Text className="text-base font-semibold text-slate-900 dark:text-slate-50 w-8 text-center">
+                    {item.qty}
+                  </Text>
+
+                  <TouchableOpacity
+                    onPress={() => handleIncrement(item.id)}
+                    activeOpacity={0.6}
+                    className="w-9 h-9 items-center justify-center"
+                  >
+                    <Text className="text-xl font-semibold text-slate-500 dark:text-slate-400">+</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Botón eliminar */}
+                <TouchableOpacity
+                  onPress={() => handleRemove(item.id)}
+                  activeOpacity={0.6}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="trash-outline" size={18} className="text-slate-400 dark:text-slate-500" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Botón Guardar fijo abajo */}
+      <View
+        style={{ paddingBottom: insets.bottom + 16 }}
+        className="px-4 pt-3 bg-transparent"
+      >
         <TouchableOpacity
-          style={[
-            { backgroundColor: '#06b6d4' }, // cyan-500
-            isSaving && { opacity: 0.7 },
-          ]}
-          className="w-full py-4 rounded-2xl items-center shadow-md"
           onPress={handleSave}
           disabled={isSaving}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
+          className="w-full py-4 rounded-full items-center bg-slate-950 dark:bg-slate-100"
+          style={{ opacity: isSaving ? 0.7 : 1 }}
         >
-          <Text className="text-white text-lg font-bold">
+          <Text className="text-base font-semibold text-white dark:text-slate-950">
             {isSaving ? 'Guardando...' : 'Guardar'}
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </Pressable>
   );
 }

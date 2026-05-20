@@ -1,15 +1,20 @@
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
+import { cssInterop } from 'nativewind';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  DeviceEventEmitter,
-  Pressable,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    DeviceEventEmitter,
+    Pressable,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
+
+cssInterop(Ionicons, {
+  className: { target: 'style', nativeStyleToProp: { color: true } },
+});
 
 import CheckableCard from '@/src/components/common/CheckableCard';
 import EquipmentSelect from '@/src/components/common/EquipmentSelect';
@@ -23,17 +28,17 @@ import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
 import WeekDayPicker from '@/src/components/common/WeekDayPicker';
 import { useModuleConfigStorage } from '@/src/hooks/use-module-config-storage';
 import {
-  getEquipments,
-  getSubGoals,
-  submitFitnessProfile,
+    getEquipments,
+    getSubGoals,
+    submitFitnessProfile,
 } from '@/src/services/fitness.service';
 import {
-  Equipment,
-  EquipmentSelection,
-  EXPERIENCE_LEVEL_OPTIONS,
-  SubGoal,
-  TRAINING_HISTORY_OPTIONS,
-  WEEKDAY_OPTIONS,
+    Equipment,
+    EquipmentSelection,
+    EXPERIENCE_LEVEL_OPTIONS,
+    SubGoal,
+    TRAINING_HISTORY_OPTIONS,
+    WEEKDAY_OPTIONS,
 } from '@/src/types/fitness';
 
 interface FitnessConfigStepProps {
@@ -274,7 +279,7 @@ export default function FitnessConfigStep({
 
           {/* Card: Nivel de experiencia */}
           <SectionCard
-            icon={<Ionicons name="bar-chart" size={20} color="#64748b" />}
+            icon={<Ionicons name="bar-chart" size={20} className="text-slate-500" />}
             title="Nivel de experiencia"
             subtitle="¿Cuál es tu punto de partida?"
             className="mb-4"
@@ -295,7 +300,7 @@ export default function FitnessConfigStep({
 
           {/* Card: Nivel de actividad (trainingHistory) */}
           <SectionCard
-            icon={<Ionicons name="timer-outline" size={20} color="#64748b" />}
+            icon={<Ionicons name="timer-outline" size={20} className="text-slate-500" />}
             title="Nivel de actividad"
             subtitle="¿Hace cuánto entrenas?"
           >
@@ -318,7 +323,7 @@ export default function FitnessConfigStep({
         <OnboardingFooter
           onPress={handleContinueStep0}
           helperText="Usaremos estos datos para darte planes más personalizados. Puedes editarlos luego."
-          helperIcon={<Ionicons name="sparkles-outline" size={18} color="#64748b" />}
+          helperIcon={<Ionicons name="sparkles-outline" size={18} className="text-slate-500" />}
         />
       </View>
     );
@@ -344,7 +349,7 @@ export default function FitnessConfigStep({
             />
 
             <SectionCard
-              icon={<Ionicons name="ribbon-outline" size={20} color="#64748b" />}
+              icon={<Ionicons name="ribbon-outline" size={20} className="text-slate-500" />}
               title="Sub objetivo"
               subtitle="¿Qué quieres lograr?"
             >
@@ -374,7 +379,7 @@ export default function FitnessConfigStep({
           <OnboardingFooter
             onPress={() => setSubStep(2)}
             helperText="Usaremos estos datos para darte planes más personalizados. Puedes editarlos luego."
-            helperIcon={<Ionicons name="sparkles-outline" size={18} color="#64748b" />}
+            helperIcon={<Ionicons name="sparkles-outline" size={18} className="text-slate-500" />}
           />
         </View>
       </SwipeBackWrapper>
@@ -401,7 +406,7 @@ export default function FitnessConfigStep({
 
             {/* Card: Disponibilidad */}
             <SectionCard
-              icon={<Ionicons name="calendar-outline" size={20} color="#64748b" />}
+              icon={<Ionicons name="calendar-outline" size={20} className="text-slate-500" />}
               title="Disponibilidad"
               subtitle="¿Qué días tenés disponibles?"
               className="mb-4"
@@ -415,7 +420,7 @@ export default function FitnessConfigStep({
 
             {/* Card: Duración de sesión */}
             <SectionCard
-              icon={<Ionicons name="time-outline" size={20} color="#64748b" />}
+              icon={<Ionicons name="time-outline" size={20} className="text-slate-500" />}
               title="Duración"
               subtitle="¿De cuánto tiempo dispónes?"
             >
@@ -460,7 +465,7 @@ export default function FitnessConfigStep({
           <OnboardingFooter
             onPress={() => setSubStep(3)}
             helperText="Usaremos estos datos para darte planes más personalizados. Puedes editarlos luego."
-            helperIcon={<Ionicons name="sparkles-outline" size={18} color="#64748b" />}
+            helperIcon={<Ionicons name="sparkles-outline" size={18} className="text-slate-500" />}
           />
         </View>
       </SwipeBackWrapper>
@@ -491,7 +496,7 @@ export default function FitnessConfigStep({
 
             {/* Card: Equipamiento - buscador */}
             <SectionCard
-              icon={<Ionicons name="barbell-outline" size={20} color="#64748b" />}
+              icon={<Ionicons name="barbell-outline" size={20} className="text-slate-500" />}
               title="Equipamiento"
               subtitle="¿Con qué materiales cuentas?"
               className="mb-4"
@@ -563,7 +568,7 @@ export default function FitnessConfigStep({
                         onPress={() => removeEquipment(String(item.id))}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
-                        <Ionicons name="trash-outline" size={18} color="#94a3b8" />
+                        <Ionicons name="trash-outline" size={18} className="text-slate-400" />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -577,7 +582,7 @@ export default function FitnessConfigStep({
           onPress={handleSubmit}
           disabled={isSubmitting}
           helperText="Usaremos estos datos para darte planes más personalizados. Puedes editarlos luego."
-          helperIcon={<Ionicons name="sparkles-outline" size={18} color="#64748b" />}
+          helperIcon={<Ionicons name="sparkles-outline" size={18} className="text-slate-500" />}
         />
       </View>
     </SwipeBackWrapper>
