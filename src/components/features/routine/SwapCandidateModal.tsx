@@ -1,17 +1,18 @@
+import { translateEquipment, translateMuscle } from '@/src/i18n';
+import { SwapCandidate, SwapSuggestionItem } from '@/src/types/routine';
+import { Ionicons } from '@expo/vector-icons';
+import { cssInterop } from 'nativewind';
 import React from 'react';
 import {
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
+    Image,
+    Modal,
+    Pressable,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { cssInterop } from 'nativewind';
-import { SwapCandidate, SwapSuggestionItem } from '@/src/types/routine';
 
 cssInterop(Ionicons, {
   className: { target: 'style', nativeStyleToProp: { color: true } },
@@ -157,7 +158,7 @@ export const SwapCandidateModal: React.FC<SwapCandidateModalProps> = ({
                           className="px-2 py-0.5 rounded-full bg-lime-500/10 dark:bg-lime-500/15"
                         >
                           <Text className="text-zinc-900 dark:text-lime-300 text-[10px] font-semibold">
-                            {m}
+                            {translateMuscle(m)}
                           </Text>
                         </View>
                       ))}
@@ -167,7 +168,7 @@ export const SwapCandidateModal: React.FC<SwapCandidateModalProps> = ({
                           className="px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800"
                         >
                           <Text className="text-zinc-700 dark:text-zinc-300 text-[10px] font-semibold">
-                            {e}
+                            {translateEquipment(e)}
                           </Text>
                         </View>
                       ))}

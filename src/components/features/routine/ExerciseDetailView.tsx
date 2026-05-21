@@ -1,6 +1,8 @@
 import { DarkSheetLayout } from '@/src/components/common/DarkSheetLayout';
+import { translateBodyPart, translateEquipment, translateMuscle, translateSecondaryMuscle } from '@/src/i18n';
 import { getExerciseInfo } from '@/src/services/exercise.service';
 import { RoutineExercise } from '@/src/types/routine';
+import { cleanStepPrefix } from '@/src/utils/format.utils';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -107,12 +109,12 @@ export const ExerciseDetailView: React.FC<ExerciseDetailViewProps> = ({ exercise
                   {/* Tarjeta info 2x2 */}
                   <View className="bg-slate-100 dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-white/10">
                     <View className="flex-row gap-4 pb-3 border-b border-slate-200 dark:border-white/10">
-                      <InfoCell label="Parte del cuerpo" value={info.bodyPart?.join(', ')} />
-                      <InfoCell label="Músculos a trabajar" value={info.targetMuscles?.join(', ')} />
+                      <InfoCell label="Parte del cuerpo" value={info.bodyPart?.map(translateBodyPart).join(', ')} />
+                      <InfoCell label="Músculos a trabajar" value={info.targetMuscles?.map(translateMuscle).join(', ')} />
                     </View>
                     <View className="flex-row gap-4 pt-3">
-                      <InfoCell label="Músculos secundarios" value={info.secundaryMuscles?.join(', ')} />
-                      <InfoCell label="Equipamiento" value={info.equipments?.join(', ')} />
+                      <InfoCell label="Músculos secundarios" value={info.secundaryMuscles?.map(translateSecondaryMuscle).join(', ')} />
+                      <InfoCell label="Equipamiento" value={info.equipments?.map(translateEquipment).join(', ')} />
                     </View>
                   </View>
 
@@ -123,7 +125,7 @@ export const ExerciseDetailView: React.FC<ExerciseDetailViewProps> = ({ exercise
                         Instrucciones
                       </Text>
                       {info.instructions.map((step, i) => {
-                        const cleanStep = step.replace(/^Step\s*:?\s*\d+\s*:?\s*/i, '').trim();
+                        const cleanStep = cleanStepPrefix(step);
                         return (
                           <Text key={i} className="text-slate-700 dark:text-slate-300 text-sm leading-5 mb-3">
                             <Text className="font-bold text-slate-900 dark:text-white">Step:{i + 1} </Text>

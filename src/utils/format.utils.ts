@@ -1,6 +1,19 @@
 /** Funciones puras de formateo reutilizables en toda la aplicación */
 
 /**
+ * Capitaliza la primera letra de un string.
+ */
+export const capitalize = (str: string): string =>
+  str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
+
+/**
+ * Elimina el prefijo de paso (Step/Paso) de una instrucción de ejercicio.
+ * Cubre formatos como "Step 1:", "Step:1", "Paso 1:", "Paso:1", etc.
+ */
+export const cleanStepPrefix = (str: string): string =>
+  str.replace(/^(step|paso)\s*:?\s*\d+\s*:?\s*/i, '').trim();
+
+/**
  * Convierte una cantidad total de segundos a formato MM:SS.
  * Útil para cronómetros, descansos y resúmenes de sesión.
  */

@@ -1,6 +1,7 @@
 import { DarkSheetLayout } from '@/src/components/common/DarkSheetLayout';
 import { ExerciseDetailView } from '@/src/components/features/routine/ExerciseDetailView';
 import { SwapCandidateModal } from '@/src/components/features/routine/SwapCandidateModal';
+import { translateDay } from '@/src/i18n';
 import { confirmSwapExercises, getSwapSuggestions } from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { HealthWarning, Routine, RoutineExercise, SwapSuggestionItem, WarningLevel } from '@/src/types/routine';
@@ -12,14 +13,14 @@ import { cssInterop } from 'nativewind';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import Animated, {
-  Easing,
-  Extrapolation,
-  interpolate,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
+    Easing,
+    Extrapolation,
+    interpolate,
+    runOnJS,
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -421,7 +422,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
                         }`}
                       >
                         <Text className={`font-semibold text-sm ${isActive ? 'text-black' : 'text-slate-600 dark:text-slate-300'}`}>
-                          {day.day}
+                          {translateDay(day.day)}
                         </Text>
                       </TouchableOpacity>
                     );

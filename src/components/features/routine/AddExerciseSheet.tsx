@@ -1,3 +1,4 @@
+import { translateEquipment, translateMuscle } from '@/src/i18n';
 import {
     ExerciseSearchItem,
     getExerciseEquipments,
@@ -307,7 +308,7 @@ export const AddExerciseSheet: React.FC<AddExerciseSheetProps> = ({
                               isSelected ? 'text-white dark:text-zinc-950' : 'text-slate-700 dark:text-slate-300'
                             }`}
                           >
-                            {muscle}
+                            {translateMuscle(muscle)}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -344,7 +345,7 @@ export const AddExerciseSheet: React.FC<AddExerciseSheetProps> = ({
                               isSelected ? 'text-white dark:text-zinc-950' : 'text-slate-700 dark:text-slate-300'
                             }`}
                           >
-                            {eq}
+                            {translateEquipment(eq)}
                           </Text>
                         </TouchableOpacity>
                       );

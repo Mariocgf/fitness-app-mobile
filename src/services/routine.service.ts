@@ -2,6 +2,15 @@ import { AxiosError } from 'axios';
 import apiClient from '../api/client';
 import { Routine, SwapPick, SwapSuggestionsResponse } from '../types/routine';
 import { SessionLog } from '../types/session';
+import { capitalize } from '../utils/format.utils';
+
+const capitalizeRoutineNames = (routine: Routine): Routine => ({
+  ...routine,
+  days: routine.days?.map((day) => ({
+    ...day,
+    exercises: day.exercises?.map((ex) => ({ ...ex, name: capitalize(ex.name) })) ?? [],
+  })) ?? [],
+});
 
 /**
  * Genera una rutina personalizada usando la IA del backend.
@@ -20,7 +29,7 @@ export const generateRoutine = async (
       },
     }
   );
-  return data;
+  return capitalizeRoutineNames(data);
 };
 
 /**
@@ -40,7 +49,7 @@ export const regenerateRoutine = async (
       },
     }
   );
-  return data;
+  return capitalizeRoutineNames(data);
 };
 
 /**
@@ -59,7 +68,7 @@ export const getActiveRoutine = async (
         },
       }
     );
-    return data;
+    return capitalizeRoutineNames(data);
   } catch (error) {
     if (error instanceof AxiosError && error.response?.status === 404) {
       return null;
@@ -165,7 +174,7 @@ export const confirmSwapExercises = async (
       }
     );
     console.log('[routine.service]', url, 'OK', { routineId: data.id, daysCount: data.days?.length });
-    return data;
+    return capitalizeRoutineNames(data);
   } catch (error) {
     if (error instanceof AxiosError) {
       console.error('[routine.service]', url, 'FAIL', {

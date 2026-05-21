@@ -1,5 +1,6 @@
 import apiClient from '../api/client';
 import { ExerciseInfo, ExerciseInstructions } from '../types/exercise';
+import { capitalize } from '../utils/format.utils';
 
 /**
  * Obtiene la información detallada de un ejercicio.
@@ -153,5 +154,8 @@ export const searchExercises = async (
       headers: { Authorization: `Bearer ${token}` },
     }
   );
-  return data;
+  return {
+    ...data,
+    items: data.items.map((item) => ({ ...item, name: capitalize(item.name) })),
+  };
 };
