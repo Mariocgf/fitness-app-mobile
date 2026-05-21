@@ -6,12 +6,12 @@ import * as Haptics from 'expo-haptics';
 import { useCallback, useState } from 'react';
 import { Modal, Platform, Pressable, Text, View } from 'react-native';
 import Animated, {
-  Easing,
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
+    Easing,
+    interpolate,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
+    withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -45,6 +45,7 @@ const FAB_MENU_OPTIONS: Record<string, MenuOption[]> = {
     { icon: 'add-circle-outline', label: 'Agregar actividad', key: 'add-activity' },
   ],
   fitness: [
+    { icon: 'create-outline',     label: 'Crear rutina',     key: 'create-routine' },
     { icon: 'add-circle-outline', label: 'Nuevo ejercicio',  key: 'new-exercise' },
     { icon: 'sparkles',           label: 'Generar rutina',   key: 'generate-routine' },
   ],
@@ -173,7 +174,7 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   const [pressedKey, setPressedKey]   = useState<string | null>(null);
 
   /** Contexto de la vista de detalle de rutina para opciones contextuales */
-  const { isDetailVisible, isSwapMode, actions: routineActions, onGenerateRoutine } = useRoutineDetailContext();
+  const { isDetailVisible, isSwapMode, actions: routineActions, onGenerateRoutine, onCreateRoutine } = useRoutineDetailContext();
 
   /** Progreso de animación del menú: 0 = cerrado, 1 = abierto */
   const menuProgress = useSharedValue(0);
@@ -256,13 +257,17 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
         onGenerateRoutine();
         return;
       }
+      if (key === 'create-routine' && onCreateRoutine) {
+        onCreateRoutine();
+        return;
+      }
       onFabAction?.(key);
     };
 
     // 220ms > 185ms del closeMenu para asegurar que el Modal del menú ya
     // se desmontó antes de pedir abrir otro Modal.
     setTimeout(run, 220);
-  }, [closeMenu, onFabAction, routineActions, onGenerateRoutine]);
+  }, [closeMenu, onFabAction, routineActions, onGenerateRoutine, onCreateRoutine]);
 
   const onFabPressIn  = useCallback(() => { fabScale.value = withSpring(0.92, PRESS_SPRING); }, [fabScale]);
   const onFabPressOut = useCallback(() => { fabScale.value = withSpring(1,    PRESS_SPRING); }, [fabScale]);
