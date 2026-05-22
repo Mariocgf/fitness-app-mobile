@@ -4,6 +4,32 @@ import { Routine, SwapPick, SwapSuggestionsResponse } from '../types/routine';
 import { SessionLog } from '../types/session';
 import { capitalize } from '../utils/format.utils';
 
+/** Payload de un ejercicio para crear rutina manualmente */
+export interface CreateRoutineExercisePayload {
+  exerciseId: string;
+  order: number;
+  sets: number;
+  repMode: 'reps' | 'secs';
+  reps: number | null;
+  durationSeconds: number | null;
+  restSeconds: number;
+  weightKg: number | null;
+}
+
+/** Payload de un día para crear rutina manualmente */
+export interface CreateRoutineDayPayload {
+  dayOfWeek: string;
+  approxTimeSession: number;
+  exercises: CreateRoutineExercisePayload[];
+}
+
+/** Payload completo para crear rutina manualmente */
+export interface CreateRoutinePayload {
+  name: string;
+  activate: boolean;
+  days: CreateRoutineDayPayload[];
+}
+
 const capitalizeRoutineNames = (routine: Routine): Routine => ({
   ...routine,
   days: routine.days?.map((day) => ({
@@ -143,6 +169,33 @@ export const getSwapSuggestions = async (
       });
     } else {
       console.error('[routine.service]', url, 'FAIL', error);
+    }
+    throw error;
+  }
+};
+
+/**
+ * Crea una rutina manualmente con los días y ejercicios configurados por el usuario.
+ * Llama al endpoint POST /api/Routine/create-routine.
+ * @param payload Datos de la rutina a crear.
+ * @param token   Token de autenticación de Clerk.
+ */
+export const createRoutine = async (
+  payload: CreateRoutinePayload,
+  token: string | null,
+): Promise<Routine> => {
+  const url = '/api/Routine/create-routine';
+  try {
+    const { data } = await apiClient.post<Routine>(url, payload, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return capitalizeRoutineNames(data);
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      console.error('[routine.service]', url, 'FAIL', {
+        status: error.response?.status,
+        data: error.response?.data,
+      });
     }
     throw error;
   }

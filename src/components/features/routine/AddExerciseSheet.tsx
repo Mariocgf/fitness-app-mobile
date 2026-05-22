@@ -1,23 +1,23 @@
 import { translateEquipment, translateMuscle } from '@/src/i18n';
 import {
-    ExerciseSearchItem,
-    getExerciseEquipments,
-    getTargetMuscles,
-    searchExercises,
+  ExerciseSearchItem,
+  getExerciseEquipments,
+  getTargetMuscles,
+  searchExercises,
 } from '@/src/services/exercise.service';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Image,
-    Modal,
-    Pressable,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -29,6 +29,8 @@ interface AddExerciseSheetProps {
   visible: boolean;
   onClose: () => void;
   onAdd: (exercise: ExerciseSearchItem) => void;
+  confirmLabel?: string;
+  excludedExerciseIds?: string[];
 }
 
 /* ──────────────────────────────────────────────────────────────────────────── */
@@ -39,6 +41,8 @@ export const AddExerciseSheet: React.FC<AddExerciseSheetProps> = ({
   visible,
   onClose,
   onAdd,
+  confirmLabel = 'Agregar',
+  excludedExerciseIds = [],
 }) => {
   const { getToken } = useAuth();
   const insets = useSafeAreaInsets();
@@ -370,14 +374,16 @@ export const AddExerciseSheet: React.FC<AddExerciseSheetProps> = ({
                 <>
                   {exercises.map((exercise) => {
                     const isSelected = selectedExerciseId === exercise.exerciseId;
+                    const isExcluded = excludedExerciseIds.includes(exercise.exerciseId);
                     return (
                       <TouchableOpacity
                         key={exercise.exerciseId}
-                        activeOpacity={0.7}
-                        onPress={() => handleSelectExercise(exercise.exerciseId)}
+                        activeOpacity={isExcluded ? 1 : 0.7}
+                        onPress={() => !isExcluded && handleSelectExercise(exercise.exerciseId)}
                         className={`flex-row items-center bg-slate-50 dark:bg-slate-800 rounded-2xl p-3 border mb-2 ${
                           isSelected ? 'border-lime-400' : 'border-slate-200 dark:border-slate-700'
                         }`}
+                        style={isExcluded ? { opacity: 0.45 } : undefined}
                       >
                         {/* GIF o placeholder */}
                         {exercise.gifUrl ? (
@@ -400,13 +406,18 @@ export const AddExerciseSheet: React.FC<AddExerciseSheetProps> = ({
                           >
                             {exercise.name}
                           </Text>
+                          {isExcluded && (
+                            <Text className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                              Ya agregado
+                            </Text>
+                          )}
                         </View>
 
-                        {/* Check o Chevron */}
+                        {/* Check, Chevron o icono blocked */}
                         <Ionicons
-                          name={isSelected ? 'checkmark-circle' : 'chevron-forward'}
+                          name={isExcluded ? 'checkmark-done' : isSelected ? 'checkmark-circle' : 'chevron-forward'}
                           size={20}
-                          color={isSelected ? '#a3e635' : '#94a3b8'}
+                          color={isExcluded ? '#64748b' : isSelected ? '#a3e635' : '#94a3b8'}
                         />
                       </TouchableOpacity>
                     );
@@ -445,7 +456,7 @@ export const AddExerciseSheet: React.FC<AddExerciseSheetProps> = ({
               }`}
             >
               <Text className="text-white font-semibold text-base">
-                {selectedExercise ? `Agregar: ${selectedExercise.name}` : 'Agregar'}
+                {confirmLabel}
               </Text>
             </TouchableOpacity>
           </View>

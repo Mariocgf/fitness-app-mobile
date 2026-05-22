@@ -10,7 +10,7 @@ import {
     ScrollView,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -174,27 +174,23 @@ export default function EquipmentConfig({ onBack, onRegisterBackHandler }: Equip
   }
 
   return (
-    <Pressable
-      style={{ flex: 1 }}
-      onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
-    >
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingTop: 20,
-          paddingBottom: insets.bottom + 100,
-          gap: 16,
-        }}
-      >
-        {/* Card header con buscador */}
+    <View style={{ flex: 1 }}>
+      {/* Backdrop invisible que cierra el dropdown al tocar fuera */}
+      <Pressable
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}
+        onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
+      />
+      {/* Header fijo: título + buscador */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 20, gap: 16 }}>
         <View
           className="bg-white dark:bg-slate-800 rounded-2xl p-4"
           style={{ gap: 12 }}
         >
           {/* Título descriptivo */}
-          <View className="flex-row items-center gap-3">
+          <Pressable
+            className="flex-row items-center gap-3"
+            onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
+          >
             <View className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 items-center justify-center">
               <Ionicons name="barbell-outline" size={20} className="text-slate-500 dark:text-slate-400" />
             </View>
@@ -206,7 +202,7 @@ export default function EquipmentConfig({ onBack, onRegisterBackHandler }: Equip
                 ¿Con qué materiales cuentas?
               </Text>
             </View>
-          </View>
+          </Pressable>
 
           {/* Buscador — solo el input, sin lista de seleccionados interna */}
           <EquipmentSelect
@@ -217,23 +213,32 @@ export default function EquipmentConfig({ onBack, onRegisterBackHandler }: Equip
             showSelectedList={false}
           />
         </View>
+      </View>
 
-        {/* Lista de seleccionados */}
-        {selectedWithDetails.length > 0 && (
-          <View style={{ gap: 8 }}>
-            {/* Encabezado con contador y "Borrar todas" */}
-            <View className="flex-row items-center justify-between px-1">
-              <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Seleccionadas ({selectedWithDetails.length})
-              </Text>
-              <TouchableOpacity onPress={() => setSelectedEquipment([])}>
-                <Text className="text-sm font-medium text-red-400">
-                  Borrar todas
-                </Text>
-              </TouchableOpacity>
-            </View>
+      {/* Lista de seleccionados — scrolleable */}
+      {selectedWithDetails.length > 0 && (
+        <View style={{ flex: 1, marginTop: 16 }}>
+          {/* Encabezado con contador y "Borrar todas" */}
+          <View className="flex-row items-center justify-between px-5 mb-2">
+            <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Seleccionadas ({selectedWithDetails.length})
+            </Text>
+            <TouchableOpacity onPress={() => setSelectedEquipment([])}>
+              <Text className="text-sm font-medium text-red-400">Borrar todas</Text>
+            </TouchableOpacity>
+          </View>
 
-            {/* Items */}
+          <ScrollView
+            style={{ flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            onScrollBeginDrag={() => DeviceEventEmitter.emit('closeDropdowns')}
+            contentContainerStyle={{
+              paddingHorizontal: 16,
+              paddingBottom: insets.bottom + 100,
+              gap: 8,
+            }}
+          >
             {selectedWithDetails.map((item) => (
               <View
                 key={item.id}
@@ -276,14 +281,14 @@ export default function EquipmentConfig({ onBack, onRegisterBackHandler }: Equip
                 </TouchableOpacity>
               </View>
             ))}
-          </View>
-        )}
-      </ScrollView>
+          </ScrollView>
+        </View>
+      )}
 
       {/* Botón Guardar fijo abajo */}
       <View
-        style={{ paddingBottom: insets.bottom + 16 }}
-        className="px-4 pt-3 bg-transparent"
+        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: insets.bottom + 8 }}
+        className="px-4 pt-3 bg-white dark:bg-slate-950"
       >
         <TouchableOpacity
           onPress={handleSave}
@@ -297,6 +302,6 @@ export default function EquipmentConfig({ onBack, onRegisterBackHandler }: Equip
           </Text>
         </TouchableOpacity>
       </View>
-    </Pressable>
+    </View>
   );
 }

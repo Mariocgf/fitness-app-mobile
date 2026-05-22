@@ -4,6 +4,7 @@
  * opciones contextuales cuando la rutina está expandida y cuando
  * está activo el modo de cambio de ejercicios.
  */
+import { Routine } from '@/src/types/routine';
 import React, { createContext, useContext, useMemo, useState } from 'react';
 
 interface RoutineActions {
@@ -30,6 +31,9 @@ interface RoutineDetailContextValue {
   /** Acción para crear rutina manualmente (se registra desde fitness) */
   onCreateRoutine: (() => void) | null;
   setOnCreateRoutine: (action: (() => void) | null) => void;
+  /** Rutina activa en memoria compartida entre tabs — evita fetches duplicados */
+  activeRoutine: Routine | null;
+  setActiveRoutine: (routine: Routine | null) => void;
 }
 
 const RoutineDetailContext = createContext<RoutineDetailContextValue>({
@@ -43,6 +47,8 @@ const RoutineDetailContext = createContext<RoutineDetailContextValue>({
   setOnGenerateRoutine: () => {},
   onCreateRoutine: null,
   setOnCreateRoutine: () => {},
+  activeRoutine: null,
+  setActiveRoutine: () => {},
 });
 
 export function RoutineDetailProvider({ children }: { children: React.ReactNode }) {
@@ -51,6 +57,7 @@ export function RoutineDetailProvider({ children }: { children: React.ReactNode 
   const [actions, setActions] = useState<RoutineActions | null>(null);
   const [onGenerateRoutine, setOnGenerateRoutine] = useState<(() => void) | null>(null);
   const [onCreateRoutine, setOnCreateRoutine] = useState<(() => void) | null>(null);
+  const [activeRoutine, setActiveRoutine] = useState<Routine | null>(null);
 
   const value = useMemo(() => ({
     isDetailVisible,
@@ -63,7 +70,9 @@ export function RoutineDetailProvider({ children }: { children: React.ReactNode 
     setOnGenerateRoutine,
     onCreateRoutine,
     setOnCreateRoutine,
-  }), [isDetailVisible, isSwapMode, actions, onGenerateRoutine, onCreateRoutine]);
+    activeRoutine,
+    setActiveRoutine,
+  }), [isDetailVisible, isSwapMode, actions, onGenerateRoutine, onCreateRoutine, activeRoutine]);
 
   return (
     <RoutineDetailContext.Provider value={value}>

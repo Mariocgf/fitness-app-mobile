@@ -111,7 +111,11 @@ export const ActionCard = forwardRef<View, ActionCardProps>(({ cardState, onGene
                     {routine.days.length} días/semana{'\n'}45 min por sesión.
                   </Text>
                 </View>
-                <Ionicons name="sparkles" size={40} className="text-slate-900 dark:text-slate-50" />
+                <Ionicons
+                  name={routine.source === 'Manual' ? 'barbell-outline' : 'sparkles'}
+                  size={40}
+                  className="text-slate-900 dark:text-slate-50"
+                />
               </View>
               <View className="flex-row gap-3">
                 <TouchableOpacity

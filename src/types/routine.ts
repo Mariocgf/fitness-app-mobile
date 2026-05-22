@@ -23,10 +23,14 @@ export interface RoutineDay {
   exercises: RoutineExercise[];
 }
 
+export type RoutineSource = 'AI' | 'Manual';
+
 export interface Routine {
   id: string;
   name: string; // e.g. "Fuerza Pro - Nivel Intermedio"
   createdAt: string;
+  source: RoutineSource;
+  isActive: boolean;
   days: RoutineDay[];
 }
 

@@ -113,6 +113,7 @@ export interface ExerciseSearchItem {
   exerciseId: string;
   name: string;
   gifUrl: string;
+  equipments: string[];
 }
 
 /** Respuesta paginada de búsqueda de ejercicios */

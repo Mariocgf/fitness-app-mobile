@@ -22,48 +22,49 @@ export default function HomeScreen() {
   const [isFetchingData, setIsFetchingData] = useState(true);
   const cardRef = useRef<View>(null);
 
-  const { setDetailVisible, setOnGenerateRoutine } = useRoutineDetailContext();
-  
+  const { setDetailVisible, setOnGenerateRoutine, activeRoutine, setActiveRoutine } = useRoutineDetailContext();
   // Fondo base según colors.md: slate-100 (light) / slate-950 (dark)
 
   /** Obtiene el primer nombre del usuario autenticado */
   const userName = user?.firstName ?? 'Usuario';
 
+  /** Carga inicial: solo al montar el componente */
   useEffect(() => {
     const initializeData = async () => {
       try {
-        // 1. Carga optimista de la rutina cacheada
+        // 1. Carga optimista desde AsyncStorage
         const storedRoutine = await AsyncStorage.getItem('@user_routine');
         if (storedRoutine) {
-          setRoutine(JSON.parse(storedRoutine));
+          const parsed = JSON.parse(storedRoutine) as Routine;
+          setRoutine(parsed);
+          setActiveRoutine(parsed);
           setCardState('success');
         }
 
         const token = await getToken();
         if (!token) return;
 
-        // 2. Ejecutar requests en paralelo
+        // 2. Fetch en paralelo (primera carga real)
         const [modulesResult, routineResult] = await Promise.allSettled([
           getActiveModules(token),
           getActiveRoutine(token)
         ]);
 
-        // 3. Procesar Módulos y guardar en caché
         if (modulesResult.status === 'fulfilled') {
           await AsyncStorage.setItem('@active_modules', JSON.stringify(modulesResult.value));
         }
 
-        // 4. Procesar Rutina
         if (routineResult.status === 'fulfilled') {
-          const activeRoutine = routineResult.value;
-          if (activeRoutine) {
-            setRoutine(activeRoutine);
-            await AsyncStorage.setItem('@user_routine', JSON.stringify(activeRoutine));
+          const fetched = routineResult.value;
+          if (fetched) {
+            setRoutine(fetched);
+            setActiveRoutine(fetched);
+            await AsyncStorage.setItem('@user_routine', JSON.stringify(fetched));
             setCardState('success');
           } else {
-            // 404: Sin rutina activa
             await AsyncStorage.removeItem('@user_routine');
             setRoutine(null);
+            setActiveRoutine(null);
             setCardState('initial');
           }
         }
@@ -73,9 +74,21 @@ export default function HomeScreen() {
         setIsFetchingData(false);
       }
     };
-    
+
     initializeData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** Sincroniza el estado local cuando la rutina cambia desde otro tab */
+  useEffect(() => {
+    if (activeRoutine) {
+      setRoutine(activeRoutine);
+      setCardState('success');
+    } else if (activeRoutine === null && !isFetchingData) {
+      setRoutine(null);
+      setCardState('initial');
+    }
+  }, [activeRoutine]);
 
   /** Mide la posición de la card en pantalla y abre la vista expandida */
   const handleViewPlan = useCallback(() => {

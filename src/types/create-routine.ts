@@ -3,9 +3,12 @@ export interface CreateRoutineExercise {
   exerciseId: string;
   name: string;
   gifUrl: string | null;
+  equipments: string[];
   sets: number;
   reps: number;
+  repMode: 'reps' | 'secs';
   restSeconds: number;
+  weightKg: number | null;
 }
 
 export interface CreateRoutineDay {
@@ -13,4 +16,9 @@ export interface CreateRoutineDay {
   value: string; // "monday", "tuesday", etc.
   label: string; // "Lunes", "Martes", etc.
   exercises: CreateRoutineExercise[];
+}
+
+export interface RoutineDraft {
+  name: string;
+  days: CreateRoutineDay[];
 }

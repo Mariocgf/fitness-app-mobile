@@ -71,6 +71,8 @@ interface RoutineDetailViewProps {
   onClose: () => void;
   cardLayout: CardLayout;
   isGenerating?: boolean;
+  /** Oculta el botón de play (rutina guardada pero no activa). */
+  readOnly?: boolean;
   /** Callback para regenerar la rutina (lo dispara el FAB del MyTabBar). */
   onRegenerate: () => void;
   /** Notifica al padre cuando la rutina cambió por un swap aplicado. */
@@ -85,6 +87,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
   onClose,
   cardLayout,
   isGenerating = false,
+  readOnly = false,
   onRegenerate,
   onRoutineUpdated,
 }) => {
@@ -511,7 +514,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
         </DarkSheetLayout>
 
         {/* Bottom bar: Play/Aplicar + Opciones */}
-        {!isGenerating && (
+        {!isGenerating && !readOnly && (
           <View
             className="absolute w-full px-4 z-10"
             style={{ bottom: insets.bottom + 8 }}
