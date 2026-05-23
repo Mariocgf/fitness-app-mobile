@@ -1,19 +1,20 @@
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { cssInterop } from 'nativewind';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Dimensions,
-  Easing,
-  Image,
-  Pressable,
-  Text,
-  View
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Dimensions,
+    Easing,
+    Image,
+    Pressable,
+    Text,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -219,6 +220,14 @@ export default function ProfileScreen() {
         >
           {renderSectionContent()}
         </ProfileMenuPanel>
+        <View
+          className="items-center pb-6 pt-2"
+          style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+        >
+          <Text className="text-slate-400 dark:text-slate-600 text-xs">
+            v{Constants.expoConfig?.version ?? '—'}
+          </Text>
+        </View>
       </Animated.View>
     </View>
   );

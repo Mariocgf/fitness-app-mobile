@@ -75,3 +75,30 @@ export interface SwapPick {
   routineExerciseId: string;
   newExerciseId: string;
 }
+
+/* ──────────────────────────── Listado de Rutinas ─────────────────────────── */
+
+/** Resumen de rutina para listados (sin detalle de ejercicios) */
+export interface RoutineSummary {
+  id: string;
+  name: string;
+  source: RoutineSource;
+  isActive: boolean;
+  dayCount: number;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+/** Respuesta paginada de rutinas del usuario */
+export interface PagedRoutinesResponse {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  items: RoutineSummary[];
+}
+
+/** Respuesta del preview de rutinas (5 AI + 5 Manual) */
+export interface RoutinePreviewResponse {
+  ai: RoutineSummary[];
+  manual: RoutineSummary[];
+}

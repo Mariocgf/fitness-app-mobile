@@ -1,6 +1,6 @@
 import { AxiosError } from 'axios';
 import apiClient from '../api/client';
-import { Routine, SwapPick, SwapSuggestionsResponse } from '../types/routine';
+import { PagedRoutinesResponse, Routine, RoutinePreviewResponse, SwapPick, SwapSuggestionsResponse } from '../types/routine';
 import { SessionLog } from '../types/session';
 import { capitalize } from '../utils/format.utils';
 
@@ -202,6 +202,64 @@ export const createRoutine = async (
 };
 
 /**
+ * Activa una rutina existente como rutina activa del usuario.
+ * Llama al endpoint POST /api/Routine/{id}/activate.
+ *
+ * @param routineId ID de la rutina a activar.
+ * @param token     Token de autenticación de Clerk.
+ */
+export const activateRoutine = async (
+  routineId: string,
+  token: string | null,
+): Promise<Routine> => {
+  const url = `/api/Routine/${routineId}/activate`;
+  try {
+    const { data } = await apiClient.post<Routine>(url, {}, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return capitalizeRoutineNames(data);
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      console.error('[routine.service]', url, 'FAIL', {
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+    }
+    throw error;
+  }
+};
+
+/**
+ * Actualiza una rutina manual existente.
+ * Llama al endpoint PUT /api/Routine/{id}.
+ *
+ * @param routineId ID de la rutina a actualizar.
+ * @param payload   Datos actualizados de la rutina.
+ * @param token     Token de autenticación de Clerk.
+ */
+export const updateRoutine = async (
+  routineId: string,
+  payload: CreateRoutinePayload,
+  token: string | null,
+): Promise<Routine> => {
+  const url = `/api/Routine/${routineId}`;
+  try {
+    const { data } = await apiClient.put<Routine>(url, payload, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return capitalizeRoutineNames(data);
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      console.error('[routine.service]', url, 'FAIL', {
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+    }
+    throw error;
+  }
+};
+
+/**
  * Confirma el reemplazo de uno o más ejercicios en la rutina activa.
  * Llama a POST /api/Routine/swap-exercises.
  *
@@ -241,3 +299,113 @@ export const confirmSwapExercises = async (
     throw error;
   }
 };
+
+/**
+ * Obtiene todas las rutinas del usuario con paginación.
+ * Llama al endpoint GET /api/Routine/my-routines.
+ * @param token Token de autenticación de Clerk.
+ * @param page Número de página (base 1).
+ * @param pageSize Items por página.
+ */
+export const fetchMyRoutines = async (
+  token: string | null,
+  page: number = 1,
+  pageSize: number = 10
+): Promise<PagedRoutinesResponse> => {
+  const url = '/api/Routine/my-routines';
+  try {
+    const { data } = await apiClient.get<PagedRoutinesResponse>(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { page, pageSize },
+    });
+    return data;
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      console.error('[routine.service]', url, 'FAIL', {
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+    }
+    throw error;
+  }
+};
+
+/**
+ * Obtiene una muestra mixta de hasta 5 rutinas AI + 5 rutinas Manual.
+ * Llama al endpoint GET /api/Routine/routine-preview.
+ * @param token Token de autenticación de Clerk.
+ */
+export const fetchRoutinePreview = async (
+  token: string | null
+): Promise<RoutinePreviewResponse> => {
+  const url = '/api/Routine/routine-preview';
+  try {
+    const { data } = await apiClient.get<RoutinePreviewResponse>(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return data;
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      console.error('[routine.service]', url, 'FAIL', {
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+    }
+    throw error;
+  }
+};
+
+/**
+ * Obtiene una rutina completa por su ID.
+ * Llama al endpoint GET /api/Routine/{id}.
+ * @param routineId ID de la rutina.
+ * @param token Token de autenticación de Clerk.
+ */
+export const getRoutineById = async (
+  routineId: string,
+  token: string | null
+): Promise<Routine> => {
+  const url = `/api/Routine/${routineId}`;
+  try {
+    const { data } = await apiClient.get<Routine>(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return capitalizeRoutineNames(data);
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      console.error('[routine.service]', url, 'FAIL', {
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+    }
+    throw error;
+  }
+};
+
+/**
+ * Elimina una rutina por ID.
+ * DELETE /api/routine/{id}
+ * @returns 204 NoContent si la eliminación fue exitosa
+ */
+export const deleteRoutine = async (routineId: string, token: string): Promise<void> => {
+  const url = `/api/routine/${routineId}`;
+  try {
+    await apiClient.delete(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      if (error.response?.status === 404) {
+        throw new Error('La rutina no existe');
+      }
+      if (error.response?.status === 403) {
+        throw new Error('No tenés permiso para eliminar esta rutina');
+      }
+      if (error.response?.status === 401) {
+        throw new Error('Usuario no autenticado');
+      }
+    }
+    throw new Error('No se pudo eliminar la rutina. Intentá de nuevo.');
+  }
+};
+

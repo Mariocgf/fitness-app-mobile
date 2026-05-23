@@ -5,7 +5,7 @@
  * está activo el modo de cambio de ejercicios.
  */
 import { Routine } from '@/src/types/routine';
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useMemo, useRef, useState } from 'react';
 
 interface RoutineActions {
   onRegenerate: () => void;
@@ -15,6 +15,12 @@ interface RoutineActions {
   onRequestSuggestions: (useAI: boolean) => void;
   /** Sale del modo de cambio sin aplicar nada. */
   onExitSwapMode: () => void;
+  /** Edita la rutina (solo para rutinas manuales). */
+  onEdit: (() => void) | null;
+  /** Elimina la rutina. */
+  onDelete: (() => void) | null;
+  /** Activa la rutina como rutina activa del usuario. */
+  onActivate: (() => void) | null;
 }
 
 interface RoutineDetailContextValue {
@@ -34,6 +40,19 @@ interface RoutineDetailContextValue {
   /** Rutina activa en memoria compartida entre tabs — evita fetches duplicados */
   activeRoutine: Routine | null;
   setActiveRoutine: (routine: Routine | null) => void;
+  /** True cuando se está viendo específicamente la rutina activa (no otra rutina) */
+  viewingActiveRoutine: boolean;
+  setViewingActiveRoutine: (viewing: boolean) => void;
+  /** True mientras CreateRoutineView está abierto en modo creación */
+  isCreatingRoutine: boolean;
+  setIsCreatingRoutine: (creating: boolean) => void;
+  /** True mientras CreateRoutineView está abierto en modo edición */
+  isEditingRoutine: boolean;
+  setIsEditingRoutine: (editing: boolean) => void;
+  /** Ref estable para guardar desde el FAB — siempre inicializado, nunca null por timing */
+  saveRoutineRef: React.MutableRefObject<((activate: boolean) => void)>;
+  /** Ref que indica si el formulario de rutina es válido (nombre + al menos 1 ejercicio) */
+  isFormValidRef: React.MutableRefObject<boolean>;
 }
 
 const RoutineDetailContext = createContext<RoutineDetailContextValue>({
@@ -49,6 +68,14 @@ const RoutineDetailContext = createContext<RoutineDetailContextValue>({
   setOnCreateRoutine: () => {},
   activeRoutine: null,
   setActiveRoutine: () => {},
+  viewingActiveRoutine: false,
+  setViewingActiveRoutine: () => {},
+  isCreatingRoutine: false,
+  setIsCreatingRoutine: () => {},
+  isEditingRoutine: false,
+  setIsEditingRoutine: () => {},
+  saveRoutineRef: { current: () => {} },
+  isFormValidRef: { current: false },
 });
 
 export function RoutineDetailProvider({ children }: { children: React.ReactNode }) {
@@ -58,6 +85,13 @@ export function RoutineDetailProvider({ children }: { children: React.ReactNode 
   const [onGenerateRoutine, setOnGenerateRoutine] = useState<(() => void) | null>(null);
   const [onCreateRoutine, setOnCreateRoutine] = useState<(() => void) | null>(null);
   const [activeRoutine, setActiveRoutine] = useState<Routine | null>(null);
+  const [viewingActiveRoutine, setViewingActiveRoutine] = useState(false);
+  const [isCreatingRoutine, setIsCreatingRoutine] = useState(false);
+  const [isEditingRoutine, setIsEditingRoutine] = useState(false);
+  const saveRoutineRef = useRef<(activate: boolean) => void>(() => {
+    console.warn('[RoutineDetailContext] saveRoutineRef called but no handler registered');
+  });
+  const isFormValidRef = useRef<boolean>(false);
 
   const value = useMemo(() => ({
     isDetailVisible,
@@ -72,7 +106,15 @@ export function RoutineDetailProvider({ children }: { children: React.ReactNode 
     setOnCreateRoutine,
     activeRoutine,
     setActiveRoutine,
-  }), [isDetailVisible, isSwapMode, actions, onGenerateRoutine, onCreateRoutine, activeRoutine]);
+    viewingActiveRoutine,
+    setViewingActiveRoutine,
+    isCreatingRoutine,
+    setIsCreatingRoutine,
+    isEditingRoutine,
+    setIsEditingRoutine,
+    saveRoutineRef,
+    isFormValidRef,
+  }), [isDetailVisible, isSwapMode, actions, onGenerateRoutine, onCreateRoutine, activeRoutine, viewingActiveRoutine, isCreatingRoutine, isEditingRoutine]);
 
   return (
     <RoutineDetailContext.Provider value={value}>

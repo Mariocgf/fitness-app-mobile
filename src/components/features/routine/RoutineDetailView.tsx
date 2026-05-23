@@ -77,6 +77,12 @@ interface RoutineDetailViewProps {
   onRegenerate: () => void;
   /** Notifica al padre cuando la rutina cambió por un swap aplicado. */
   onRoutineUpdated: (routine: Routine) => void;
+  /** Callback para editar la rutina (solo manuales). */
+  onEdit?: () => void;
+  /** Callback para eliminar la rutina. */
+  onDelete?: () => void;
+  /** Callback para activar la rutina como activa (solo no-activas). */
+  onActivate?: () => void;
 }
 
 /** Altura de la bottom bar de la vista de detalle (Play + Opciones) */
@@ -90,6 +96,9 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
   readOnly = false,
   onRegenerate,
   onRoutineUpdated,
+  onEdit,
+  onDelete,
+  onActivate,
 }) => {
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [selectedExercise, setSelectedExercise] = useState<RoutineExercise | null>(null);
@@ -291,8 +300,8 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
   /* ── Wiring de acciones del FAB (MyTabBar) vía contexto ────────────────── */
 
   // Refs para mantener handlers estables y evitar reseteos del menú del FAB
-  const handlersRef = useRef({ onRegenerate, enterSwapMode, requestSuggestions, exitSwapMode });
-  handlersRef.current = { onRegenerate, enterSwapMode, requestSuggestions, exitSwapMode };
+  const handlersRef = useRef({ onRegenerate, enterSwapMode, requestSuggestions, exitSwapMode, onEdit, onDelete, onActivate });
+  handlersRef.current = { onRegenerate, enterSwapMode, requestSuggestions, exitSwapMode, onEdit, onDelete, onActivate };
 
   useEffect(() => {
     setActions({
@@ -300,6 +309,9 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
       onChangeExercises: () => handlersRef.current.enterSwapMode(),
       onRequestSuggestions: (useAI: boolean) => handlersRef.current.requestSuggestions(useAI),
       onExitSwapMode: () => handlersRef.current.exitSwapMode(),
+      onEdit: routine.source === 'Manual' ? (handlersRef.current.onEdit ?? null) : null,
+      onDelete: handlersRef.current.onDelete ?? null,
+      onActivate: !routine.isActive ? (handlersRef.current.onActivate ?? null) : null,
     });
     return () => setActions(null);
   }, [setActions]);
@@ -344,13 +356,14 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
     width: interpolate(progress.value, [0, 1], [cardLayout.width, screenWidth]),
     height: interpolate(progress.value, [0, 1], [cardLayout.height, screenHeight]),
     borderRadius: interpolate(progress.value, [0, 1], [24, 0]),
+    opacity: interpolate(progress.value, [0, 0.25], [0, 1], Extrapolation.CLAMP),
     overflow: 'hidden' as const,
     zIndex: 40,
   }));
 
-  /** El contenido interno aparece cuando la expansión está avanzada */
+  /** El contenido interno aparece al abrir y desaparece al cerrar suavemente */
   const contentOpacity = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0.4, 0.8], [0, 1], Extrapolation.CLAMP),
+    opacity: interpolate(progress.value, [0, 0.4], [0, 1], Extrapolation.CLAMP),
   }));
 
   const sortedDays = React.useMemo(() => {

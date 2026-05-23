@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useState } from 'react';
-import { Modal, Platform, Pressable, Text, View } from 'react-native';
+import { Alert, Modal, Platform, Pressable, Text, View } from 'react-native';
 import Animated, {
     Easing,
     interpolate,
@@ -26,16 +26,29 @@ interface MenuOption {
   icon: string;
   label: string;
   key: string;
+  disabled?: boolean;
 }
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
 /** Iconos por tab (outline = inactivo, filled = activo) */
 const TAB_ICONS: Record<string, { outline: string; filled: string }> = {
-  index:     { outline: 'home-outline',      filled: 'home' },
-  fitness:   { outline: 'barbell-outline',   filled: 'barbell' },
-  nutrition: { outline: 'nutrition-outline', filled: 'nutrition' },
-  health:    { outline: 'heart-outline',     filled: 'heart' },
+  index:              { outline: 'home-outline',      filled: 'home' },
+  fitness:            { outline: 'barbell-outline',   filled: 'barbell' },
+  'fitness/index':    { outline: 'barbell-outline',   filled: 'barbell' },
+  'fitness/routines': { outline: 'barbell-outline',   filled: 'barbell' },
+  nutrition:          { outline: 'nutrition-outline', filled: 'nutrition' },
+  health:             { outline: 'heart-outline',     filled: 'heart' },
+};
+
+/** Labels legibles para las rutas del tab bar */
+const ROUTE_LABELS: Record<string, string> = {
+  index:              'Home',
+  fitness:            'Fitness',
+  'fitness/index':    'Fitness',
+  'fitness/routines': 'Fitness',
+  nutrition:          'Nutrición',
+  health:             'Salud',
 };
 
 /** Opciones del menú contextual del botón central según la vista activa */
@@ -45,6 +58,16 @@ const FAB_MENU_OPTIONS: Record<string, MenuOption[]> = {
     { icon: 'add-circle-outline', label: 'Agregar actividad', key: 'add-activity' },
   ],
   fitness: [
+    { icon: 'create-outline',     label: 'Crear rutina',     key: 'create-routine' },
+    { icon: 'add-circle-outline', label: 'Nuevo ejercicio',  key: 'new-exercise' },
+    { icon: 'sparkles',           label: 'Generar rutina',   key: 'generate-routine' },
+  ],
+  'fitness/index': [
+    { icon: 'create-outline',     label: 'Crear rutina',     key: 'create-routine' },
+    { icon: 'add-circle-outline', label: 'Nuevo ejercicio',  key: 'new-exercise' },
+    { icon: 'sparkles',           label: 'Generar rutina',   key: 'generate-routine' },
+  ],
+  'fitness/routines': [
     { icon: 'create-outline',     label: 'Crear rutina',     key: 'create-routine' },
     { icon: 'add-circle-outline', label: 'Nuevo ejercicio',  key: 'new-exercise' },
     { icon: 'sparkles',           label: 'Generar rutina',   key: 'generate-routine' },
@@ -126,17 +149,19 @@ function FabMenuItem({
   onPressIn: () => void;
   onPressOut: () => void;
 }) {
+  const isDisabled = option.disabled === true;
+  const dimColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
   return (
     <Pressable
       onPress={onPress}
-      onPressIn={onPressIn}
-      onPressOut={onPressOut}
+      onPressIn={isDisabled ? undefined : onPressIn}
+      onPressOut={isDisabled ? undefined : onPressOut}
       className="flex-row items-center px-5 py-4"
       style={{
-        // Solo el backgroundColor es dinámico runtime — el resto va en className
-        backgroundColor: isPressed
+        backgroundColor: isPressed && !isDisabled
           ? (isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.055)')
           : 'transparent',
+        opacity: isDisabled ? 0.45 : 1,
       }}
     >
       {/* Fondo del icono */}
@@ -146,7 +171,7 @@ function FabMenuItem({
         <Ionicons
           name={option.icon as any}
           size={19}
-          color={iconColor}
+          color={isDisabled ? dimColor : iconColor}
         />
       </View>
 
@@ -174,7 +199,7 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   const [pressedKey, setPressedKey]   = useState<string | null>(null);
 
   /** Contexto de la vista de detalle de rutina para opciones contextuales */
-  const { isDetailVisible, isSwapMode, actions: routineActions, onGenerateRoutine, onCreateRoutine } = useRoutineDetailContext();
+  const { isDetailVisible, isSwapMode, actions: routineActions, onGenerateRoutine, onCreateRoutine, activeRoutine, viewingActiveRoutine, isCreatingRoutine, isEditingRoutine, saveRoutineRef, isFormValidRef } = useRoutineDetailContext();
 
   /** Progreso de animación del menú: 0 = cerrado, 1 = abierto */
   const menuProgress = useSharedValue(0);
@@ -185,6 +210,27 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
 
   /** Opciones del menú: contextuales según estado de la vista de rutina */
   const menuOptions: MenuOption[] = (() => {
+    // Editor de rutina abierto en modo creación o edición
+    if (isCreatingRoutine || isEditingRoutine) {
+      const valid = isFormValidRef.current;
+      return [
+        { icon: 'checkmark-circle-outline', label: 'Guardar y activar', key: 'save-activate', disabled: !valid },
+        { icon: 'save-outline',             label: isEditingRoutine ? 'Guardar cambios' : 'Solo guardar', key: 'save-only', disabled: !valid },
+      ];
+    }
+    // Fitness: opciones de editar/eliminar cuando se ve el detalle de una rutina
+    const isFitnessRoute = activeRouteName === 'fitness' || activeRouteName === 'fitness/index' || activeRouteName === 'fitness/routines';
+    if (isDetailVisible && isFitnessRoute) {
+      const options: MenuOption[] = [];
+      if (routineActions?.onActivate != null) {
+        options.push({ icon: 'checkmark-circle-outline', label: 'Activar rutina', key: 'activate-routine' });
+      }
+      if (routineActions?.onEdit != null) {
+        options.push({ icon: 'create-outline', label: 'Editar rutina', key: 'edit-routine' });
+      }
+      options.push({ icon: 'trash-outline', label: 'Eliminar rutina', key: 'delete-routine' });
+      return options;
+    }
     if (isDetailVisible && activeRouteName === 'index') {
       // Modo edición de ejercicios activo
       if (isSwapMode) {
@@ -261,6 +307,29 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
         onCreateRoutine();
         return;
       }
+      if (key === 'save-activate' || key === 'save-only') {
+        if (!isFormValidRef.current) {
+          Alert.alert(
+            'Formulario incompleto',
+            'Dale un nombre a la rutina y agrégale al menos un ejercicio antes de guardar.',
+          );
+          return;
+        }
+        saveRoutineRef.current(key === 'save-activate');
+        return;
+      }
+      if (key === 'activate-routine' && routineActions?.onActivate) {
+        routineActions.onActivate();
+        return;
+      }
+      if (key === 'edit-routine' && routineActions?.onEdit) {
+        routineActions.onEdit();
+        return;
+      }
+      if (key === 'delete-routine' && routineActions?.onDelete) {
+        routineActions.onDelete();
+        return;
+      }
       onFabAction?.(key);
     };
 
@@ -276,6 +345,17 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
 
   const VISIBLE_LEFT  = ['index', 'fitness'];
   const VISIBLE_RIGHT = ['nutrition', 'health'];
+
+  /**
+   * Determina si una ruta de tab está activa, considerando sub-rutas.
+   * Ej: si la ruta actual es 'fitness/routines', el tab 'fitness' está activo.
+   */
+  const isTabActive = (tabName: string, currentRoute: string): boolean => {
+    if (currentRoute === tabName) return true;
+    // Para rutas anidadas como fitness/routines, fitness/index, etc.
+    if (currentRoute.startsWith(tabName + '/')) return true;
+    return false;
+  };
 
   const leftRoutes: TabRoute[] = state.routes
     .map((route, idx) => ({ route, originalIndex: idx }))
@@ -321,18 +401,19 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
     opacity: interpolate(menuProgress.value, [0, 1], [0, 1]),
   }));
 
-  /** El tab bar se oculta cuando la vista de detalle de rutina está abierta */
-  if (isDetailVisible) return null;
+  /** El tab bar se oculta cuando se ve la rutina activa (solo en fitness) o en index */
+  const isFitnessRoute = activeRouteName === 'fitness' || activeRouteName === 'fitness/index' || activeRouteName === 'fitness/routines';
+  if (isDetailVisible && (!isFitnessRoute || viewingActiveRoutine)) return null;
 
   // ── Colores dinámicos del FAB y de los iconos del menú según la vista activa ──
   const getThemeColors = () => {
-    if (isDetailVisible || activeRouteName === 'fitness') {
+    if (isDetailVisible || isFitnessRoute) {
       // lime-400
       return {
         fabBg: '#a3e635',
         fabIconColor: '#18181b',
         menuIconColor: '#a3e635',
-        // En modo edición: lápiz; en detalle normal: ellipsis; en fitness: add
+        // En modo edición: lápiz; en detalle normal: ellipsis; en fitness: ellipsis-horizontal
         fabIconName: isSwapMode
           ? 'create-outline'
           : isDetailVisible
@@ -447,14 +528,14 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
           <TabItem
             key={route.key}
             route={route}
-            isFocused={state.index === originalIndex}
-            label={(descriptors[route.key]?.options?.title ?? route.name) as string}
+            isFocused={isTabActive(route.name, activeRouteName)}
+            label={ROUTE_LABELS[route.name] ?? route.name}
             isDark={isDark}
             onPress={() => {
               if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               if (isMenuOpen) closeMenu();
               const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-              if (state.index !== originalIndex && !event.defaultPrevented) {
+              if (!isTabActive(route.name, activeRouteName) && !event.defaultPrevented) {
                 navigation.navigate(route.name, route.params);
               }
             }}
@@ -504,14 +585,14 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
           <TabItem
             key={route.key}
             route={route}
-            isFocused={state.index === originalIndex}
-            label={(descriptors[route.key]?.options?.title ?? route.name) as string}
+            isFocused={isTabActive(route.name, activeRouteName)}
+            label={ROUTE_LABELS[route.name] ?? route.name}
             isDark={isDark}
             onPress={() => {
               if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               if (isMenuOpen) closeMenu();
               const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-              if (state.index !== originalIndex && !event.defaultPrevented) {
+              if (!isTabActive(route.name, activeRouteName) && !event.defaultPrevented) {
                 navigation.navigate(route.name, route.params);
               }
             }}

@@ -3,7 +3,8 @@ import { CardLayout } from '@/src/components/features/routine/RoutineDetailView'
 import { useWeightInventory } from '@/src/hooks/use-weight-inventory';
 import { WeightInventoryResponse } from '@/src/services/equipment.service';
 import { ExerciseSearchItem } from '@/src/services/exercise.service';
-import { CreateRoutinePayload, createRoutine } from '@/src/services/routine.service';
+import { CreateRoutinePayload, createRoutine, updateRoutine } from '@/src/services/routine.service';
+import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { CreateRoutineDay, CreateRoutineExercise, RoutineDraft } from '@/src/types/create-routine';
 import { Routine } from '@/src/types/routine';
 import { WeightOption, getWeightOptions } from '@/src/utils/weight.utils';
@@ -66,13 +67,15 @@ interface CreateRoutineViewProps {
   onSaveDraft?: (name: string, days: CreateRoutineDay[]) => void;
   onClearDraft?: () => void;
   onRoutineCreated?: (routine: Routine) => void;
+  /** Si se pasa, la vista funciona en modo edición y llama PUT en vez de POST */
+  editingRoutineId?: string;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────── */
 /*                         CreateRoutineView                                     */
 /* ──────────────────────────────────────────────────────────────────────────── */
 
-export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, cardLayout, initialDraft, onSaveDraft, onClearDraft, onRoutineCreated }) => {
+export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, cardLayout, initialDraft, onSaveDraft, onClearDraft, onRoutineCreated, editingRoutineId }) => {
   const insets = useSafeAreaInsets();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const { getToken } = useAuth();
@@ -90,6 +93,10 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
   /* ── Inventario de pesos del usuario ──────────────────────────────────── */
 
   const { inventory } = useWeightInventory();
+
+  /* ── Registro en contexto para FAB del MyTabBar ────────────────────────── */
+
+  const { setIsEditingRoutine, saveRoutineRef, isFormValidRef } = useRoutineDetailContext();
 
   /* ── Animación de entrada/salida ───────────────────────────────────────── */
 
@@ -378,50 +385,56 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
     return Math.round(totalSeconds / 60);
   };
 
+  const doSave = useCallback(async (activate: boolean) => {
+    if (!isValid) return;
+    const daysToSave = days.filter((d) => d.exercises.length > 0);
+    setIsSaving(true);
+    try {
+      const token = await getToken();
+      const payload: CreateRoutinePayload = {
+        name: name.trim(),
+        activate,
+        days: daysToSave.map((day) => ({
+          dayOfWeek: day.value,
+          approxTimeSession: calcDayApproxTime(day.exercises),
+          exercises: day.exercises.map((ex, idx) => ({
+            exerciseId: ex.exerciseId,
+            order: idx + 1,
+            sets: ex.sets,
+            repMode: ex.repMode,
+            reps: ex.repMode === 'reps' ? ex.reps : null,
+            durationSeconds: ex.repMode === 'secs' ? ex.reps : null,
+            restSeconds: ex.restSeconds,
+            weightKg: ex.weightKg,
+          })),
+        })),
+      };
+      const routine = editingRoutineId
+        ? await updateRoutine(editingRoutineId, payload, token)
+        : await createRoutine(payload, token);
+      onClearDraft?.();
+      onRoutineCreated?.(routine);
+    } catch {
+      Alert.alert(
+        editingRoutineId ? 'Error al actualizar' : 'Error al guardar',
+        'No se pudo guardar la rutina. Revisá tu conexión e intentá nuevamente.',
+      );
+      setIsSaving(false);
+    }
+  }, [isValid, name, days, editingRoutineId, onClearDraft, onRoutineCreated, getToken]);
+
   const handleSave = useCallback(() => {
     if (!isValid) return;
-
     const emptyDays = days.filter((d) => d.exercises.length === 0);
     const daysToSave = days.filter((d) => d.exercises.length > 0);
 
-    const doSave = async (activate: boolean) => {
-      setIsSaving(true);
-      try {
-        const token = await getToken();
-        const payload: CreateRoutinePayload = {
-          name: name.trim(),
-          activate,
-          days: daysToSave.map((day) => ({
-            dayOfWeek: day.value,
-            approxTimeSession: calcDayApproxTime(day.exercises),
-            exercises: day.exercises.map((ex, idx) => ({
-              exerciseId: ex.exerciseId,
-              order: idx + 1,
-              sets: ex.sets,
-              repMode: ex.repMode,
-              reps: ex.repMode === 'reps' ? ex.reps : null,
-              durationSeconds: ex.repMode === 'secs' ? ex.reps : null,
-              restSeconds: ex.restSeconds,
-              weightKg: ex.weightKg,
-            })),
-          })),
-        };
-        const routine = await createRoutine(payload, token);
-        onClearDraft?.();
-        onRoutineCreated?.(routine);
-      } catch {
-        Alert.alert('Error al guardar', 'No se pudo guardar la rutina. Revisá tu conexión e intentá nuevamente.');
-        setIsSaving(false);
-      }
-    };
-
     const confirmAlert = () =>
       Alert.alert(
-        '¿Cómo querés guardar?',
+        editingRoutineId ? '¿Cómo querés guardar los cambios?' : '¿Cómo querés guardar?',
         `"${name.trim()}" — ${daysToSave.length} ${daysToSave.length === 1 ? 'día' : 'días'} con ejercicios.`,
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: 'Solo guardar', onPress: () => doSave(false) },
+          { text: editingRoutineId ? 'Guardar cambios' : 'Solo guardar', onPress: () => doSave(false) },
           { text: 'Guardar y activar', onPress: () => doSave(true) },
         ],
       );
@@ -439,7 +452,18 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
     } else {
       confirmAlert();
     }
-  }, [isValid, name, days, onClearDraft, onRoutineCreated, getToken]);
+  }, [isValid, name, days, editingRoutineId, doSave]);
+
+  saveRoutineRef.current = doSave;
+  isFormValidRef.current = isValid;
+
+  React.useEffect(() => {
+    if (editingRoutineId) setIsEditingRoutine(true);
+    return () => {
+      if (editingRoutineId) setIsEditingRoutine(false);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingRoutineId]);
 
   /* ── Render ────────────────────────────────────────────────────────────── */
 
@@ -576,8 +600,8 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
         </ScrollView>
       </DarkSheetLayout>
 
-      {/* Bottom bar: Guardar + Opciones */}
-      <View className="absolute w-full px-4 z-10 flex-row gap-3" style={{ bottom: insets.bottom + 8 }}>
+      {/* Bottom bar oculto — el FAB lo reemplaza en todos los modos */}
+      {false && <View className="absolute w-full px-4 z-10 flex-row gap-3" style={{ bottom: insets.bottom + 8 }}>
         <TouchableOpacity
           onPress={handleSave}
           disabled={!isValid || isSaving}
@@ -601,7 +625,7 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
         >
           <Ionicons name="ellipsis-horizontal" size={22} color="#f8fafc" />
         </TouchableOpacity>
-      </View>
+      </View>}
       </Animated.View>
 
       {/* Dropdown de opciones */}
