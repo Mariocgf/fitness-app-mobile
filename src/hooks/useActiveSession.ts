@@ -29,6 +29,7 @@ interface UseActiveSessionReturn {
   currentExercise: SessionExercise;
   totalSets: number;
   nextExercise: SessionExercise;
+  isLastExerciseAndSet: boolean;
 
   /* Timers */
   globalTime: number;
@@ -135,19 +136,26 @@ export function useActiveSession({
     [currentSet, totalSets, currentExercise, exercises, exerciseIndex]
   );
 
+  const isLastExerciseAndSet = useMemo(
+    () => currentSet >= totalSets && exerciseIndex >= exercises.length - 1,
+    [currentSet, totalSets, exerciseIndex, exercises.length]
+  );
+
   const canUpdateRpe = !rpeSaved && !isAdjustingLoad && (rpe < 4 || rpe > 6);
 
   const summaryStats = useMemo(() => {
     const exercisesTotal = day.exercises.length;
     const exercisesDone = logs.length;
     const setsTotal = day.exercises.reduce((acc, ex) => acc + (parseInt(ex.sets) || 1), 0);
-    const setsDone = setsTotal;
+    const setsDone = logs.reduce((acc, l) => acc + l.sets.length, 0);
     const repsTotal = day.exercises.reduce((acc, ex) => {
       const rep = parseInt(ex.currentRep || ex.maxRep || ex.minRep || '0', 10);
       const sets = parseInt(ex.sets) || 1;
       return acc + rep * sets;
     }, 0);
-    const repsDone = repsTotal;
+    const repsDone = logs.reduce((acc, l) =>
+      acc + l.sets.reduce((s, set) => s + set.repsPerformed, 0), 0
+    );
     const avgRpe = logs.length > 0
       ? Math.round(logs.reduce((acc, l) => acc + l.rpe, 0) / logs.length)
       : 0;
@@ -327,6 +335,14 @@ export function useActiveSession({
 
     if (!rpeSaved) saveCurrentLog(rpe);
 
+    const isLastSet = currentSet >= totalSets;
+    const isLastExercise = exerciseIndex >= day.exercises.length - 1;
+
+    if (isLastSet && isLastExercise) {
+      setPhase('SUMMARY');
+      return;
+    }
+
     if (currentSet < totalSets) {
       setCurrentSet((s) => s + 1);
     } else {
@@ -336,7 +352,7 @@ export function useActiveSession({
     setRpeSaved(false);
     setRpe(5);
     setPhase('EXERCISE');
-  }, [currentSet, totalSets, rpe, rpeSaved, saveCurrentLog, currentSetIncomplete, recordCurrentSet, partialReps]);
+  }, [currentSet, totalSets, exerciseIndex, day.exercises.length, rpe, rpeSaved, saveCurrentLog, currentSetIncomplete, recordCurrentSet, partialReps]);
 
   const handleFinishSet = useCallback(() => {
     setRepetitionMode('all'); /* verde = ocultar slider en REST */
@@ -374,15 +390,7 @@ export function useActiveSession({
     setCurrentSetIncomplete(true);
     setPartialReps(Math.round(repetitionMax / 2));
 
-    const isLastSet = currentSet >= totalSets;
-    const isLastExercise = exerciseIndex >= day.exercises.length - 1;
-
-    if (isLastSet && isLastExercise) {
-      /* Si es el último set del último ejercicio, guardar en logs con sets vacíos por ahora */
-      setPhase('SUMMARY');
-      return;
-    }
-
+    /* Siempre ir a REST para que el usuario pueda ajustar las reps parciales */
     setRestTimeLeft(initialRest);
     setRpe(5);
     setRpeSaved(false);
@@ -484,6 +492,7 @@ export function useActiveSession({
     currentExercise,
     totalSets,
     nextExercise,
+    isLastExerciseAndSet,
     globalTime,
     restTimeLeft,
     exerciseTimeLeft,

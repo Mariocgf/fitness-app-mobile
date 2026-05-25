@@ -47,6 +47,8 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
       <SummaryPhase
         globalTime={session.globalTime}
         stats={session.summaryStats}
+        logs={session.logs}
+        exercises={session.exercises}
         onSave={session.handleSaveSession}
       />
     );
@@ -133,7 +135,10 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
           </>
         ) : (
           <>
-            <NextExerciseCard nextExercise={session.nextExercise} />
+            <NextExerciseCard
+              nextExercise={session.nextExercise}
+              isLastSession={session.isLastExerciseAndSet}
+            />
             <RestActionButtons
               onFinishSessionEarly={session.handleFinishSessionEarly}
               onFinishRest={session.handleFinishRest}
