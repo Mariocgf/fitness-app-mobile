@@ -3,8 +3,8 @@ import React from 'react';
 import { TouchableOpacity, View } from 'react-native';
 
 interface ExerciseActionButtonsProps {
-  /** Placeholder para funcionalidad futura de edición */
-  onEdit: () => void;
+  /** Marca el set como incompleto y abre slider de reps parciales */
+  onIncomplete: () => void;
   /** Finaliza la sesión anticipadamente */
   onFlag: () => void;
   /** Finaliza la serie actual */
@@ -16,15 +16,15 @@ interface ExerciseActionButtonsProps {
  * Los colores son de acción y no varían entre light/dark.
  */
 export const ExerciseActionButtons: React.FC<ExerciseActionButtonsProps> = ({
-  onEdit,
+  onIncomplete,
   onFlag,
   onNext,
 }) => (
   <View className="flex-1 flex-row gap-3">
-    {/* Editar — placeholder */}
+    {/* Incompleto — abre slider de reps parciales */}
     <TouchableOpacity
       className="flex-1 rounded-2xl items-center justify-center bg-orange-400"
-      onPress={onEdit}
+      onPress={onIncomplete}
     >
       <Ionicons name="ban-outline" size={60} color="white" />
     </TouchableOpacity>

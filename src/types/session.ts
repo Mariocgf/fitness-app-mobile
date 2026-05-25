@@ -23,15 +23,35 @@ export type SessionDay = {
   exercises: SessionExercise[];
 };
 
+export interface SessionSet {
+  setNumber: number;
+  repsPerformed: number;
+  weightUsed: number;
+  durationSeconds: number | null;
+  isCompleted: boolean;
+}
+
 export type ExerciseLog = {
   exerciseId: string;
   rpe: number; // default 5
-  totalWeight: number; // default 0 por ahora
+  totalWeight: number;
+  sets: SessionSet[];
+};
+
+/** Formato plano que espera la API: cada set es una entrada independiente */
+export type SessionExerciseEntry = {
+  exerciseId: string;
+  rpe: number;
+  setNumber: number;
+  repsPerformed: number;
+  weightUsed: number;
+  durationSeconds: number | null;
+  isCompleted: boolean;
 };
 
 export type SessionLog = {
   routineId: string;
   trainedAt: string; // ISO date string
-  totalTime: string; // formato "HH:MM:SS" o segundos
-  exercises: ExerciseLog[];
+  totalTime: string; // formato "HH:mm:ss"
+  exercises: SessionExerciseEntry[];
 };

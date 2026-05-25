@@ -1,10 +1,10 @@
+import { SessionSlider } from '@/src/components/common/SessionSlider';
 import { TimerCard } from '@/src/components/features/TimerCard';
 import { RepetitionMode } from '@/src/hooks/useActiveSession';
 import { formatTime } from '@/src/utils/format.utils';
 import React from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
-import { RepetitionSection } from './RepetitionSection';
 import { RpeSection } from './RpeSection';
 
 interface RestPhaseProps {
@@ -20,11 +20,9 @@ interface RestPhaseProps {
   isAdjustingLoad: boolean;
   canUpdateRpe: boolean;
   repetitionMode: RepetitionMode;
-  onRepetitionModeChange: (mode: RepetitionMode) => void;
   partialReps: number;
   onPartialRepsChange: (value: number) => void;
   repetitionMax: number;
-  onSaveRepetitions: () => void;
   restBlockY: { value: number };
 }
 
@@ -41,11 +39,9 @@ export const RestPhase: React.FC<RestPhaseProps> = ({
   isAdjustingLoad,
   canUpdateRpe,
   repetitionMode,
-  onRepetitionModeChange,
   partialReps,
   onPartialRepsChange,
   repetitionMax,
-  onSaveRepetitions,
   restBlockY,
 }) => {
   const restBlockStyle = useAnimatedStyle(() => ({
@@ -72,14 +68,19 @@ export const RestPhase: React.FC<RestPhaseProps> = ({
           isLoading={isAdjustingLoad}
           canUpdate={canUpdateRpe}
         />
-        <RepetitionSection
-          mode={repetitionMode}
-          onModeChange={onRepetitionModeChange}
-          partialReps={partialReps}
-          onPartialRepsChange={onPartialRepsChange}
-          maxReps={repetitionMax}
-          onSave={onSaveRepetitions}
-        />
+        {repetitionMode === 'partial' && (
+          <View>
+            <Text className="text-slate-900 dark:text-slate-50 font-bold text-xl mb-3">
+              Repeticiones realizadas
+            </Text>
+            <SessionSlider
+              value={partialReps}
+              onValueChange={onPartialRepsChange}
+              min={0}
+              max={repetitionMax}
+            />
+          </View>
+        )}
       </View>
 
     </Animated.View>

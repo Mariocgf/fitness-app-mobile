@@ -1,5 +1,5 @@
 import { adjustExerciseLoad } from '@/src/services/exercise.service';
-import { ExerciseLog, SessionDay, SessionExercise, SessionLog } from '@/src/types/session';
+import { ExerciseLog, SessionDay, SessionExercise, SessionExerciseEntry, SessionLog, SessionSet } from '@/src/types/session';
 import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
@@ -79,6 +79,9 @@ interface UseActiveSessionReturn {
   handleSaveRpe: () => Promise<void>;
   handleFinishSessionEarly: () => void;
   handleSaveSession: () => void;
+  handleIncompleteSet: () => void;
+  handleSaveRepetitions: () => void;
+  currentSetIncomplete: boolean;
 }
 
 export function useActiveSession({
@@ -104,6 +107,9 @@ export function useActiveSession({
   const [isAdjustingLoad, setIsAdjustingLoad] = useState(false);
   const [repetitionMode, setRepetitionMode] = useState<RepetitionMode>('partial');
   const [partialReps, setPartialReps] = useState(0);
+  const [setsPerExercise, setSetsPerExercise] = useState<Map<string, SessionSet[]>>(new Map());
+  const setsPerExerciseRef = useRef<Map<string, SessionSet[]>>(new Map());
+  const [currentSetIncomplete, setCurrentSetIncomplete] = useState(false);
 
   /* ── Computed values ── */
   const currentExercise = exercises[exerciseIndex];
@@ -206,12 +212,6 @@ export function useActiveSession({
     }
   }, [phase, isTimeBased, timeBasedDuration, exerciseIndex, currentSet]);
 
-  /* Reset repeticiones al entrar en descanso */
-  useEffect(() => {
-    if (phase !== 'REST') return;
-    setRepetitionMode('partial');
-    setPartialReps(Math.round(repetitionMax / 2));
-  }, [phase, repetitionMax, exerciseIndex, currentSet]);
 
   /* Animaciones de transición entre fases */
   useEffect(() => {
@@ -250,18 +250,68 @@ export function useActiveSession({
 
   /* ── Handlers ── */
 
+  const recordCurrentSet = useCallback((isCompleted: boolean, reps: number): SessionSet[] => {
+    const exerciseKey = currentExercise.id;
+    const weight = parseFloat(currentExercise.weight) || 0;
+
+    const repsPerformed = isTimeBased ? 0 : reps;
+
+    const durationSeconds = isTimeBased
+      ? timeBasedDuration - (exerciseTimeLeft ?? 0)
+      : null;
+
+    const newSet: SessionSet = {
+      setNumber: currentSet,
+      repsPerformed,
+      weightUsed: weight,
+      durationSeconds,
+      isCompleted,
+    };
+
+    /* Leer del ref (siempre sincronizado) */
+    const existing = setsPerExerciseRef.current.get(exerciseKey) ?? [];
+    const updatedSets = [...existing, newSet];
+
+    /* Actualizar ref síncronamente */
+    const updatedMap = new Map(setsPerExerciseRef.current);
+    updatedMap.set(exerciseKey, updatedSets);
+    setsPerExerciseRef.current = updatedMap;
+
+    /* Actualizar state para re-renders */
+    setSetsPerExercise(updatedMap);
+
+    return updatedSets;
+  }, [
+    currentExercise?.id,
+    currentExercise?.weight,
+    currentSet,
+    isTimeBased,
+    timeBasedDuration,
+    exerciseTimeLeft,
+  ]);
+
+  const handleSaveRepetitions = useCallback(() => {
+    recordCurrentSet(false, partialReps); /* set incompleto */
+    setCurrentSetIncomplete(false);
+  }, [recordCurrentSet, partialReps]);
+
   const saveCurrentLog = useCallback(
-    (finalRpe: number) => {
+    (finalRpe: number, overrideSets?: SessionSet[]) => {
+      const exerciseKey = currentExercise.id;
+      /* Leer del ref para evitar stale closures */
+      const exerciseSets = overrideSets ?? setsPerExerciseRef.current.get(exerciseKey) ?? [];
+      const totalWeight = exerciseSets.reduce((sum, s) => sum + s.weightUsed, 0);
+
       setLogs((prev) => {
-        const idx = prev.findIndex((l) => l.exerciseId === currentExercise.id);
+        const idx = prev.findIndex((l) => l.exerciseId === exerciseKey);
         if (idx >= 0) {
           const copy = [...prev];
-          copy[idx] = { ...copy[idx], rpe: finalRpe };
+          copy[idx] = { ...copy[idx], rpe: finalRpe, totalWeight, sets: exerciseSets };
           return copy;
         }
         return [
           ...prev,
-          { exerciseId: currentExercise.id, rpe: finalRpe, totalWeight: 0 },
+          { exerciseId: exerciseKey, rpe: finalRpe, totalWeight, sets: exerciseSets },
         ];
       });
     },
@@ -269,6 +319,12 @@ export function useActiveSession({
   );
 
   const advanceAfterRest = useCallback(() => {
+    /* Si hay un set incompleto pendiente sin guardar, guardarlo ahora */
+    if (currentSetIncomplete) {
+      recordCurrentSet(false, partialReps);
+      setCurrentSetIncomplete(false);
+    }
+
     if (!rpeSaved) saveCurrentLog(rpe);
 
     if (currentSet < totalSets) {
@@ -280,14 +336,49 @@ export function useActiveSession({
     setRpeSaved(false);
     setRpe(5);
     setPhase('EXERCISE');
-  }, [currentSet, totalSets, rpe, rpeSaved, saveCurrentLog]);
+  }, [currentSet, totalSets, rpe, rpeSaved, saveCurrentLog, currentSetIncomplete, recordCurrentSet, partialReps]);
 
   const handleFinishSet = useCallback(() => {
+    setRepetitionMode('all'); /* verde = ocultar slider en REST */
+    const updatedSets = recordCurrentSet(true, repetitionMax); /* set completado con todas las reps */
+
     const isLastSet = currentSet >= totalSets;
     const isLastExercise = exerciseIndex >= day.exercises.length - 1;
 
     if (isLastSet && isLastExercise) {
-      saveCurrentLog(5);
+      saveCurrentLog(5, updatedSets);
+      setPhase('SUMMARY');
+      return;
+    }
+
+    /* Pre-guardar log en último set del ejercicio para evitar stale closure en advanceAfterRest */
+    if (isLastSet) {
+      saveCurrentLog(5, updatedSets);
+    }
+
+    setRestTimeLeft(initialRest);
+    setRpe(5);
+    setRpeSaved(false);
+    setPhase('REST');
+  }, [currentSet, totalSets, exerciseIndex, day.exercises.length, saveCurrentLog, initialRest, recordCurrentSet, setRepetitionMode, repetitionMax]);
+
+  const handleIncompleteSet = useCallback(() => {
+    /* Si es timed, comportamiento igual que verde (ya se captura duración automáticamente) */
+    if (isTimeBased) {
+      handleFinishSet();
+      return;
+    }
+
+    /* Para ejercicios de reps: transicionar a REST con slider visible */
+    setRepetitionMode('partial');
+    setCurrentSetIncomplete(true);
+    setPartialReps(Math.round(repetitionMax / 2));
+
+    const isLastSet = currentSet >= totalSets;
+    const isLastExercise = exerciseIndex >= day.exercises.length - 1;
+
+    if (isLastSet && isLastExercise) {
+      /* Si es el último set del último ejercicio, guardar en logs con sets vacíos por ahora */
       setPhase('SUMMARY');
       return;
     }
@@ -296,7 +387,7 @@ export function useActiveSession({
     setRpe(5);
     setRpeSaved(false);
     setPhase('REST');
-  }, [currentSet, totalSets, exerciseIndex, day.exercises.length, saveCurrentLog, initialRest]);
+  }, [isTimeBased, handleFinishSet, setRepetitionMode, repetitionMax, currentSet, totalSets, exerciseIndex, day.exercises.length, setPartialReps]);
 
   const handleFinishRest = useCallback(() => {
     advanceAfterRest();
@@ -355,17 +446,30 @@ export function useActiveSession({
   }, []);
 
   const handleSaveSession = useCallback(() => {
-    const totalMinutes = Math.floor(globalTime / 60);
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    const formattedTime = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+    const h = Math.floor(globalTime / 3600).toString().padStart(2, '0');
+    const m = Math.floor((globalTime % 3600) / 60).toString().padStart(2, '0');
+    const s = (globalTime % 60).toString().padStart(2, '0');
+    const formattedTime = `${h}:${m}:${s}`;
+
+    const flatExercises: SessionExerciseEntry[] = logs.flatMap((ex) =>
+      ex.sets.map((set) => ({
+        exerciseId: ex.exerciseId,
+        rpe: ex.rpe,
+        setNumber: set.setNumber,
+        repsPerformed: set.repsPerformed,
+        weightUsed: set.weightUsed,
+        durationSeconds: set.durationSeconds,
+        isCompleted: set.isCompleted,
+      }))
+    );
 
     const log: SessionLog = {
       routineId,
       trainedAt: new Date().toISOString(),
       totalTime: formattedTime,
-      exercises: logs,
+      exercises: flatExercises,
     };
+    console.log('[SESSION] Payload enviado:', JSON.stringify(log, null, 2));
     onFinishSession?.(log);
   }, [globalTime, logs, routineId, onFinishSession]);
 
@@ -408,5 +512,8 @@ export function useActiveSession({
     handleSaveRpe,
     handleFinishSessionEarly,
     handleSaveSession,
+    handleIncompleteSet,
+    handleSaveRepetitions,
+    currentSetIncomplete,
   };
 }

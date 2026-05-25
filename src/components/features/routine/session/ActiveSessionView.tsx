@@ -90,6 +90,7 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
             exerciseBlockY={session.exerciseBlockY}
             onFinishSet={session.handleFinishSet}
             onFinishSessionEarly={session.handleFinishSessionEarly}
+            onIncomplete={session.handleIncompleteSet}
           />
 
           <RestPhase
@@ -105,11 +106,9 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
             isAdjustingLoad={session.isAdjustingLoad}
             canUpdateRpe={session.canUpdateRpe}
             repetitionMode={session.repetitionMode}
-            onRepetitionModeChange={session.setRepetitionMode}
             partialReps={session.partialReps}
             onPartialRepsChange={session.setPartialReps}
             repetitionMax={session.repetitionMax}
-            onSaveRepetitions={() => {}}
             restBlockY={session.restBlockY}
           />
         </View>
@@ -126,7 +125,7 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
             />
             <View className="flex-1">
               <ExerciseActionButtons
-                onEdit={() => console.log('edit')}
+                onIncomplete={session.handleIncompleteSet}
                 onFlag={session.handleFinishSessionEarly}
                 onNext={session.handleFinishSet}
               />

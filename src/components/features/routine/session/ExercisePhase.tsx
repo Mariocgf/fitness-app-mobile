@@ -21,6 +21,7 @@ interface ExercisePhaseProps {
   exerciseBlockY: { value: number };
   onFinishSet: () => void;
   onFinishSessionEarly: () => void;
+  onIncomplete: () => void;
 }
 
 export const ExercisePhase: React.FC<ExercisePhaseProps> = ({
@@ -37,6 +38,7 @@ export const ExercisePhase: React.FC<ExercisePhaseProps> = ({
   exerciseBlockY,
   onFinishSet,
   onFinishSessionEarly,
+  onIncomplete,
 }) => {
   const exerciseBlockStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: exerciseBlockY.value }],
@@ -50,7 +52,7 @@ export const ExercisePhase: React.FC<ExercisePhaseProps> = ({
         ) : (
           <View className="flex-1 items-center justify-center">
             <ExerciseActionButtons
-              onEdit={() => console.log('edit')}
+              onIncomplete={onIncomplete}
               onFlag={onFinishSessionEarly}
               onNext={onFinishSet}
             />
