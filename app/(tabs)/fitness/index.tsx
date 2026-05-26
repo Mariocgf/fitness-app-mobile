@@ -3,12 +3,17 @@ import { CreateRoutineView } from '@/src/components/features/routine/CreateRouti
 import { EmptyPreviewCard } from '@/src/components/features/routine/EmptyPreviewCard';
 import { CardLayout, RoutineDetailView } from '@/src/components/features/routine/RoutineDetailView';
 import { RoutinePreviewCard } from '@/src/components/features/routine/RoutinePreviewCard';
+import { EmptyTrainingHistory } from '@/src/components/features/training-history/EmptyTrainingHistory';
+import { TrainingHistoryCardSkeleton } from '@/src/components/features/training-history/TrainingHistoryCardSkeleton';
+import { TrainingHistoryPreviewCard } from '@/src/components/features/training-history/TrainingHistoryPreviewCard';
 import { useRoutineDraft } from '@/src/hooks/useRoutineDraft';
 import { useRoutinePreview } from '@/src/hooks/useRoutinePreview';
+import { useTrainingHistoryPreview } from '@/src/hooks/useTrainingHistoryPreview';
 import { activateRoutine, deleteRoutine, generateRoutine, getActiveRoutine, getRoutineById, regenerateRoutine } from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { CreateRoutineDay, CreateRoutineExercise } from '@/src/types/create-routine';
 import { Routine, RoutineDay, RoutineSummary } from '@/src/types/routine';
+import { TrainingHistorySession } from '@/src/types/training-history';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -270,6 +275,19 @@ export default function FitnessScreen() {
   useEffect(() => {
     getToken().then((t) => { setPreviewToken(t); });
   }, [getToken]);
+
+  /* ── Hook para preview del historial de entrenamiento ─────────────────── */
+  const { sessions: historyPreview, isLoading: isLoadingHistory } = useTrainingHistoryPreview(previewToken);
+
+  const handleViewAllHistory = useCallback(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    router.push('/fitness/training-history' as any);
+  }, [router]);
+
+  const handleHistorySessionPress = useCallback((session: TrainingHistorySession) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    router.push({ pathname: '/fitness/training-history/[id]' as any, params: { id: session.id } });
+  }, [router]);
 
   const handleActivateRoutine = useCallback(async (r: Routine) => {
     try {
@@ -544,6 +562,45 @@ export default function FitnessScreen() {
               ))
             ) : (
               <EmptyPreviewCard source="Manual" />
+            )}
+          </ScrollView>
+        </View>
+
+        {/* Sub-sección: Historial de entrenamiento */}
+        <View className="px-4 mt-6 mb-2">
+          <View className="flex-row items-center justify-between">
+            <Text className="text-xl font-bold text-slate-900 dark:text-slate-50">
+              Historial de entrenamiento
+            </Text>
+            <TouchableOpacity onPress={handleViewAllHistory} className="flex-row items-center">
+              <Text className="text-lime-600 dark:text-lime-400 text-sm font-medium mr-1">
+                Ver todo
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color="#65a30d" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View className="mb-4">
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerClassName="px-4"
+          >
+            {isLoadingHistory ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <TrainingHistoryCardSkeleton key={i} variant="preview" />
+              ))
+            ) : historyPreview.length > 0 ? (
+              historyPreview.map((session) => (
+                <TrainingHistoryPreviewCard
+                  key={session.id}
+                  session={session}
+                  onPress={handleHistorySessionPress}
+                />
+              ))
+            ) : (
+              <EmptyTrainingHistory variant="preview" />
             )}
           </ScrollView>
         </View>
