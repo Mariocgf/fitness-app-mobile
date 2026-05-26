@@ -5,7 +5,7 @@ import { CardLayout, RoutineDetailView } from '@/src/components/features/routine
 import { RoutinePreviewCard } from '@/src/components/features/routine/RoutinePreviewCard';
 import { useRoutineDraft } from '@/src/hooks/useRoutineDraft';
 import { useRoutinePreview } from '@/src/hooks/useRoutinePreview';
-import { activateRoutine, generateRoutine, getActiveRoutine, getRoutineById, regenerateRoutine } from '@/src/services/routine.service';
+import { activateRoutine, deleteRoutine, generateRoutine, getActiveRoutine, getRoutineById, regenerateRoutine } from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { CreateRoutineDay, CreateRoutineExercise } from '@/src/types/create-routine';
 import { Routine, RoutineDay, RoutineSummary } from '@/src/types/routine';
@@ -231,15 +231,33 @@ export default function FitnessScreen() {
 
   /** Abre el editor en modo edición con la rutina dada */
   const handleOpenEdit = useCallback((r: Routine) => {
+    console.log('[handleOpenEdit] Routine to edit:', { id: r.id, name: r.name, source: r.source });
+    const open = (layout: CardLayout) => {
+      setCreateCardLayout(layout);
+      setShowCreateRoutine(true);
+      setDetailVisible(true);
+    };
     setEditingRoutine(r);
     setShowRoutineDetail(false);
     setCreatedRoutine(null);
     setShowPreviewDetail(false);
-    createCardRef.current?.measureInWindow((x, y, width, height) => {
-      setCreateCardLayout({ x, y, width, height });
-      setShowCreateRoutine(true);
-      setDetailVisible(true);
-    });
+    if (createCardRef.current) {
+      createCardRef.current.measureInWindow((x, y, width, height) => {
+        open(width > 0 ? { x, y, width, height } : {
+          x: SCREEN_WIDTH * 0.1,
+          y: SCREEN_HEIGHT * 0.3,
+          width: SCREEN_WIDTH * 0.8,
+          height: 120,
+        });
+      });
+    } else {
+      open({
+        x: SCREEN_WIDTH * 0.1,
+        y: SCREEN_HEIGHT * 0.3,
+        width: SCREEN_WIDTH * 0.8,
+        height: 120,
+      });
+    }
   }, [setDetailVisible]);
 
   const { draft, saveDraft, clearDraft } = useRoutineDraft();
@@ -281,6 +299,49 @@ export default function FitnessScreen() {
       Alert.alert('Error', 'No se pudo activar la rutina. Intentá de nuevo.');
     }
   }, [getToken, setActiveRoutine, refreshPreview, setDetailVisible, setViewingActiveRoutine]);
+
+  /** Elimina una rutina tras confirmación */
+  const handleDeleteRoutine = useCallback((r: Routine) => {
+    Alert.alert(
+      'Eliminar rutina',
+      '¿Eliminar esta rutina? Esta acción no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const token = await getToken();
+              if (!token) {
+                Alert.alert('Error', 'Usuario no autenticado');
+                return;
+              }
+              await deleteRoutine(r.id, token);
+              // Si era la rutina activa, limpiar estado
+              if (r.isActive) {
+                setRoutine(null);
+                setActiveRoutine(null);
+                setCardState('initial');
+                await AsyncStorage.removeItem('@user_routine');
+              }
+              // Cerrar vistas abiertas
+              setShowRoutineDetail(false);
+              setCreatedRoutine(null);
+              setShowPreviewDetail(false);
+              setSelectedFullRoutine(null);
+              setDetailVisible(false);
+              setViewingActiveRoutine(false);
+              refreshPreview();
+              Alert.alert('Éxito', 'La rutina fue eliminada correctamente');
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'No se pudo eliminar la rutina');
+            }
+          },
+        },
+      ],
+    );
+  }, [getToken, setActiveRoutine, setDetailVisible, setViewingActiveRoutine, refreshPreview]);
 
   /** Cierra el creador y abre el detalle de la rutina recién guardada */
   const handleRoutineCreated = useCallback(async (routine: Routine) => {
@@ -500,7 +561,7 @@ export default function FitnessScreen() {
           onRoutineUpdated={handleRoutineUpdated}
           onEdit={routineRef.current.source === 'Manual' ? () => handleOpenEdit(routineRef.current!) : undefined}
           onActivate={!routineRef.current.isActive ? () => handleActivateRoutine(routineRef.current!) : undefined}
-          onDelete={() => console.log('[Fitness] Delete routine:', routineRef.current!.id)}
+          onDelete={() => handleDeleteRoutine(routineRef.current!)}
         />
       )}
 
@@ -528,7 +589,7 @@ export default function FitnessScreen() {
           onRoutineUpdated={handleRoutineUpdated}
           onEdit={createdRoutine.source === 'Manual' ? () => handleOpenEdit(createdRoutine) : undefined}
           onActivate={!createdRoutine.isActive ? () => handleActivateRoutine(createdRoutine) : undefined}
-          onDelete={() => console.log('[Fitness] Delete created routine:', createdRoutine.id)}
+          onDelete={() => handleDeleteRoutine(createdRoutine)}
         />
       )}
 
@@ -548,7 +609,7 @@ export default function FitnessScreen() {
           onRoutineUpdated={handleRoutineUpdated}
           onEdit={selectedFullRoutine.source === 'Manual' ? () => handleOpenEdit(selectedFullRoutine) : undefined}
           onActivate={!selectedFullRoutine.isActive ? () => handleActivateRoutine(selectedFullRoutine) : undefined}
-          onDelete={() => console.log('[Fitness] Delete preview routine:', selectedFullRoutine.id)}
+          onDelete={() => handleDeleteRoutine(selectedFullRoutine)}
         />
       )}
 

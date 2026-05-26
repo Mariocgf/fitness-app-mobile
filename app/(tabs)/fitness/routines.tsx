@@ -178,9 +178,13 @@ export default function RoutinesScreen() {
 
   const handleOpenEdit = useCallback((r: Routine) => {
     setEditingRoutine(r);
+    setSelectedRoutine(null);
+    setSelectedRoutineSummary(null);
     setShowDetail(false);
+    setDetailVisible(false);
+    setViewingActiveRoutine(false);
     setShowEditView(true);
-  }, []);
+  }, [setDetailVisible, setViewingActiveRoutine]);
 
   const handleRoutineUpdated = useCallback(async (updated: Routine) => {
     // Refrescar la lista para mostrar cambios

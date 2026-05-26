@@ -409,9 +409,17 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
           })),
         })),
       };
+      console.log('[CreateRoutineView] doSave →', {
+        mode: editingRoutineId ? 'UPDATE' : 'CREATE',
+        editingRoutineId,
+        activate,
+        payloadName: payload.name,
+        daysCount: payload.days.length,
+      });
       const routine = editingRoutineId
         ? await updateRoutine(editingRoutineId, payload, token)
         : await createRoutine(payload, token);
+      console.log('[CreateRoutineView] doSave response →', { returnedId: routine.id, returnedName: routine.name });
       onClearDraft?.();
       onRoutineCreated?.(routine);
     } catch {
