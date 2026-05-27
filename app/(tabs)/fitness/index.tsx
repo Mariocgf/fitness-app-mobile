@@ -41,6 +41,7 @@ export default function FitnessScreen() {
   const [showCreateRoutine, setShowCreateRoutine] = useState(false);
 
   const cardRef = useRef<View>(null);
+  const detailRoutineRef = useRef<Routine | null>(null);
   const createCardRef = useRef<View>(null);
   const [createCardLayout, setCreateCardLayout] = useState<CardLayout | null>(null);
 
@@ -136,6 +137,7 @@ export default function FitnessScreen() {
     setShowRoutineDetail(false);
     setDetailVisible(false);
     setViewingActiveRoutine(false);
+    detailRoutineRef.current = null;
   }, [setDetailVisible, setViewingActiveRoutine]);
 
   const handleGenerate = async () => {
@@ -608,16 +610,16 @@ export default function FitnessScreen() {
       </ScrollView>
 
       {/* Vista expandida de rutina activa */}
-      {showRoutineDetail && routineRef.current && cardLayout && (
+      {showRoutineDetail && (detailRoutineRef.current ?? routineRef.current) && cardLayout && (
         <RoutineDetailView
-          routine={routineRef.current}
+          routine={(detailRoutineRef.current ?? routineRef.current)!}
           onClose={handleCloseDetail}
           cardLayout={cardLayout}
           isGenerating={cardState === 'loading'}
           onRegenerate={handleRegenerate}
           onRoutineUpdated={handleRoutineUpdated}
-          onEdit={routineRef.current.source === 'Manual' ? () => handleOpenEdit(routineRef.current!) : undefined}
-          onActivate={!routineRef.current.isActive ? () => handleActivateRoutine(routineRef.current!) : undefined}
+          onEdit={routineRef.current?.source === 'Manual' ? () => handleOpenEdit(routineRef.current!) : undefined}
+          onActivate={!routineRef.current?.isActive ? () => handleActivateRoutine(routineRef.current!) : undefined}
           onDelete={() => handleDeleteRoutine(routineRef.current!)}
         />
       )}
@@ -631,7 +633,29 @@ export default function FitnessScreen() {
           onSaveDraft={editingRoutine ? undefined : saveDraft}
           onClearDraft={editingRoutine ? undefined : clearDraft}
           onClose={() => { setShowCreateRoutine(false); setDetailVisible(false); setEditingRoutine(null); setIsCreatingRoutine(false); }}
-          onRoutineCreated={(r) => { setEditingRoutine(null); setIsCreatingRoutine(false); handleRoutineCreated(r); }}
+          onRoutineCreated={(r) => {
+            const wasEditingActive = !!editingRoutine && editingRoutine.isActive;
+            setEditingRoutine(null);
+            setIsCreatingRoutine(false);
+            if (wasEditingActive) {
+              setShowCreateRoutine(false);
+              const updated = { ...r, isActive: true };
+              detailRoutineRef.current = updated;
+              setRoutine(updated);
+              setCardState('success');
+              setActiveRoutine(updated);
+              AsyncStorage.setItem('@user_routine', JSON.stringify(updated)).catch(() => {});
+              refreshPreview();
+              cardRef.current?.measureInWindow((x, y, width, height) => {
+                setCardLayout({ x, y, width, height });
+                setShowRoutineDetail(true);
+                setDetailVisible(true);
+                setViewingActiveRoutine(true);
+              });
+            } else {
+              handleRoutineCreated(r);
+            }
+          }}
         />
       )}
 

@@ -211,11 +211,17 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   /** Opciones del menú: contextuales según estado de la vista de rutina */
   const menuOptions: MenuOption[] = (() => {
     // Editor de rutina abierto en modo creación o edición
-    if (isCreatingRoutine || isEditingRoutine) {
+    if (isEditingRoutine) {
+      const valid = isFormValidRef.current;
+      return [
+        { icon: 'save-outline', label: 'Guardar cambios', key: 'save-only', disabled: !valid },
+      ];
+    }
+    if (isCreatingRoutine) {
       const valid = isFormValidRef.current;
       return [
         { icon: 'checkmark-circle-outline', label: 'Guardar y activar', key: 'save-activate', disabled: !valid },
-        { icon: 'save-outline',             label: isEditingRoutine ? 'Guardar cambios' : 'Solo guardar', key: 'save-only', disabled: !valid },
+        { icon: 'save-outline',             label: 'Solo guardar',       key: 'save-only',     disabled: !valid },
       ];
     }
     // Fitness: opciones de editar/eliminar cuando se ve el detalle de una rutina
@@ -403,7 +409,7 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
 
   /** El tab bar se oculta cuando se ve la rutina activa (solo en fitness) o en index */
   const isFitnessRoute = activeRouteName === 'fitness' || activeRouteName === 'fitness/index' || activeRouteName === 'fitness/routines';
-  if (isDetailVisible && (!isFitnessRoute || viewingActiveRoutine)) return null;
+  if (isDetailVisible && (!isFitnessRoute || viewingActiveRoutine) && !isEditingRoutine) return null;
 
   // ── Colores dinámicos del FAB y de los iconos del menú según la vista activa ──
   const getThemeColors = () => {

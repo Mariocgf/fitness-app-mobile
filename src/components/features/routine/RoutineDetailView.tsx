@@ -330,11 +330,15 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
         { icon: 'close-circle' as const, label: 'Salir del modo editar', onPress: () => { close(); exitSwapMode(); }, destructive: true },
       ];
     }
-    return [
-      { icon: 'refresh' as const,         label: 'Regenerar rutina',   onPress: () => { close(); onRegenerate();  }, destructive: false },
-      { icon: 'swap-horizontal' as const, label: 'Cambiar ejercicios', onPress: () => { close(); enterSwapMode(); }, destructive: false },
+    const items: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; onPress: () => void; destructive: boolean }[] = [
+      { icon: 'refresh',         label: 'Regenerar rutina',   onPress: () => { close(); onRegenerate();  }, destructive: false },
+      { icon: 'swap-horizontal', label: 'Cambiar ejercicios', onPress: () => { close(); enterSwapMode(); }, destructive: false },
     ];
-  }, [isSwapMode, selectedForSwap.size, loadingItems.size, suggestions, onRegenerate, enterSwapMode, requestSuggestions, exitSwapMode]);
+    if (routine.source === 'Manual' && onEdit) {
+      items.push({ icon: 'create-outline', label: 'Editar rutina', onPress: () => { close(); onEdit(); }, destructive: false });
+    }
+    return items;
+  }, [isSwapMode, selectedForSwap.size, loadingItems.size, suggestions, onRegenerate, enterSwapMode, requestSuggestions, exitSwapMode, routine.source, onEdit]);
 
   /* ── Helpers de render ─────────────────────────────────────────────────── */
 

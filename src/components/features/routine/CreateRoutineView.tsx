@@ -15,7 +15,9 @@ import {
     ActivityIndicator,
     Alert,
     Image,
+    KeyboardAvoidingView,
     Modal,
+    Platform,
     Pressable,
     ScrollView,
     Text,
@@ -484,6 +486,11 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
         />
       )}
       <Animated.View style={cardLayout ? [{ flex: 1 }, contentOpacity] : { flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
       <DarkSheetLayout
         header={
           <>
@@ -556,57 +563,52 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
           </>
         }
       >
-        <ScrollView showsVerticalScrollIndicator={false}>
-          <View className="px-4 pt-4" style={{ paddingBottom: insets.bottom + 100 }}>
-            {activeDay ? (
-              <>
-                {/* Lista de ejercicios con drag & drop */}
-                <DraggableFlatList
-                  data={activeDay.exercises}
-                  keyExtractor={(item) => item.id}
-                  onDragEnd={({ data }) => reorderExercises(data)}
-                  scrollEnabled={false}
-                  renderItem={({ item: exercise, getIndex, drag, isActive }: RenderItemParams<CreateRoutineExercise>) => (
-                    <ScaleDecorator activeScale={1.02}>
-                      <ExerciseFormCard
-                        exercise={exercise}
-                        index={getIndex() ?? 0}
-                        inventory={inventory}
-                        onUpdateField={updateExerciseField}
-                        onUpdateWeight={updateExerciseWeight}
-                        onRemove={removeExercise}
-                        onReplace={(id) => setReplacingExerciseId(id)}
-                        onToggleRepMode={toggleRepMode}
-                        onDrag={drag}
-                        isActive={isActive}
-                      />
-                    </ScaleDecorator>
-                  )}
+        {activeDay ? (
+          <DraggableFlatList
+            data={activeDay.exercises}
+            keyExtractor={(item) => item.id}
+            onDragEnd={({ data }) => reorderExercises(data)}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: insets.bottom + 100 }}
+            renderItem={({ item: exercise, getIndex, drag, isActive }: RenderItemParams<CreateRoutineExercise>) => (
+              <ScaleDecorator activeScale={1.02}>
+                <ExerciseFormCard
+                  exercise={exercise}
+                  index={getIndex() ?? 0}
+                  inventory={inventory}
+                  onUpdateField={updateExerciseField}
+                  onUpdateWeight={updateExerciseWeight}
+                  onRemove={removeExercise}
+                  onReplace={(id) => setReplacingExerciseId(id)}
+                  onToggleRepMode={toggleRepMode}
+                  onDrag={drag}
+                  isActive={isActive}
                 />
-
-                {/* Card "Agregar ejercicio" */}
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => setIsAddExerciseOpen(true)}
-                  className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 items-center justify-center"
-                >
-                  <Ionicons name="add" size={28} color="#a3e635" />
-                  <Text className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">
-                    Agregar ejercicio
-                  </Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <View className="items-center justify-center py-16">
-                <Ionicons name="calendar-outline" size={48} color="#94a3b8" />
-                <Text className="text-slate-400 dark:text-slate-500 text-base mt-3 text-center">
-                  Agregá un día para comenzar
-                </Text>
-              </View>
+              </ScaleDecorator>
             )}
+            ListFooterComponent={
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setIsAddExerciseOpen(true)}
+                className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 items-center justify-center"
+              >
+                <Ionicons name="add" size={28} color="#a3e635" />
+                <Text className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">
+                  Agregar ejercicio
+                </Text>
+              </TouchableOpacity>
+            }
+          />
+        ) : (
+          <View className="items-center justify-center py-16">
+            <Ionicons name="calendar-outline" size={48} color="#94a3b8" />
+            <Text className="text-slate-400 dark:text-slate-500 text-base mt-3 text-center">
+              Agregá un día para comenzar
+            </Text>
           </View>
-        </ScrollView>
+        )}
       </DarkSheetLayout>
+      </KeyboardAvoidingView>
 
       {/* Bottom bar oculto — el FAB lo reemplaza en todos los modos */}
       {false && <View className="absolute w-full px-4 z-10 flex-row gap-3" style={{ bottom: insets.bottom + 8 }}>

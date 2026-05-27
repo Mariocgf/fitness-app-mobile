@@ -1,11 +1,13 @@
 import { ActionCard, CardState } from '@/src/components/features/home/ActionCard';
 import { DietCard } from '@/src/components/features/home/DietCard';
 import { GreetingHeader } from '@/src/components/features/home/GreetingHeader';
+import { CreateRoutineView } from '@/src/components/features/routine/CreateRoutineView';
 import { CardLayout, RoutineDetailView } from '@/src/components/features/routine/RoutineDetailView';
 import { getActiveModules } from '@/src/services/module.service';
 import { generateRoutine, getActiveRoutine, regenerateRoutine } from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
-import { Routine } from '@/src/types/routine';
+import { CreateRoutineDay, CreateRoutineExercise } from '@/src/types/create-routine';
+import { Routine, RoutineDay } from '@/src/types/routine';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -21,8 +23,10 @@ export default function HomeScreen() {
   const [cardLayout, setCardLayout] = useState<CardLayout | null>(null);
   const [isFetchingData, setIsFetchingData] = useState(true);
   const cardRef = useRef<View>(null);
+  const [showEditView, setShowEditView] = useState(false);
+  const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
 
-  const { setDetailVisible, setOnGenerateRoutine, activeRoutine, setActiveRoutine } = useRoutineDetailContext();
+  const { setDetailVisible, setOnGenerateRoutine, activeRoutine, setActiveRoutine, setViewingActiveRoutine } = useRoutineDetailContext();
   // Fondo base según colors.md: slate-100 (light) / slate-950 (dark)
 
   /** Obtiene el primer nombre del usuario autenticado */
@@ -103,6 +107,44 @@ export default function HomeScreen() {
     setShowRoutineDetail(false);
     setDetailVisible(false);
   }, [setDetailVisible]);
+
+  /** Convierte una Routine del backend al formato RoutineDraft del editor */
+  const routineToDraft = useCallback((r: Routine) => {
+    const DAYS_VALUE_MAP: Record<string, string> = {
+      'Lunes': 'monday', 'Martes': 'tuesday', 'Miércoles': 'wednesday',
+      'Jueves': 'thursday', 'Viernes': 'friday', 'Sábado': 'saturday', 'Domingo': 'sunday',
+    };
+    return {
+      name: r.name,
+      days: r.days.map((day: RoutineDay): CreateRoutineDay => ({
+        id: day.id,
+        value: DAYS_VALUE_MAP[day.day] ?? day.day.toLowerCase(),
+        label: day.day,
+        exercises: day.exercises.map((ex): CreateRoutineExercise => ({
+          id: ex.id,
+          exerciseId: ex.exerciseId,
+          name: ex.name,
+          gifUrl: ex.gifUrl,
+          equipments: [],
+          sets: parseInt(ex.sets, 10) || 3,
+          reps: ex.repType === 'Timed'
+            ? parseInt(ex.durationSeconds ?? '30', 10)
+            : parseInt(ex.currentRep ?? '12', 10),
+          repMode: ex.repType === 'Timed' ? 'secs' : 'reps',
+          restSeconds: parseInt(ex.rest, 10) || 60,
+          weightKg: ex.weight && ex.weight !== '0' ? parseFloat(ex.weight) : null,
+        })),
+      })),
+    };
+  }, []);
+
+  const handleOpenEdit = useCallback((r: Routine) => {
+    setEditingRoutine(r);
+    setShowRoutineDetail(false);
+    setDetailVisible(false);
+    setViewingActiveRoutine(false);
+    setShowEditView(true);
+  }, [setDetailVisible, setViewingActiveRoutine]);
 
   /** Regenera la rutina (lo dispara el FAB vía RoutineDetailView). */
   const handleRegenerate = useCallback(async () => {
@@ -214,6 +256,34 @@ export default function HomeScreen() {
           isGenerating={cardState === 'loading'}
           onRegenerate={handleRegenerate}
           onRoutineUpdated={handleRoutineUpdated}
+          onEdit={routine.source === 'Manual' ? () => handleOpenEdit(routine) : undefined}
+        />
+      )}
+
+      {/* Editor de rutina en modo edición */}
+      {showEditView && editingRoutine && (
+        <CreateRoutineView
+          initialDraft={routineToDraft(editingRoutine)}
+          editingRoutineId={editingRoutine.id}
+          onClose={() => { setShowEditView(false); setEditingRoutine(null); }}
+          onRoutineCreated={async (r: Routine) => {
+            const wasActive = editingRoutine?.isActive ?? false;
+            setShowEditView(false);
+            setEditingRoutine(null);
+            const updated = wasActive ? { ...r, isActive: true } : r;
+            setRoutine(updated);
+            setActiveRoutine(updated);
+            try {
+              await AsyncStorage.setItem('@user_routine', JSON.stringify(updated));
+            } catch {}
+            if (wasActive) {
+              cardRef.current?.measureInWindow((x, y, width, height) => {
+                setCardLayout({ x, y, width, height });
+                setShowRoutineDetail(true);
+                setDetailVisible(true);
+              });
+            }
+          }}
         />
       )}
     </SafeAreaView>
