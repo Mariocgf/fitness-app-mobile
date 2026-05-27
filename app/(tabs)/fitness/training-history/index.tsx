@@ -1,9 +1,9 @@
 import { DarkSheetLayout } from '@/src/components/common/DarkSheetLayout';
 import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
 import { EmptyTrainingHistory } from '@/src/components/features/training-history/EmptyTrainingHistory';
+import { SwipeableTrainingHistoryCard } from '@/src/components/features/training-history/SwipeableTrainingHistoryCard';
 import { TrainingHistoryCardSkeleton } from '@/src/components/features/training-history/TrainingHistoryCardSkeleton';
 import { TrainingHistoryFilters } from '@/src/components/features/training-history/TrainingHistoryFilters';
-import { TrainingHistoryListCard } from '@/src/components/features/training-history/TrainingHistoryListCard';
 import { useTrainingHistoryList } from '@/src/hooks/useTrainingHistoryList';
 import { TrainingHistorySession } from '@/src/types/training-history';
 import { useAuth } from '@clerk/clerk-expo';
@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     FlatList,
     RefreshControl,
     Text,
@@ -46,6 +47,7 @@ export default function TrainingHistoryScreen() {
     applyFilters,
     loadMore,
     refresh,
+    deleteSession,
   } = useTrainingHistoryList(token);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -84,11 +86,47 @@ export default function TrainingHistoryScreen() {
     [router],
   );
 
+  const handleDeleteRequest = useCallback(
+    (session: TrainingHistorySession) => {
+      Alert.alert(
+        '¿Eliminar sesión?',
+        `¿Estás seguro de que quieres eliminar la sesión "${session.routineName}" del ${session.trainedAt.toLocaleDateString()}?`,
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+          },
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deleteSession(session.id);
+                // La lista se actualiza automáticamente por el hook
+              } catch (err) {
+                Alert.alert(
+                  'Error',
+                  err instanceof Error ? err.message : 'No se pudo eliminar la sesión',
+                );
+              }
+            },
+          },
+        ],
+        { cancelable: true },
+      );
+    },
+    [deleteSession],
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: TrainingHistorySession }) => (
-      <TrainingHistoryListCard session={item} onPress={handleCardPress} />
+      <SwipeableTrainingHistoryCard
+        session={item}
+        onPress={handleCardPress}
+        onDelete={handleDeleteRequest}
+      />
     ),
-    [handleCardPress],
+    [handleCardPress, handleDeleteRequest],
   );
 
   const renderSeparator = useCallback(() => <View className="h-3" />, []);

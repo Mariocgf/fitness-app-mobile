@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { fetchTrainingHistory } from '../services/training-history.service';
-import { setMany } from '../store/training-history-cache';
+import { deleteTrainingSession, fetchTrainingHistory } from '../services/training-history.service';
+import { remove, setMany } from '../store/training-history-cache';
 import { TrainingHistoryFilters, TrainingHistorySession } from '../types/training-history';
 import { mapHttpErrorToFriendlyMessage } from '../utils/training-history.utils';
 
@@ -18,6 +18,7 @@ interface UseTrainingHistoryListReturn {
   applyFilters: () => void;
   loadMore: () => void;
   refresh: () => void;
+  deleteSession: (id: string) => Promise<boolean>;
 }
 
 /**
@@ -116,6 +117,33 @@ export function useTrainingHistoryList(
     loadFirstPage(clean);
   }, [loadFirstPage]);
 
+  /**
+   * Elimina una sesión de entrenamiento.
+   * Ejecuta el DELETE y actualiza el estado local sin refetch.
+   * Retorna true si se eliminó exitosamente.
+   */
+  const deleteSession = useCallback(
+    async (id: string): Promise<boolean> => {
+      if (!token) return false;
+
+      try {
+        const success = await deleteTrainingSession(id, token);
+        if (success) {
+          // Actualizar estado local: remover la sesión eliminada
+          setSessions((prev) => prev.filter((s) => s.id !== id));
+          setTotalCount((prev) => Math.max(0, prev - 1));
+          // Remover del cache también
+          remove(id);
+        }
+        return success;
+      } catch (err) {
+        console.error('[useTrainingHistoryList] deleteSession Error:', err);
+        throw err;
+      }
+    },
+    [token],
+  );
+
   useEffect(() => {
     loadFirstPage(filters);
     // Solo al montar (token cambia)
@@ -134,5 +162,6 @@ export function useTrainingHistoryList(
     applyFilters,
     loadMore,
     refresh,
+    deleteSession,
   };
 }

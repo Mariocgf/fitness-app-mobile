@@ -22,3 +22,8 @@ export const setMany = (sessions: TrainingHistorySession[]): void => {
 export const clearSessionCache = (): void => {
   cache.clear();
 };
+
+/** Elimina una sesión del cache por id */
+export const remove = (id: string): boolean => {
+  return cache.delete(id);
+};

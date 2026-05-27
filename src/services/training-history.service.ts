@@ -1,13 +1,13 @@
 import { AxiosError } from 'axios';
 import apiClient from '../api/client';
 import {
-  PagedTrainingHistoryResponse,
-  PagedTrainingHistoryResponseDto,
-  TrainingHistoryExerciseDto,
-  TrainingHistoryFilters,
-  TrainingHistorySession,
-  TrainingHistorySessionDto,
-  TrainingHistorySetDto,
+    PagedTrainingHistoryResponse,
+    PagedTrainingHistoryResponseDto,
+    TrainingHistoryExerciseDto,
+    TrainingHistoryFilters,
+    TrainingHistorySession,
+    TrainingHistorySessionDto,
+    TrainingHistorySetDto,
 } from '../types/training-history';
 
 /** Convierte "HH:mm:ss" o "H:mm:ss" a segundos totales */
@@ -114,6 +114,55 @@ export const getTrainingSessionById = async (
         id,
         status: error.response?.status,
       });
+    }
+    throw error;
+  }
+};
+
+/**
+ * Elimina una sesión de entrenamiento por id.
+ * DELETE /api/routine/sessions/{id}
+ * Retorna true si se eliminó exitosamente (204), false si no se encontró (404).
+ * Lanza error para otros códigos (403, 401, etc.)
+ */
+export const deleteTrainingSession = async (
+  id: string,
+  token: string | null,
+): Promise<boolean> => {
+  if (!token) throw new Error('No autenticado');
+
+  const url = `/api/routine/sessions/${id}`;
+
+  try {
+    const response = await apiClient.delete(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    // 204 No Content = éxito
+    if (response.status === 204) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      const status = error.response?.status;
+      const message = error.response?.data?.message || error.message;
+
+      console.error('[training-history.service] deleteTrainingSession FAIL', {
+        id,
+        status,
+        message,
+      });
+
+      if (status === 404) {
+        return false; // Sesión no encontrada
+      }
+      if (status === 403) {
+        throw new Error('No tienes permiso para eliminar esta sesión');
+      }
+      if (status === 401) {
+        throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente');
+      }
     }
     throw error;
   }
