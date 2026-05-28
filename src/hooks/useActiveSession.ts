@@ -4,6 +4,7 @@ import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { useSharedValue, withTiming } from 'react-native-reanimated';
+import { useSessionAudio } from './useSessionAudio';
 
 export type Phase = 'COUNTDOWN' | 'EXERCISE' | 'REST' | 'SUMMARY';
 export type RepetitionMode = 'partial' | 'all';
@@ -92,6 +93,7 @@ export function useActiveSession({
 }: UseActiveSessionProps): UseActiveSessionReturn {
   const { getToken } = useAuth();
 
+
   /* ── Estados ── */
   const [phase, setPhase] = useState<Phase>('COUNTDOWN');
   const [countdown, setCountdown] = useState(3);
@@ -120,6 +122,13 @@ export function useActiveSession({
   const timeBasedDuration = isTimeBased
     ? parseInt(currentExercise?.durationSeconds || '0', 10)
     : 0;
+
+  /* ── Audio de sesión ── */
+  /* En REST el cronómetro activo es restTimeLeft; en EXERCISE timed es exerciseTimeLeft */
+  useSessionAudio({
+    timeLeft: phase === 'REST' ? restTimeLeft : (phase === 'EXERCISE' && isTimeBased ? exerciseTimeLeft : null),
+    phase,
+  });
 
   const repetitionMax = useMemo(() => {
     const current = parseInt(currentExercise?.currentRep || '0', 10);
