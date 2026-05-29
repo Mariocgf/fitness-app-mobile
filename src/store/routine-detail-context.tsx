@@ -21,6 +21,8 @@ interface RoutineActions {
   onDelete: (() => void) | null;
   /** Activa la rutina como rutina activa del usuario. */
   onActivate: (() => void) | null;
+  /** Adapta la rutina manual con IA */
+  onAdaptRoutine: (() => void) | null;
 }
 
 interface RoutineDetailContextValue {

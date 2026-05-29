@@ -1,6 +1,6 @@
 import { AxiosError } from 'axios';
 import apiClient from '../api/client';
-import { PagedRoutinesResponse, Routine, RoutinePreviewResponse, SwapPick, SwapSuggestionsResponse } from '../types/routine';
+import { AdaptRoutineResponseDto, PagedRoutinesResponse, Routine, RoutinePreviewResponse, SwapPick, SwapSuggestionsResponse } from '../types/routine';
 import { SessionLog } from '../types/session';
 import { capitalize } from '../utils/format.utils';
 
@@ -407,5 +407,64 @@ export const deleteRoutine = async (routineId: string, token: string): Promise<v
     }
     throw new Error('No se pudo eliminar la rutina. Intentá de nuevo.');
   }
+};
+
+/**
+ * Inicia la propuesta de adaptación con IA de una rutina manual.
+ * POST /api/routine/{routineId}/adapt-ai
+ */
+export const adaptRoutineWithAi = async (
+  routineId: string,
+  token: string | null
+): Promise<AdaptRoutineResponseDto> => {
+  const { data } = await apiClient.post<AdaptRoutineResponseDto>(
+    `/api/routine/${routineId}/adapt-ai`,
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  return data;
+};
+
+/**
+ * Confirma la adaptación propuesta, sobreescribiendo la rutina original.
+ * POST /api/routine/adaptation/{adaptationId}/confirm
+ */
+export const confirmRoutineAdaptation = async (
+  adaptationId: string,
+  token: string | null
+): Promise<Routine> => {
+  const { data } = await apiClient.post<Routine>(
+    `/api/routine/adaptation/${adaptationId}/confirm`,
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  return capitalizeRoutineNames(data);
+};
+
+/**
+ * Descarta la adaptación propuesta.
+ * POST /api/routine/adaptation/{adaptationId}/reject
+ */
+export const rejectRoutineAdaptation = async (
+  adaptationId: string,
+  token: string | null
+): Promise<void> => {
+  await apiClient.post(
+    `/api/routine/adaptation/${adaptationId}/reject`,
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
 };
 

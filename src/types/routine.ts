@@ -102,3 +102,40 @@ export interface RoutinePreviewResponse {
   ai: RoutineSummary[];
   manual: RoutineSummary[];
 }
+
+/* ──────────────────────────── Adaptación con IA ──────────────────────────── */
+
+export interface AdaptRoutineExercise {
+  exerciseId: string;
+  name: string;
+  gifUrl: string | null;
+  targetMuscles: string[];
+  order: number;
+  sets: number;
+  repType: 'Reps' | 'Timed' | string;
+  minRep: number | null;
+  maxRep: number | null;
+  durationSeconds: number | null;
+  rest: number;
+  weight: string | null;
+}
+
+export interface AdaptRoutineDay {
+  dayOfWeek: string;
+  approxTimeSession: number;
+  exercises: AdaptRoutineExercise[];
+}
+
+export interface AdaptRoutineMotive {
+  exerciseId: string;
+  exerciseName: string;
+  reason: string;
+}
+
+export interface AdaptRoutineResponseDto {
+  pendingAdaptationId: string | null;
+  hasChanges: boolean;
+  days: AdaptRoutineDay[];
+  motives: AdaptRoutineMotive[];
+}
+

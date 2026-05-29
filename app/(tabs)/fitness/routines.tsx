@@ -187,6 +187,7 @@ export default function RoutinesScreen() {
   }, [setDetailVisible, setViewingActiveRoutine]);
 
   const handleRoutineUpdated = useCallback(async (updated: Routine) => {
+    setSelectedRoutine(updated);
     // Refrescar la lista para mostrar cambios
     await refresh();
   }, [refresh]);

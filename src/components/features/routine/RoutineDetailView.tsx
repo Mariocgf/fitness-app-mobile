@@ -1,4 +1,5 @@
 import { DarkSheetLayout } from '@/src/components/common/DarkSheetLayout';
+import { AdaptRoutineModal } from '@/src/components/features/routine/AdaptRoutineModal';
 import { ExerciseDetailView } from '@/src/components/features/routine/ExerciseDetailView';
 import { SwapCandidateModal } from '@/src/components/features/routine/SwapCandidateModal';
 import { translateDay } from '@/src/i18n';
@@ -103,6 +104,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [selectedExercise, setSelectedExercise] = useState<RoutineExercise | null>(null);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+  const [isAdaptModalOpen, setIsAdaptModalOpen] = useState(false);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -299,9 +301,13 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
 
   /* ── Wiring de acciones del FAB (MyTabBar) vía contexto ────────────────── */
 
+  const openAdaptModal = useCallback(() => {
+    setIsAdaptModalOpen(true);
+  }, []);
+
   // Refs para mantener handlers estables y evitar reseteos del menú del FAB
-  const handlersRef = useRef({ onRegenerate, enterSwapMode, requestSuggestions, exitSwapMode, onEdit, onDelete, onActivate });
-  handlersRef.current = { onRegenerate, enterSwapMode, requestSuggestions, exitSwapMode, onEdit, onDelete, onActivate };
+  const handlersRef = useRef({ onRegenerate, enterSwapMode, requestSuggestions, exitSwapMode, onEdit, onDelete, onActivate, onAdaptRoutine: openAdaptModal });
+  handlersRef.current = { onRegenerate, enterSwapMode, requestSuggestions, exitSwapMode, onEdit, onDelete, onActivate, onAdaptRoutine: openAdaptModal };
 
   useEffect(() => {
     setActions({
@@ -312,6 +318,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
       onEdit: routine.source === 'Manual' ? (handlersRef.current.onEdit ?? null) : null,
       onDelete: handlersRef.current.onDelete ?? null,
       onActivate: !routine.isActive ? (handlersRef.current.onActivate ?? null) : null,
+      onAdaptRoutine: (routine.source === 'Manual' && !routine.isActive) ? () => handlersRef.current.onAdaptRoutine() : null,
     });
     return () => setActions(null);
   }, [setActions]);
@@ -334,8 +341,13 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
       { icon: 'refresh',         label: 'Regenerar rutina',   onPress: () => { close(); onRegenerate();  }, destructive: false },
       { icon: 'swap-horizontal', label: 'Cambiar ejercicios', onPress: () => { close(); enterSwapMode(); }, destructive: false },
     ];
-    if (routine.source === 'Manual' && onEdit) {
-      items.push({ icon: 'create-outline', label: 'Editar rutina', onPress: () => { close(); onEdit(); }, destructive: false });
+    if (routine.source === 'Manual') {
+      if (routine.isActive) {
+        items.push({ icon: 'sparkles', label: 'Adaptar con IA', onPress: () => { close(); setIsAdaptModalOpen(true); }, destructive: false });
+      }
+      if (onEdit) {
+        items.push({ icon: 'create-outline', label: 'Editar rutina', onPress: () => { close(); onEdit(); }, destructive: false });
+      }
     }
     return items;
   }, [isSwapMode, selectedForSwap.size, loadingItems.size, suggestions, onRegenerate, enterSwapMode, requestSuggestions, exitSwapMode, routine.source, onEdit]);
@@ -664,6 +676,15 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
             }));
             setOpenCandidateFor(null);
           }}
+        />
+
+        {/* Modal de adaptación con IA */}
+        <AdaptRoutineModal
+          visible={isAdaptModalOpen}
+          routineId={routine.id}
+          routineName={routine.name}
+          onClose={() => setIsAdaptModalOpen(false)}
+          onRoutineUpdated={onRoutineUpdated}
         />
       </Animated.View>
     </Animated.View>

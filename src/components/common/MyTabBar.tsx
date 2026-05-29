@@ -231,6 +231,9 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
       if (routineActions?.onActivate != null) {
         options.push({ icon: 'checkmark-circle-outline', label: 'Activar rutina', key: 'activate-routine' });
       }
+      if (routineActions?.onAdaptRoutine != null) {
+        options.push({ icon: 'sparkles', label: 'Adaptar con IA', key: 'adapt-ai-routine' });
+      }
       if (routineActions?.onEdit != null) {
         options.push({ icon: 'create-outline', label: 'Editar rutina', key: 'edit-routine' });
       }
@@ -326,6 +329,10 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
       }
       if (key === 'activate-routine' && routineActions?.onActivate) {
         routineActions.onActivate();
+        return;
+      }
+      if (key === 'adapt-ai-routine' && routineActions?.onAdaptRoutine) {
+        routineActions.onAdaptRoutine();
         return;
       }
       if (key === 'edit-routine' && routineActions?.onEdit) {
