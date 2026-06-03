@@ -46,6 +46,19 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "89b98fdc-29d7-47cf-b34c-efefb8c0d341"
+      }
+    },
+    "owner": "mariocgf",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/89b98fdc-29d7-47cf-b34c-efefb8c0d341"
     }
   }
 }
