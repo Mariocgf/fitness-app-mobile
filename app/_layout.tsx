@@ -86,15 +86,6 @@ function RootNavigator() {
       return;
     }
 
-    const clerkStatus = user?.publicMetadata?.onboarding_status as string | undefined;
-    // Si Clerk ya tiene un estado explícito que no es COMPLETED, el flag local no es confiable
-    if (clerkStatus && clerkStatus !== 'COMPLETED') {
-      AsyncStorage.removeItem('@onboarding_completed').catch(() => {});
-      AsyncStorage.removeItem('@onboarding_module_config_step').catch(() => {});
-      setCompletedLocally(false);
-      return;
-    }
-
     AsyncStorage.getItem('@onboarding_completed')
       .then((val) => setCompletedLocally(val === 'true'))
       .catch(() => setCompletedLocally(false));
@@ -124,15 +115,23 @@ function RootNavigator() {
       router.replace('/login');
     } else if (isSignedIn) {
       const onboardingStatus = user?.publicMetadata?.onboarding_status as string;
-      // Si el backend tiene un estado explícito que NO es COMPLETED, no confiar en el flag local
-      const backendSaysNotDone = onboardingStatus && onboardingStatus !== 'COMPLETED';
-      const isCompleted = onboardingStatus === 'COMPLETED' || (!backendSaysNotDone && completedLocally);
+      
+      // Chequeo asíncrono para asegurarnos de que no estamos interfiriendo con un guardado local recién hecho
+      AsyncStorage.getItem('@onboarding_completed').then((localVal) => {
+        const currentCompletedLocally = localVal === 'true';
+        if (currentCompletedLocally !== completedLocally) {
+          setCompletedLocally(currentCompletedLocally);
+        }
 
-      if (!isCompleted && !inOnboardingScreen) {
-        router.replace('/onboarding');
-      } else if (isCompleted && (inLoginScreen || inOnboardingScreen)) {
-        router.replace('/(tabs)');
-      }
+        const isCompleted = onboardingStatus === 'COMPLETED' || currentCompletedLocally;
+
+        if (!isCompleted && !inOnboardingScreen) {
+          // El timeout asegura que si Stack recién se monta, ya está listo para enrutar
+          setTimeout(() => router.replace('/onboarding'), 0);
+        } else if (isCompleted && (inLoginScreen || inOnboardingScreen)) {
+          setTimeout(() => router.replace('/(tabs)'), 0);
+        }
+      });
     }
 
     // Ocultar el splash screen cuando ya sabemos a dónde ir
@@ -174,16 +173,14 @@ function RootNavigator() {
 
   // Si la metadata dice que necesita onboarding pero los segmentos de la URL aún no se actualizan,
   // mantenemos el loader para evitar el parpadeo de la pantalla Home.
-  // Si el webhook de Clerk o el backend reporta un estado distinto de COMPLETED,
-  // ese estado tiene prioridad sobre la caché local (por si el usuario borró la cuenta
-  // y creó otra en el mismo dispositivo).
   const onboardingStatus = user?.publicMetadata?.onboarding_status as string;
-  const backendSaysNotDone = onboardingStatus && onboardingStatus !== 'COMPLETED';
-  const isCompleted = onboardingStatus === 'COMPLETED' || (!backendSaysNotDone && completedLocally);
+  const isCompleted = onboardingStatus === 'COMPLETED' || completedLocally;
     
   const isRoutingToOnboarding = isSignedIn && isMetadataReady && !isCompleted && segments[0] !== 'onboarding';
 
-  if (!isLoaded || completedLocally === null || isWaitingForMetadata || isRoutingToOnboarding) {
+  // Si estamos enrutando a onboarding, NO retornamos el loader, porque el Router necesita 
+  // que el <Stack> esté montado para poder ejecutar router.replace() sin tirar error.
+  if (!isLoaded || completedLocally === null || isWaitingForMetadata) {
     return (
       <FullPageLoader
         message={isWaitingForMetadata ? "Sincronizando tu perfil..." : "Preparando tu espacio..."}
