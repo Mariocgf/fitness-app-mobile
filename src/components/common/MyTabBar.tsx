@@ -1,7 +1,9 @@
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
+import { useNutritionRegisterContext } from '@/src/store/nutrition-register-context';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { useSegments } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, Platform, Pressable, Text, View } from 'react-native';
@@ -73,8 +75,9 @@ const FAB_MENU_OPTIONS: Record<string, MenuOption[]> = {
     { icon: 'sparkles',           label: 'Generar rutina',   key: 'generate-routine' },
   ],
   nutrition: [
-    { icon: 'restaurant-outline', label: 'Registrar comida', key: 'log-meal' },
-    { icon: 'water-outline',      label: 'Registrar agua',   key: 'log-water' },
+    { icon: 'restaurant-outline', label: 'Registrar alimentos', key: 'log-food' },
+    { icon: 'scan-outline',       label: 'Escanear comida',     key: 'scan-food', disabled: true },
+    { icon: 'sparkles',           label: 'Generar dieta',       key: 'generate-diet', disabled: true },
   ],
   health: [
     { icon: 'pulse-outline',    label: 'Nueva métrica',    key: 'new-metric' },
@@ -153,7 +156,7 @@ function FabMenuItem({
   const dimColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
   return (
     <Pressable
-      onPress={onPress}
+      onPress={isDisabled ? undefined : onPress}
       onPressIn={isDisabled ? undefined : onPressIn}
       onPressOut={isDisabled ? undefined : onPressOut}
       className="flex-row items-center px-5 py-4"
@@ -194,12 +197,19 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
+  const segments = useSegments();
 
   const [isMenuOpen, setIsMenuOpen]   = useState(false);
   const [pressedKey, setPressedKey]   = useState<string | null>(null);
 
   /** Contexto de la vista de detalle de rutina para opciones contextuales */
-  const { isDetailVisible, isSwapMode, actions: routineActions, onGenerateRoutine, onCreateRoutine, activeRoutine, viewingActiveRoutine, isCreatingRoutine, isEditingRoutine, saveRoutineRef, isFormValidRef } = useRoutineDetailContext();
+  const { isDetailVisible, isSwapMode, actions: routineActions, onGenerateRoutine, onCreateRoutine, viewingActiveRoutine, isCreatingRoutine, isEditingRoutine, saveRoutineRef, isFormValidRef } = useRoutineDetailContext();
+  const {
+    isRegisterViewVisible,
+    canSave: canSaveFoods,
+    isSaving: isSavingFoods,
+    saveFoodsRef,
+  } = useNutritionRegisterContext();
 
   /** Progreso de animación del menú: 0 = cerrado, 1 = abierto */
   const menuProgress = useSharedValue(0);
@@ -207,6 +217,8 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   const fabScale     = useSharedValue(1);
 
   const activeRouteName = state.routes[state.index]?.name ?? 'index';
+  const segmentNames = segments as readonly string[];
+  const isNutritionRegisterRoute = segmentNames.includes('nutrition') && segmentNames.includes('register');
 
   /** Opciones del menú: contextuales según estado de la vista de rutina */
   const menuOptions: MenuOption[] = (() => {
@@ -222,6 +234,16 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
       return [
         { icon: 'checkmark-circle-outline', label: 'Guardar y activar', key: 'save-activate', disabled: !valid },
         { icon: 'save-outline',             label: 'Solo guardar',       key: 'save-only',     disabled: !valid },
+      ];
+    }
+    if (isRegisterViewVisible || isNutritionRegisterRoute) {
+      return [
+        {
+          icon: 'save-outline',
+          label: isSavingFoods ? 'Guardando...' : 'Guardar',
+          key: 'save-foods',
+          disabled: !canSaveFoods || isSavingFoods,
+        },
       ];
     }
     // Fitness: opciones de editar/eliminar cuando se ve el detalle de una rutina
@@ -343,13 +365,31 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
         routineActions.onDelete();
         return;
       }
+      if (key === 'save-foods') {
+        if (!canSaveFoods || isSavingFoods) {
+          Alert.alert(
+            'Sin alimentos',
+            'Agregá al menos un alimento antes de guardar.',
+          );
+          return;
+        }
+        saveFoodsRef.current();
+        return;
+      }
+      if (key === 'log-food' && activeRouteName === 'nutrition') {
+        (navigation as any).navigate('nutrition', {
+          screen: 'register',
+          params: { mealType: 'AfternoonSnack' },
+        });
+        return;
+      }
       onFabAction?.(key);
     };
 
     // 220ms > 185ms del closeMenu para asegurar que el Modal del menú ya
     // se desmontó antes de pedir abrir otro Modal.
     setTimeout(run, 220);
-  }, [closeMenu, onFabAction, routineActions, onGenerateRoutine, onCreateRoutine]);
+  }, [activeRouteName, canSaveFoods, closeMenu, isFormValidRef, isSavingFoods, navigation, onFabAction, routineActions, onGenerateRoutine, onCreateRoutine, saveFoodsRef, saveRoutineRef]);
 
   const onFabPressIn  = useCallback(() => { fabScale.value = withSpring(0.92, PRESS_SPRING); }, [fabScale]);
   const onFabPressOut = useCallback(() => { fabScale.value = withSpring(1,    PRESS_SPRING); }, [fabScale]);

@@ -1,3 +1,10 @@
+import OnboardingFooter from '@/src/components/common/OnboardingFooter';
+import OnboardingHeader from '@/src/components/common/OnboardingHeader';
+import ProgressBar from '@/src/components/common/ProgressBar';
+import SectionCard from '@/src/components/common/SectionCard';
+import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
+import TagSelect from '@/src/components/common/TagSelect';
+import { NutritionItem } from '@/src/types/nutrition';
 import { Ionicons } from '@expo/vector-icons';
 import { cssInterop } from 'nativewind';
 import React from 'react';
@@ -6,14 +13,6 @@ import { DeviceEventEmitter, Pressable, ScrollView, Text, TouchableOpacity, View
 cssInterop(Ionicons, {
   className: { target: 'style', nativeStyleToProp: { color: true } },
 });
-
-import OnboardingFooter from '@/src/components/common/OnboardingFooter';
-import OnboardingHeader from '@/src/components/common/OnboardingHeader';
-import ProgressBar from '@/src/components/common/ProgressBar';
-import SectionCard from '@/src/components/common/SectionCard';
-import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
-import TagSelect from '@/src/components/common/TagSelect';
-import { NutritionItem } from '@/src/types/nutrition';
 
 interface NutritionAllergyStepProps {
   /** Lista de alergias disponibles */
@@ -48,7 +47,7 @@ export default function NutritionAllergyStep({
   return (
     <SwipeBackWrapper onSwipeBack={onBack}>
       <View className="flex-1">
-        <ProgressBar currentStep={1} totalSteps={3} />
+        <ProgressBar currentStep={2} totalSteps={4} />
 
         <Pressable
           style={{ flex: 1 }}

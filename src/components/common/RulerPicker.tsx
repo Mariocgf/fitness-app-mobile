@@ -16,6 +16,9 @@ interface RulerPickerProps {
   step?: number;
   unit: string;
   onValueChange: (value: number) => void;
+  showLabel?: boolean;
+  showValue?: boolean;
+  containerWidth?: number;
 }
 
 const TICK_SPACING = 12;
@@ -33,6 +36,9 @@ export default function RulerPicker({
   step = 1,
   unit,
   onValueChange,
+  showLabel = true,
+  showValue = true,
+  containerWidth: customContainerWidth,
 }: RulerPickerProps) {
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const isDark = useColorScheme() === 'dark'; // needed for tick colors (computed values in useMemo, cannot use className)
@@ -43,7 +49,7 @@ export default function RulerPicker({
   const hasInitialized = useRef(false);
 
   const totalTicks = Math.floor((max - min) / step);
-  const containerWidth = SCREEN_WIDTH - 64;
+  const containerWidth = customContainerWidth ?? SCREEN_WIDTH - 64;
 
   // Pre-render ticks con colores slate según colors.md
   const ticks = useMemo(() => {
@@ -115,20 +121,22 @@ export default function RulerPicker({
 
   return (
     <View className="mb-2">
-      {/* Label arriba a la izquierda */}
-      <Text className="text-sm text-slate-500 dark:text-slate-400 mb-2">
-        {label}
-      </Text>
-
-      {/* Valor actual centrado */}
-      <View className="items-center mb-2">
-        <Text className="text-2xl text-slate-900 dark:text-slate-50 font-semibold">
-          {currentValue}{' '}
-          <Text className="text-base text-slate-500 dark:text-slate-400 font-normal">
-            {unit}
-          </Text>
+      {showLabel && (
+        <Text className="text-sm text-slate-500 dark:text-slate-400 mb-2">
+          {label}
         </Text>
-      </View>
+      )}
+
+      {showValue && (
+        <View className="items-center mb-2">
+          <Text className="text-2xl text-slate-900 dark:text-slate-50 font-semibold">
+            {currentValue}{' '}
+            <Text className="text-base text-slate-500 dark:text-slate-400 font-normal">
+              {unit}
+            </Text>
+          </Text>
+        </View>
+      )}
 
       {/* Ruler container */}
       <View style={{ width: containerWidth, height: 60, justifyContent: 'center' }} className="relative">
@@ -150,6 +158,7 @@ export default function RulerPicker({
         <ScrollView
           ref={scrollViewRef}
           horizontal
+          nestedScrollEnabled
           showsHorizontalScrollIndicator={false}
           snapToInterval={TICK_SPACING}
           decelerationRate="fast"

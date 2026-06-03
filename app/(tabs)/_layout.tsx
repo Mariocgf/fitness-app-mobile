@@ -3,6 +3,7 @@ import React from 'react';
 import { useAuth } from '@clerk/clerk-expo';
 
 import { MyTabBar } from '@/src/components/common/MyTabBar';
+import { NutritionRegisterProvider } from '@/src/store/nutrition-register-context';
 import { RoutineDetailProvider } from '@/src/store/routine-detail-context';
 
 export default function TabLayout() {
@@ -17,43 +18,45 @@ export default function TabLayout() {
 
   return (
     <RoutineDetailProvider>
-      <Tabs
-        tabBar={(props) => <MyTabBar {...props} />}
-        screenOptions={{
-          headerShown: false,
-        }}>
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: 'Home',
-          }}
-        />
-        <Tabs.Screen
-          name="fitness"
-          options={{
-            title: 'Fitness',
-          }}
-        />
-        <Tabs.Screen
-          name="nutrition"
-          options={{
-            title: 'Nutrición',
-          }}
-        />
-        <Tabs.Screen
-          name="health"
-          options={{
-            title: 'Salud',
-          }}
-        />
-        {/* Ocultar explore del tab bar — se puede remover más adelante */}
-        <Tabs.Screen
-          name="explore"
-          options={{
-            href: null,
-          }}
-        />
-      </Tabs>
+      <NutritionRegisterProvider>
+        <Tabs
+          tabBar={(props) => <MyTabBar {...props} />}
+          screenOptions={{
+            headerShown: false,
+          }}>
+          <Tabs.Screen
+            name="index"
+            options={{
+              title: 'Home',
+            }}
+          />
+          <Tabs.Screen
+            name="fitness"
+            options={{
+              title: 'Fitness',
+            }}
+          />
+          <Tabs.Screen
+            name="nutrition"
+            options={{
+              title: 'Nutrición',
+            }}
+          />
+          <Tabs.Screen
+            name="health"
+            options={{
+              title: 'Salud',
+            }}
+          />
+          {/* Ocultar explore del tab bar — se puede remover más adelante */}
+          <Tabs.Screen
+            name="explore"
+            options={{
+              href: null,
+            }}
+          />
+        </Tabs>
+      </NutritionRegisterProvider>
     </RoutineDetailProvider>
   );
 }

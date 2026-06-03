@@ -1,8 +1,9 @@
 import { useAuth } from '@clerk/clerk-expo';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
 import NutritionAllergyStep from '@/src/components/features/onboarding/NutritionAllergyStep';
+import NutritionActivityLevelStep from '@/src/components/features/onboarding/NutritionActivityLevelStep';
 import NutritionDietStyleStep from '@/src/components/features/onboarding/NutritionDietStyleStep';
 import NutritionSubGoalStep from '@/src/components/features/onboarding/NutritionSubGoalStep';
 import { useModuleConfigStorage } from '@/src/hooks/use-module-config-storage';
@@ -12,7 +13,7 @@ import {
     getSubGoals,
     submitNutritionProfile,
 } from '@/src/services/nutrition.service';
-import { NutritionItem, SubGoal } from '@/src/types/nutrition';
+import { ActivityLevel, NutritionItem, SubGoal } from '@/src/types/nutrition';
 
 interface NutritionConfigStepProps {
   /** Color de marca del módulo Nutrition */
@@ -44,33 +45,50 @@ export default function NutritionConfigStep({
 }: NutritionConfigStepProps) {
   const { getToken } = useAuth();
   const { saveNutritionConfig, loadNutritionConfig } = useModuleConfigStorage();
+  const getTokenRef = useRef(getToken);
+  const loadNutritionConfigRef = useRef(loadNutritionConfig);
+  const saveNutritionConfigRef = useRef(saveNutritionConfig);
+
+  getTokenRef.current = getToken;
+  loadNutritionConfigRef.current = loadNutritionConfig;
+  saveNutritionConfigRef.current = saveNutritionConfig;
 
   const [subStep, setSubStep] = useState(0);
   const [subGoals, setSubGoals] = useState<SubGoal[]>([]);
   const [allergies, setAllergies] = useState<NutritionItem[]>([]);
   const [dietaryPreferences, setDietaryPreferences] = useState<NutritionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedSubGoalIds, setSelectedSubGoalIds] = useState<string[]>([]);
+  const [selectedSubGoalId, setSelectedSubGoalId] = useState<string | null>(null);
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>(null);
   const [selectedAllergyIds, setSelectedAllergyIds] = useState<string[]>([]);
   const [selectedDietIds, setSelectedDietIds] = useState<string[]>([]);
+  const [isDraftReady, setIsDraftReady] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     const initialize = async () => {
       try {
-        const token = await getToken();
+        const token = await getTokenRef.current();
         const [subGoalsData, allergiesData, dietData] = await Promise.all([
           getSubGoals(moduleId, token),
           getFoodAllergies(token),
           getDietaryPreferences(token),
         ]);
+        if (cancelled) return;
+
         setSubGoals(Array.isArray(subGoalsData) ? subGoalsData : []);
         setAllergies(Array.isArray(allergiesData) ? allergiesData : []);
         setDietaryPreferences(Array.isArray(dietData) ? dietData : []);
 
-        const draft = await loadNutritionConfig();
+        const draft = await loadNutritionConfigRef.current();
+        if (cancelled) return;
+
         if (draft) {
-          if (draft.selectedSubGoalIds?.length)
-            setSelectedSubGoalIds(draft.selectedSubGoalIds);
+          if (draft.selectedSubGoalId)
+            setSelectedSubGoalId(draft.selectedSubGoalId);
+          if (draft.activityLevel)
+            setActivityLevel(draft.activityLevel);
           if (draft.allergyIds?.length)
             setSelectedAllergyIds(draft.allergyIds);
           if (draft.dietaryPreferenceIds?.length)
@@ -80,21 +98,41 @@ export default function NutritionConfigStep({
         console.error('Error inicializando Nutrition config:', e);
         alert('No se pudieron cargar los datos de nutrición.');
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsDraftReady(true);
+          setIsLoading(false);
+        }
       }
     };
     initialize();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [moduleId]);
 
   useEffect(() => {
-    saveNutritionConfig({
-      selectedSubGoalIds,
+    if (!isDraftReady) return;
+
+    saveNutritionConfigRef.current({
+      selectedSubGoalId,
+      activityLevel,
       allergyIds: selectedAllergyIds,
       dietaryPreferenceIds: selectedDietIds,
     });
-  }, [selectedSubGoalIds, selectedAllergyIds, selectedDietIds]);
+  }, [
+    selectedSubGoalId,
+    activityLevel,
+    selectedAllergyIds,
+    selectedDietIds,
+    isDraftReady,
+  ]);
 
   const handleSubmit = async () => {
+    if (!selectedSubGoalId) {
+      alert('Por favor selecciona un sub objetivo de nutrición.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const token = await getToken();
@@ -102,7 +140,8 @@ export default function NutritionConfigStep({
         {
           allergyIds: selectedAllergyIds,
           dietaryPreferenceIds: selectedDietIds,
-          subGoals: selectedSubGoalIds,
+          subGoalId: selectedSubGoalId,
+          activityLevel,
         },
         token
       );
@@ -115,10 +154,20 @@ export default function NutritionConfigStep({
     }
   };
 
-  const toggleSubGoal = (id: string) => {
-    setSelectedSubGoalIds((prev) =>
-      prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]
-    );
+  const handleContinueSubGoal = () => {
+    if (!selectedSubGoalId) {
+      alert('Por favor selecciona un sub objetivo de nutrición.');
+      return;
+    }
+    setSubStep(1);
+  };
+
+  const handleContinueActivity = () => {
+    if (!activityLevel) {
+      alert('Por favor selecciona tu nivel de actividad.');
+      return;
+    }
+    setSubStep(2);
   };
 
   if (isLoading) {
@@ -137,27 +186,39 @@ export default function NutritionConfigStep({
     return (
       <NutritionSubGoalStep
         subGoals={subGoals}
-        selectedSubGoalIds={selectedSubGoalIds}
-        onToggleSubGoal={toggleSubGoal}
-        onContinue={() => setSubStep(1)}
+        selectedSubGoalId={selectedSubGoalId}
+        onSelectSubGoal={setSelectedSubGoalId}
+        onContinue={handleContinueSubGoal}
       />
     );
   }
 
-  // ── SubStep 1: Alergias ──
+  // ── SubStep 1: Nivel de actividad ──
   if (subStep === 1) {
     return (
-      <NutritionAllergyStep
-        allergies={allergies}
-        selectedAllergyIds={selectedAllergyIds}
-        onAllergyChange={setSelectedAllergyIds}
-        onContinue={() => setSubStep(2)}
+      <NutritionActivityLevelStep
+        activityLevel={activityLevel}
+        onSelectActivityLevel={setActivityLevel}
+        onContinue={handleContinueActivity}
         onBack={() => setSubStep(0)}
       />
     );
   }
 
-  // ── SubStep 2: Estilo de dieta → POST ──
+  // ── SubStep 2: Alergias ──
+  if (subStep === 2) {
+    return (
+      <NutritionAllergyStep
+        allergies={allergies}
+        selectedAllergyIds={selectedAllergyIds}
+        onAllergyChange={setSelectedAllergyIds}
+        onContinue={() => setSubStep(3)}
+        onBack={() => setSubStep(1)}
+      />
+    );
+  }
+
+  // ── SubStep 3: Estilo de dieta → POST ──
   return (
     <NutritionDietStyleStep
       dietaryPreferences={dietaryPreferences}
@@ -165,7 +226,7 @@ export default function NutritionConfigStep({
       onDietChange={setSelectedDietIds}
       onSubmit={handleSubmit}
       isSubmitting={isSubmitting}
-      onBack={() => setSubStep(1)}
+      onBack={() => setSubStep(2)}
     />
   );
 }

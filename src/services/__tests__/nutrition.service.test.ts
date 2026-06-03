@@ -1,5 +1,5 @@
 import apiClient from '../../api/client';
-import { getFoodAllergies, getDietaryPreferences, submitNutritionProfile } from '../nutrition.service';
+import { getFoodAllergies, submitNutritionProfile } from '../nutrition.service';
 
 jest.mock('../../api/client', () => ({
   get: jest.fn(),
@@ -25,7 +25,8 @@ describe('nutrition.service', () => {
     const payload = {
       allergyIds: ['1'],
       dietaryPreferenceIds: ['2'],
-      subGoals: ['3'],
+      subGoalId: '3',
+      activityLevel: 'Moderate' as const,
     };
     (apiClient.post as jest.Mock).mockResolvedValue({ data: { success: true } });
 
