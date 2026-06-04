@@ -1,3 +1,4 @@
+import { ExerciseLoadType } from '../utils/format.utils';
 import { RepType } from './routine';
 
 export type SessionExercise = {
@@ -13,7 +14,9 @@ export type SessionExercise = {
   currentRep: string | null;
   durationSeconds: string | null;
   rest: string; // seconds as string
-  weight: string;
+  loadType: ExerciseLoadType | null;
+  plannedWeightKg: number | null;
+  primaryMuscleGroup: string | null;
 };
 
 export type SessionDay = {

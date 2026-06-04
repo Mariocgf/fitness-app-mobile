@@ -1,3 +1,5 @@
+import { ExerciseLoadType } from '../utils/format.utils';
+
 export interface CreateRoutineExercise {
   id: string;
   exerciseId: string;
@@ -8,7 +10,8 @@ export interface CreateRoutineExercise {
   reps: number;
   repMode: 'reps' | 'secs';
   restSeconds: number;
-  weightKg: number | null;
+  loadType: ExerciseLoadType;
+  plannedWeightKg: number | null;
 }
 
 export interface CreateRoutineDay {

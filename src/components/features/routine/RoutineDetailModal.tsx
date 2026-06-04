@@ -5,7 +5,7 @@ import { Image, Modal, Platform, ScrollView, Text, TouchableOpacity, View } from
 import { useRouter } from 'expo-router';
 import { cssInterop } from 'nativewind';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { formatReps } from '@/src/utils/format.utils';
+import { formatExerciseLoad, formatReps } from '@/src/utils/format.utils';
 import { ExerciseDetailView } from '@/src/components/features/routine/ExerciseDetailView';
 
 cssInterop(Ionicons, {
@@ -212,7 +212,7 @@ export const RoutineDetailModal: React.FC<RoutineDetailModalProps> = ({ visible,
                         </View>
                         <View className="flex-row items-center">
                           <MaterialCommunityIcons name="weight" size={12} className="text-zinc-900 dark:text-lime-300" />
-                          <Text className="text-zinc-500 dark:text-zinc-400 text-xs ml-1">{exercise.weight}</Text>
+                          <Text className="text-zinc-500 dark:text-zinc-400 text-xs ml-1">{formatExerciseLoad(exercise)}</Text>
                         </View>
                       </View>
                     </View>

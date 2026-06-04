@@ -6,7 +6,7 @@ import { translateDay } from '@/src/i18n';
 import { confirmSwapExercises, getSwapSuggestions } from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { HealthWarning, Routine, RoutineExercise, SwapSuggestionItem, WarningLevel } from '@/src/types/routine';
-import { formatReps } from '@/src/utils/format.utils';
+import { formatExerciseLoad, formatReps } from '@/src/utils/format.utils';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -837,7 +837,7 @@ const SwapAwareExerciseItem: React.FC<SwapAwareExerciseItemProps> = ({
               </View>
               <View className="flex-row items-center">
                 <MaterialCommunityIcons name="weight" size={12} className="text-zinc-900 dark:text-lime-300" />
-                <Text className="text-zinc-500 dark:text-zinc-400 text-xs ml-1">{exercise.weight}</Text>
+                <Text className="text-zinc-500 dark:text-zinc-400 text-xs ml-1">{formatExerciseLoad(exercise)}</Text>
               </View>
             </View>
           )}

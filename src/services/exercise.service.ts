@@ -1,6 +1,6 @@
 import apiClient from '../api/client';
 import { ExerciseInfo, ExerciseInstructions } from '../types/exercise';
-import { capitalize } from '../utils/format.utils';
+import { ExerciseLoadType, capitalize } from '../utils/format.utils';
 
 /**
  * Obtiene la información detallada de un ejercicio.
@@ -43,9 +43,10 @@ export const getExerciseInstructions = async (
 };
 
 export interface AdjustLoadResponse {
-  weight: string | null;
-  currentRep: string | null;
-  durationSeconds: string | null;
+  loadType: ExerciseLoadType | null;
+  plannedWeightKg: number | null;
+  currentRep: number | null;
+  durationSeconds: number | null;
 }
 
 /**

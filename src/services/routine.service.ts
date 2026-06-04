@@ -2,7 +2,7 @@ import { AxiosError } from 'axios';
 import apiClient from '../api/client';
 import { AdaptRoutineResponseDto, PagedRoutinesResponse, Routine, RoutinePreviewResponse, SwapPick, SwapSuggestionsResponse } from '../types/routine';
 import { SessionLog } from '../types/session';
-import { capitalize } from '../utils/format.utils';
+import { ExerciseLoadType, capitalize } from '../utils/format.utils';
 
 /** Payload de un ejercicio para crear rutina manualmente */
 export interface CreateRoutineExercisePayload {
@@ -13,7 +13,8 @@ export interface CreateRoutineExercisePayload {
   reps: number | null;
   durationSeconds: number | null;
   restSeconds: number;
-  weightKg: number | null;
+  loadType: ExerciseLoadType;
+  plannedWeightKg: number | null;
 }
 
 /** Payload de un día para crear rutina manualmente */

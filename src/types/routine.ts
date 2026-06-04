@@ -1,3 +1,5 @@
+import { ExerciseLoadType } from '../utils/format.utils';
+
 export type RepType = 'Fixed' | 'Range' | 'Timed';
 
 export interface RoutineExercise {
@@ -13,7 +15,9 @@ export interface RoutineExercise {
   currentRep: string | null;
   durationSeconds: string | null;
   rest: string;
-  weight: string;
+  loadType: ExerciseLoadType | null;
+  plannedWeightKg: number | null;
+  primaryMuscleGroup: string | null;
 }
 
 export interface RoutineDay {
@@ -117,7 +121,9 @@ export interface AdaptRoutineExercise {
   maxRep: number | null;
   durationSeconds: number | null;
   rest: number;
-  weight: string | null;
+  loadType: ExerciseLoadType | null;
+  plannedWeightKg: number | null;
+  primaryMuscleGroup: string | null;
 }
 
 export interface AdaptRoutineDay {

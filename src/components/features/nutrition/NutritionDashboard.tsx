@@ -68,7 +68,7 @@ export function NutritionDashboard({
     );
   }
 
-  if (profile?.requiresReconfiguration) {
+  if (profile?.selectedSubGoalId == null) {
     return (
       <View className="flex-1 px-4 pt-8">
         <Text className="text-slate-900 dark:text-slate-50 text-4xl font-bold mb-6">

@@ -257,7 +257,7 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
     [activeDayIndex],
   );
 
-  const updateExerciseWeight = useCallback(
+  const updateExercisePlannedWeight = useCallback(
     (exerciseId: string, value: number | null) => {
       setDays((prev) =>
         prev.map((day, idx) => {
@@ -265,7 +265,13 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
           return {
             ...day,
             exercises: day.exercises.map((ex) =>
-              ex.id === exerciseId ? { ...ex, weightKg: value } : ex,
+              ex.id === exerciseId
+                ? {
+                    ...ex,
+                    loadType: value === null ? 'BodyWeight' : 'ExternalWeight',
+                    plannedWeightKg: value,
+                  }
+                : ex,
             ),
           };
         }),
@@ -330,7 +336,8 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
         reps: 12,
         repMode: 'reps',
         restSeconds: 60,
-        weightKg: null,
+        loadType: 'BodyWeight',
+        plannedWeightKg: null,
       };
       setDays((prev) =>
         prev.map((day, idx) => {
@@ -407,7 +414,8 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
             reps: ex.repMode === 'reps' ? ex.reps : null,
             durationSeconds: ex.repMode === 'secs' ? ex.reps : null,
             restSeconds: ex.restSeconds,
-            weightKg: ex.weightKg,
+            loadType: ex.loadType,
+            plannedWeightKg: ex.loadType === 'ExternalWeight' ? ex.plannedWeightKg : null,
           })),
         })),
       };
@@ -577,7 +585,7 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
                   index={getIndex() ?? 0}
                   inventory={inventory}
                   onUpdateField={updateExerciseField}
-                  onUpdateWeight={updateExerciseWeight}
+                  onUpdateWeight={updateExercisePlannedWeight}
                   onRemove={removeExercise}
                   onReplace={(id) => setReplacingExerciseId(id)}
                   onToggleRepMode={toggleRepMode}
@@ -842,7 +850,7 @@ const ExerciseFormCard: React.FC<ExerciseFormCardProps> = ({
             onChange={(v) => onUpdateField(exercise.id, 'restSeconds', v)}
           />
           <WeightSelectField
-            value={exercise.weightKg}
+            value={exercise.plannedWeightKg}
             options={weightOptions}
             onChange={(v) => onUpdateWeight(exercise.id, v)}
           />

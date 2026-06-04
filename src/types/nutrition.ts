@@ -88,7 +88,6 @@ export interface NutritionProfileDto {
   targetProteinGrams: number;
   targetCarbsGrams: number;
   targetFatGrams: number;
-  requiresReconfiguration: boolean;
 }
 
 export interface NutritionTargetDto {

@@ -31,11 +31,11 @@ export const formatTime = (totalSeconds: number): string => {
  */
 export const formatReps = (exercise: {
   repType: string;
-  durationSeconds?: string | null;
-  currentRep?: string | null;
+  durationSeconds?: string | number | null;
+  currentRep?: string | number | null;
 }): string => {
   if (exercise.repType === 'Timed') {
-    const totalSecs = parseInt(exercise.durationSeconds || '0', 10);
+    const totalSecs = parseInt(String(exercise.durationSeconds || '0'), 10);
     if (totalSecs >= 60) {
       const m = Math.floor(totalSecs / 60);
       const s = totalSecs % 60;
@@ -43,7 +43,25 @@ export const formatReps = (exercise: {
     }
     return `${totalSecs}s`;
   }
-  return exercise.currentRep || '-';
+  return exercise.currentRep != null ? String(exercise.currentRep) : '-';
+};
+
+export type ExerciseLoadType = 'BodyWeight' | 'ExternalWeight';
+
+export const formatExerciseLoad = (exercise: {
+  loadType?: ExerciseLoadType | string | null;
+  plannedWeightKg?: number | string | null;
+}): string => {
+  if (exercise.loadType === 'ExternalWeight') {
+    const kg = Number(exercise.plannedWeightKg);
+    return Number.isFinite(kg) && kg > 0 ? `${kg}kg` : '-';
+  }
+
+  if (exercise.loadType === 'BodyWeight') {
+    return 'peso corporal';
+  }
+
+  return '-';
 };
 
 /**

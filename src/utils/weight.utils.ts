@@ -24,7 +24,7 @@ export const getWeightOptions = (
   inventory: WeightInventoryResponse | null
 ): WeightOption[] => {
   /** Opción base sin peso, siempre disponible */
-  const noWeightOption: WeightOption = { label: 'Sin peso', value: null };
+  const noWeightOption: WeightOption = { label: 'Peso corporal', value: null };
 
   if (!equipmentId || !inventory) {
     return [noWeightOption];

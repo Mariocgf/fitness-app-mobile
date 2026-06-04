@@ -1,5 +1,6 @@
 import { adaptRoutineWithAi, confirmRoutineAdaptation, rejectRoutineAdaptation } from '@/src/services/routine.service';
 import { AdaptRoutineDay, AdaptRoutineResponseDto, Routine } from '@/src/types/routine';
+import { formatExerciseLoad } from '@/src/utils/format.utils';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
@@ -359,10 +360,10 @@ const RenderDayPreview = ({ day }: { day: AdaptRoutineDay }) => {
                   {exercise.sets} sets × {formattedReps} | Descanso: {exercise.rest}s
                 </Text>
               </View>
-              {exercise.weight && (
+              {exercise.loadType && (
                 <View className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">
                   <Text className="text-slate-600 dark:text-slate-300 text-xs font-bold">
-                    {exercise.weight}
+                    {formatExerciseLoad(exercise)}
                   </Text>
                 </View>
               )}

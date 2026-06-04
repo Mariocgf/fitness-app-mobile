@@ -1,7 +1,7 @@
-import { formatReps } from '@/src/utils/format.utils';
+import { SessionExercise } from '@/src/types/session';
+import { formatExerciseLoad, formatReps } from '@/src/utils/format.utils';
 import React from 'react';
 import { Text, View } from 'react-native';
-import { SessionExercise } from '@/src/types/session';
 
 interface ExerciseStatsBarProps {
   currentSet: number;
@@ -30,7 +30,7 @@ export const ExerciseStatsBar: React.FC<ExerciseStatsBarProps> = ({
       </View>
       <View className="items-center flex-1">
         <Text className="text-slate-500 dark:text-slate-400 text-sm text-center">Peso</Text>
-        <Text className="text-lime-400 text-lg font-bold text-center">{currentExercise.weight}</Text>
+        <Text className="text-lime-400 text-lg font-bold text-center">{formatExerciseLoad(currentExercise)}</Text>
       </View>
       <View className="items-center flex-1">
         <Text className="text-slate-500 dark:text-slate-400 text-sm text-center">Descanso</Text>

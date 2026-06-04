@@ -132,7 +132,8 @@ export default function HomeScreen() {
             : parseInt(ex.currentRep ?? '12', 10),
           repMode: ex.repType === 'Timed' ? 'secs' : 'reps',
           restSeconds: parseInt(ex.rest, 10) || 60,
-          weightKg: ex.weight && ex.weight !== '0' ? parseFloat(ex.weight) : null,
+          loadType: ex.loadType ?? 'BodyWeight',
+          plannedWeightKg: ex.loadType === 'ExternalWeight' ? ex.plannedWeightKg : null,
         })),
       })),
     };

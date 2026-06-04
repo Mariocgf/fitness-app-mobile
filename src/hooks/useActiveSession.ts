@@ -269,7 +269,9 @@ export function useActiveSession({
 
   const recordCurrentSet = useCallback((isCompleted: boolean, reps: number): SessionSet[] => {
     const exerciseKey = currentExercise.id;
-    const weight = parseFloat(currentExercise.weight) || 0;
+    const weight = currentExercise.loadType === 'ExternalWeight'
+      ? Number(currentExercise.plannedWeightKg) || 0
+      : 0;
 
     const repsPerformed = isTimeBased ? 0 : reps;
 
@@ -300,7 +302,8 @@ export function useActiveSession({
     return updatedSets;
   }, [
     currentExercise?.id,
-    currentExercise?.weight,
+    currentExercise?.loadType,
+    currentExercise?.plannedWeightKg,
     currentSet,
     isTimeBased,
     timeBasedDuration,
@@ -422,15 +425,18 @@ export function useActiveSession({
       const token = await getToken();
       const adjustment = await adjustExerciseLoad(currentExercise.id, day.id, rpe, token);
 
-      if (!adjustment.weight && !adjustment.currentRep && !adjustment.durationSeconds) {
+      if (!adjustment.loadType && adjustment.plannedWeightKg == null && !adjustment.currentRep && !adjustment.durationSeconds) {
         Alert.alert('Aviso', 'No se pudo ajustar la carga para este ejercicio.');
       } else {
         setExercises((prev) => {
           const newEx = [...prev];
           const curr = { ...newEx[exerciseIndex] };
-          if (adjustment.weight !== null) curr.weight = adjustment.weight;
-          if (adjustment.currentRep !== null) curr.currentRep = adjustment.currentRep;
-          if (adjustment.durationSeconds !== null) curr.durationSeconds = adjustment.durationSeconds;
+          if (adjustment.loadType !== null) {
+            curr.loadType = adjustment.loadType;
+            curr.plannedWeightKg = adjustment.plannedWeightKg;
+          }
+          if (adjustment.currentRep !== null) curr.currentRep = String(adjustment.currentRep);
+          if (adjustment.durationSeconds !== null) curr.durationSeconds = String(adjustment.durationSeconds);
           newEx[exerciseIndex] = curr;
           return newEx;
         });
