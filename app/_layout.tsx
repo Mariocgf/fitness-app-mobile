@@ -14,6 +14,7 @@ import './global.css';
 
 import { FullPageLoader } from '@/src/components/common/FullPageLoader';
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
+import { getOnboardingStatus, syncAuthenticatedUser } from '@/src/services/onboarding.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -32,11 +33,35 @@ const hideSplash = async () => {
   if (isSplashScreenHidden) return;
   try {
     await SplashScreen.hideAsync();
-  } catch (error) {
+  } catch {
     // ignore
   } finally {
     isSplashScreenHidden = true;
   }
+};
+
+const normalizeOnboardingStatus = (value: unknown) => {
+  return typeof value === 'string' ? value.toUpperCase().trim() : '';
+};
+
+const getStatusFromResponse = (responseData: unknown) => {
+  if (typeof responseData === 'string') {
+    return normalizeOnboardingStatus(responseData);
+  }
+
+  if (!responseData || typeof responseData !== 'object') {
+    return '';
+  }
+
+  const data = responseData as {
+    status?: unknown;
+    onboardingStatus?: unknown;
+    onboarding_status?: unknown;
+  };
+
+  return normalizeOnboardingStatus(
+    data.status ?? data.onboardingStatus ?? data.onboarding_status
+  );
 };
 
 const tokenCache = {
@@ -53,7 +78,7 @@ const tokenCache = {
   async saveToken(key: string, value: string) {
     try {
       return SecureStore.setItemAsync(key, value);
-    } catch (err) {
+    } catch {
       return;
     }
   },
@@ -64,16 +89,23 @@ export const unstable_settings = {
 };
 
 function RootNavigator() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
   const { user } = useUser();
   const segments = useSegments();
   const router = useRouter();
   const [completedLocally, setCompletedLocally] = useState<boolean | null>(null);
+  const [backendOnboardingStatus, setBackendOnboardingStatus] = useState<string | null>(null);
+  const [isResolvingBackendStatus, setIsResolvingBackendStatus] = useState(false);
+
+  const clerkOnboardingStatus = normalizeOnboardingStatus(user?.publicMetadata?.onboarding_status);
+  const resolvedOnboardingStatus = clerkOnboardingStatus || backendOnboardingStatus || '';
 
   // Leer el flag local de onboarding completado cuando cambia el usuario (para detectar sign in/out)
   useEffect(() => {
     if (!isSignedIn) {
       setCompletedLocally(false);
+      setBackendOnboardingStatus(null);
+      setIsResolvingBackendStatus(false);
       AsyncStorage.multiRemove([
         '@onboarding_completed',
         '@onboarding_draft',
@@ -89,7 +121,65 @@ function RootNavigator() {
     AsyncStorage.getItem('@onboarding_completed')
       .then((val) => setCompletedLocally(val === 'true'))
       .catch(() => setCompletedLocally(false));
-  }, [isSignedIn, user?.publicMetadata?.onboarding_status]);
+  }, [isSignedIn, user?.id]);
+
+  // Clerk metadata es solo cache. Si no está, resolvemos el estado real contra el backend.
+  useEffect(() => {
+    let isMounted = true;
+
+    const resolveOnboardingStatus = async () => {
+      if (!isLoaded || !isSignedIn || !user) {
+        if (isMounted) {
+          setBackendOnboardingStatus(null);
+          setIsResolvingBackendStatus(false);
+        }
+        return;
+      }
+
+      if (clerkOnboardingStatus) {
+        if (isMounted) {
+          setBackendOnboardingStatus(null);
+          setIsResolvingBackendStatus(false);
+        }
+        return;
+      }
+
+      if (isMounted) {
+        setIsResolvingBackendStatus(true);
+      }
+
+      try {
+        const token = await getToken();
+        await syncAuthenticatedUser(token);
+        const responseData = await getOnboardingStatus(token);
+        const status = getStatusFromResponse(responseData);
+
+        if (isMounted) {
+          setBackendOnboardingStatus(status || null);
+        }
+
+        // Metadata de Clerk queda como cache; no bloquea navegación si tarda en refrescar.
+        if (status) {
+          await user.reload().catch(() => {});
+        }
+      } catch (error) {
+        console.error('Error resolviendo onboarding contra backend:', error);
+        if (isMounted) {
+          setBackendOnboardingStatus(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsResolvingBackendStatus(false);
+        }
+      }
+    };
+
+    resolveOnboardingStatus();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isLoaded, isSignedIn, user, clerkOnboardingStatus, getToken]);
 
   useEffect(() => {
     // 1. Si Clerk no ha terminado de cargar o el flag local aún no se leyó, no hacemos nada
@@ -99,23 +189,10 @@ function RootNavigator() {
     const inLoginScreen = segments[0] === 'login';
     const inOnboardingScreen = segments[0] === 'onboarding';
 
-    // Manejo de race-condition: Si la metadata aún no llega del webhook del backend, esperamos.
-    const isMetadataReady = user ? user.publicMetadata?.onboarding_status !== undefined : false;
-
-    if (isSignedIn && !isMetadataReady) {
-      // Mientras Clerk no tenga metadata, no tomar decisiones de navegación
-      setTimeout(() => {
-        hideSplash();
-      }, 100);
-      return;
-    }
-
     if (!isSignedIn && !inLoginScreen) {
       // 3. Si NO está logueado y NO está en la pantalla de login, lo obligamos a ir a /login
       router.replace('/login');
     } else if (isSignedIn) {
-      const onboardingStatus = user?.publicMetadata?.onboarding_status as string;
-      
       // Chequeo asíncrono para asegurarnos de que no estamos interfiriendo con un guardado local recién hecho
       AsyncStorage.getItem('@onboarding_completed').then((localVal) => {
         const currentCompletedLocally = localVal === 'true';
@@ -123,7 +200,11 @@ function RootNavigator() {
           setCompletedLocally(currentCompletedLocally);
         }
 
-        const isCompleted = onboardingStatus === 'COMPLETED' || currentCompletedLocally;
+        const isCompleted = resolvedOnboardingStatus === 'COMPLETED' || currentCompletedLocally;
+
+        if (!resolvedOnboardingStatus && !currentCompletedLocally && isResolvingBackendStatus) {
+          return;
+        }
 
         if (!isCompleted && !inOnboardingScreen) {
           // El timeout asegura que si Stack recién se monta, ya está listo para enrutar
@@ -138,25 +219,22 @@ function RootNavigator() {
     setTimeout(() => {
       hideSplash();
     }, 50);
-  }, [isSignedIn, isLoaded, segments, user?.publicMetadata?.onboarding_status, completedLocally]);
+  }, [isSignedIn, isLoaded, segments, resolvedOnboardingStatus, completedLocally, isResolvingBackendStatus, router]);
 
-  // Efecto secundario para recargar al usuario si es nuevo y esperamos el webhook
+  // Efecto secundario para refrescar Clerk metadata si está atrasada. No bloquea navegación.
   useEffect(() => {
     let isMounted = true;
 
     const pollForMetadata = async () => {
-      if (!user || !isSignedIn) return;
+      if (!user || !isSignedIn || clerkOnboardingStatus) return;
 
-      // Haremos polling solo si no tenemos el estado definido
-      if (user.publicMetadata?.onboarding_status === undefined) {
-        for (let i = 0; i < 5; i++) {
-          if (!isMounted) break;
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          await user.reload();
+      for (let i = 0; i < 3; i++) {
+        if (!isMounted) break;
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await user.reload();
 
-          if (user.publicMetadata?.onboarding_status !== undefined) {
-            break;
-          }
+        if (user.publicMetadata?.onboarding_status !== undefined) {
+          break;
         }
       }
     };
@@ -166,24 +244,15 @@ function RootNavigator() {
     return () => {
       isMounted = false;
     };
-  }, [user?.id, isSignedIn]); 
+  }, [user, isSignedIn, clerkOnboardingStatus]);
 
-  const isMetadataReady = user ? user.publicMetadata?.onboarding_status !== undefined : false;
-  const isWaitingForMetadata = isSignedIn && !isMetadataReady;
+  const isCompleted = resolvedOnboardingStatus === 'COMPLETED' || completedLocally;
+  const isWaitingForBackendStatus = isSignedIn && !resolvedOnboardingStatus && !isCompleted && isResolvingBackendStatus;
 
-  // Si la metadata dice que necesita onboarding pero los segmentos de la URL aún no se actualizan,
-  // mantenemos el loader para evitar el parpadeo de la pantalla Home.
-  const onboardingStatus = user?.publicMetadata?.onboarding_status as string;
-  const isCompleted = onboardingStatus === 'COMPLETED' || completedLocally;
-    
-  const isRoutingToOnboarding = isSignedIn && isMetadataReady && !isCompleted && segments[0] !== 'onboarding';
-
-  // Si estamos enrutando a onboarding, NO retornamos el loader, porque el Router necesita 
-  // que el <Stack> esté montado para poder ejecutar router.replace() sin tirar error.
-  if (!isLoaded || completedLocally === null || isWaitingForMetadata) {
+  if (!isLoaded || completedLocally === null || isWaitingForBackendStatus) {
     return (
       <FullPageLoader
-        message={isWaitingForMetadata ? "Sincronizando tu perfil..." : "Preparando tu espacio..."}
+        message={isWaitingForBackendStatus ? "Sincronizando tu perfil..." : "Preparando tu espacio..."}
       />
     );
   }
@@ -241,3 +310,7 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+
+
+

@@ -1,5 +1,23 @@
 import apiClient from '../api/client';
 import { BasicInfoPayload, Module, OnboardingStatusResponse } from '../types/user';
+/**
+ * Sincroniza el usuario autenticado contra Clerk/backend antes de consultar estado de onboarding.
+ * Evita depender exclusivamente del webhook, que puede llegar tarde.
+ */
+export const syncAuthenticatedUser = async (
+  token: string | null
+) => {
+  const { data } = await apiClient.post(
+    '/api/Auth/sync',
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  return data;
+};
 
 /**
  * Envía los datos básicos del usuario (onboarding) al backend.
@@ -99,3 +117,4 @@ export const acceptTerms = async (
   );
   return status === 204;
 };
+
