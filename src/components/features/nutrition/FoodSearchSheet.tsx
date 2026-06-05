@@ -1,8 +1,10 @@
 import { BottomSheetModal } from '@/src/components/common/BottomSheetModal';
+import { useFoodBarcodeScanner } from '@/src/hooks/useFoodBarcodeScanner';
 import { useFoodSearch } from '@/src/hooks/useFoodSearch';
 import { FoodCatalogItemDto } from '@/src/types/nutrition';
 import { formatMacro } from '@/src/utils/nutrition.utils';
 import { Ionicons } from '@expo/vector-icons';
+import { BarcodeScanningResult, BarcodeType, CameraView, useCameraPermissions } from 'expo-camera';
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -19,6 +21,22 @@ interface FoodSearchSheetProps {
   onClose: () => void;
   onAdd: (food: FoodCatalogItemDto, gramsConsumed: number) => Promise<boolean>;
 }
+
+const FOOD_BARCODE_TYPES: BarcodeType[] = [
+  'ean13',
+  'ean8',
+  'upc_a',
+  'upc_e',
+  'code39',
+  'code93',
+  'code128',
+  'itf14',
+  'codabar',
+  'pdf417',
+  'datamatrix',
+  'aztec',
+  'qr',
+];
 
 function MacroChip({ label, value }: { label: string; value: number | null }) {
   return (
@@ -61,8 +79,16 @@ export function FoodSearchSheet({
     loadMore,
     reset,
   } = useFoodSearch();
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const {
+    isLookingUp,
+    error: scannerError,
+    scanBarcode,
+    resetScanner,
+  } = useFoodBarcodeScanner();
   const [selectedFood, setSelectedFood] = useState<FoodCatalogItemDto | null>(null);
   const [gramsText, setGramsText] = useState('100');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const gramsConsumed = useMemo(() => {
     const parsed = Number(gramsText.replace(',', '.'));
@@ -71,7 +97,9 @@ export function FoodSearchSheet({
 
   const handleClose = () => {
     setSelectedFood(null);
+    setIsScannerOpen(false);
     setGramsText('100');
+    resetScanner();
     reset();
     onClose();
   };
@@ -80,6 +108,28 @@ export function FoodSearchSheet({
     if (!selectedFood) return;
     const added = await onAdd(selectedFood, gramsConsumed);
     if (added) handleClose();
+  };
+
+  const handleOpenScanner = async () => {
+    resetScanner();
+    setIsScannerOpen(true);
+    if (!cameraPermission?.granted) {
+      await requestCameraPermission();
+    }
+  };
+
+  const handleBarcodeScanned = async ({ data }: BarcodeScanningResult) => {
+    const food = await scanBarcode(data);
+    if (!food) return;
+
+    setGramsText('100');
+    setSelectedFood(food);
+    setIsScannerOpen(false);
+  };
+
+  const handleCloseScanner = () => {
+    resetScanner();
+    setIsScannerOpen(false);
   };
 
   return (
@@ -103,14 +153,8 @@ export function FoodSearchSheet({
           )}
 
           <View className="bg-slate-100 dark:bg-slate-800 rounded-2xl p-4">
-            <View className="flex-row items-center">
-              <TextInput
-                value={gramsText}
-                onChangeText={setGramsText}
-                keyboardType="numeric"
-                className="flex-1 text-slate-900 dark:text-slate-50 text-base"
-              />
-              <Text className="text-slate-900 dark:text-slate-50 text-base mr-3">g</Text>
+            <View className="flex-row items-center justify-between">
+              <Text className="text-slate-900 dark:text-slate-50 text-base font-medium mr-3">{gramsText} g</Text>
               <View className="bg-black rounded-full px-4 py-2">
                 <Text className="text-white font-bold">
                   {Math.round((selectedFood.energyKcal100g * gramsConsumed) / 100)} kcal
@@ -144,6 +188,72 @@ export function FoodSearchSheet({
             </TouchableOpacity>
           </View>
         </View>
+      ) : isScannerOpen ? (
+        <View className="flex-1 px-6 pt-6">
+          <View className="flex-row items-center mb-6">
+            <TouchableOpacity
+              onPress={handleCloseScanner}
+              className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 items-center justify-center mr-3"
+            >
+              <Ionicons name="chevron-back" size={24} color="#0f172a" />
+            </TouchableOpacity>
+            <Text className="text-slate-900 dark:text-slate-50 text-3xl font-bold flex-1">
+              Escanear alimento
+            </Text>
+          </View>
+
+          {cameraPermission?.granted ? (
+            <View className="h-96 bg-slate-100 dark:bg-slate-800 rounded-3xl overflow-hidden">
+              <CameraView
+                facing="back"
+                barcodeScannerSettings={{ barcodeTypes: FOOD_BARCODE_TYPES }}
+                onBarcodeScanned={isLookingUp ? undefined : handleBarcodeScanned}
+                style={{ flex: 1 }}
+              >
+                <View className="flex-1 items-center justify-center">
+                  <View className="w-64 h-32 border-4 border-amber-400 rounded-3xl" />
+                </View>
+              </CameraView>
+            </View>
+          ) : (
+            <View className="bg-slate-100 dark:bg-slate-800 rounded-3xl p-6 items-center">
+              <Ionicons name="camera-outline" size={48} color="#0f172a" />
+              <Text className="text-slate-900 dark:text-slate-50 text-xl font-bold text-center mt-4">
+                Necesitamos permiso de cámara
+              </Text>
+              <Text className="text-slate-500 dark:text-slate-400 text-center mt-2">
+                Sin cámara no podemos escanear el código de barras del alimento.
+              </Text>
+              <TouchableOpacity
+                onPress={requestCameraPermission}
+                className="bg-slate-950 dark:bg-slate-50 rounded-full px-6 py-4 mt-5"
+              >
+                <Text className="text-white dark:text-slate-950 font-semibold">
+                  Dar permiso
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <View className="bg-slate-100 dark:bg-slate-800 rounded-2xl p-4 mt-4">
+            {isLookingUp ? (
+              <View className="flex-row items-center">
+                <ActivityIndicator color="#fbbf24" />
+                <Text className="text-slate-900 dark:text-slate-50 ml-3">
+                  Buscando alimento...
+                </Text>
+              </View>
+            ) : (
+              <Text className="text-slate-500 dark:text-slate-400 text-center">
+                Enfocá el código de barras dentro del recuadro.
+              </Text>
+            )}
+          </View>
+
+          {scannerError && (
+            <Text className="text-red-500 text-sm mt-3">{scannerError}</Text>
+          )}
+        </View>
       ) : (
         <View className="flex-1 px-6 pt-6">
           <Text className="text-slate-900 dark:text-slate-50 text-4xl font-bold mb-6">
@@ -161,9 +271,12 @@ export function FoodSearchSheet({
                 returnKeyType="search"
               />
             </View>
-            <View className="w-12 h-12 items-center justify-center ml-3 opacity-40">
+            <TouchableOpacity
+              onPress={handleOpenScanner}
+              className="w-12 h-12 items-center justify-center ml-3 bg-slate-200 dark:bg-slate-800 rounded-2xl"
+            >
               <Ionicons name="scan-outline" size={30} color="#0f172a" />
-            </View>
+            </TouchableOpacity>
           </View>
 
           {error && (

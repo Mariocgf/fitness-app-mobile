@@ -41,7 +41,13 @@
         }
       ],
       "expo-secure-store",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permitir a frontend usar la cámara para escanear códigos de barras de alimentos."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

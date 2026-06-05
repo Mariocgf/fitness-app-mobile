@@ -191,6 +191,10 @@ export const getFoodByBarcode = async (
       headers: { Authorization: `Bearer ${token}` },
     },
   );
+  console.log('Service');
+  
+  console.log(data);
+  
   return unwrapApiData(data);
 };
 
