@@ -65,6 +65,15 @@ export default function FitnessScreen() {
   const routineRef = useRef(routine);
   routineRef.current = routine;
 
+  /* ── Hook para preview de rutinas ────────────────────────────────────── */
+  const [previewToken, setPreviewToken] = useState<string | null>(null);
+  const { aiRoutines, manualRoutines, isLoading: isLoadingPreview, refresh: refreshPreview } = useRoutinePreview(previewToken);
+
+  // Actualizar token cuando cambia
+  useEffect(() => {
+    getToken().then((t) => { setPreviewToken(t); });
+  }, [getToken]);
+
   /* ── Refs para callbacks estables ─────────────────────────────────────── */
   const setShowRef = useRef(setShowCreateRoutine);
   const setDetailVisibleRef = useRef(setDetailVisible);
@@ -171,14 +180,32 @@ export default function FitnessScreen() {
   }, [getToken]);
 
   const handleRoutineUpdated = useCallback(async (updated: Routine) => {
-    setRoutine(updated);
-    setActiveRoutine(updated);
+    const updateIfSameRoutine = (current: Routine | null) => (
+      current?.id === updated.id ? updated : current
+    );
+
+    const isActiveRoutineUpdate =
+      updated.isActive || routineRef.current?.id === updated.id || activeRoutineRef.current?.id === updated.id;
+
+    detailRoutineRef.current = updateIfSameRoutine(detailRoutineRef.current);
+    setCreatedRoutine(updateIfSameRoutine);
+    setSelectedFullRoutine(updateIfSameRoutine);
+
+    if (isActiveRoutineUpdate) {
+      setRoutine(updated);
+      setActiveRoutine(updated);
+    }
+
+    refreshPreview();
+
+    if (!isActiveRoutineUpdate) return;
+
     try {
       await AsyncStorage.setItem('@user_routine', JSON.stringify(updated));
     } catch (error) {
       console.error('No se pudo cachear la rutina actualizada:', error);
     }
-  }, [setActiveRoutine]);
+  }, [refreshPreview, setActiveRoutine]);
 
   const handleOpenCreate = useCallback(() => {
     const open = (layout: CardLayout) => {
@@ -269,15 +296,6 @@ export default function FitnessScreen() {
   }, [setDetailVisible]);
 
   const { draft, saveDraft, clearDraft } = useRoutineDraft();
-
-  /* ── Hook para preview de rutinas ────────────────────────────────────── */
-  const [previewToken, setPreviewToken] = useState<string | null>(null);
-  const { aiRoutines, manualRoutines, isLoading: isLoadingPreview, refresh: refreshPreview } = useRoutinePreview(previewToken);
-
-  // Actualizar token cuando cambia
-  useEffect(() => {
-    getToken().then((t) => { setPreviewToken(t); });
-  }, [getToken]);
 
   /* ── Hook para preview del historial de entrenamiento ─────────────────── */
   const { sessions: historyPreview, isLoading: isLoadingHistory } = useTrainingHistoryPreview(previewToken);
