@@ -31,6 +31,15 @@ export const WORKOUT_LOCATION_OPTIONS = [
 
 // ── Tipos del backend ──
 
+export type FitnessDay =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
 export interface Equipment {
   id: string;
   name: string;
@@ -46,6 +55,26 @@ export interface SubGoal {
   id: string;
   name: string;
   description: string;
+}
+
+export interface FitnessTrainingPreferences {
+  sessionDurationPreference: number;
+  preferredWorkoutDays: FitnessDay[];
+}
+
+export interface UpdateFitnessTrainingPreferencesRequest {
+  sessionDurationPreference: number;
+  preferredWorkoutDays: FitnessDay[];
+}
+
+export interface FitnessSubGoal {
+  subGoalId: string;
+  name: string;
+  description: string;
+}
+
+export interface UpdateFitnessSubGoalRequest {
+  subGoalId: string;
 }
 
 // ── Payload del POST ──

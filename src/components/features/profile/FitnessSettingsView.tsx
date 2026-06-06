@@ -1,4 +1,6 @@
 import EquipmentConfig from '@/src/components/features/profile/EquipmentConfig';
+import FitnessSubGoalConfig from '@/src/components/features/profile/FitnessSubGoalConfig';
+import FitnessTrainingPreferencesConfig from '@/src/components/features/profile/FitnessTrainingPreferencesConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { cssInterop } from 'nativewind';
 import React, { useState } from 'react';
@@ -9,7 +11,7 @@ cssInterop(Ionicons, {
   className: { target: 'style', nativeStyleToProp: { color: true } },
 });
 
-type FitnessSubView = null | 'equipment';
+type FitnessSubView = null | 'equipment' | 'trainingPreferences' | 'subGoal';
 
 interface FitnessSettingsViewProps {
   onBack?: () => void;
@@ -67,6 +69,28 @@ export const FitnessSettingsView: React.FC<FitnessSettingsViewProps> = ({ onBack
     );
   }
 
+  if (activeSubView === 'trainingPreferences') {
+    return (
+      <FitnessTrainingPreferencesConfig
+        onBack={handleSubBack}
+        onRegisterBackHandler={(fn) => {
+          onSubBackChange?.(fn ? () => fn() : null);
+        }}
+      />
+    );
+  }
+
+  if (activeSubView === 'subGoal') {
+    return (
+      <FitnessSubGoalConfig
+        onBack={handleSubBack}
+        onRegisterBackHandler={(fn) => {
+          onSubBackChange?.(fn ? () => fn() : null);
+        }}
+      />
+    );
+  }
+
   return (
     <View className="flex-1">
       <ScrollView
@@ -74,7 +98,8 @@ export const FitnessSettingsView: React.FC<FitnessSettingsViewProps> = ({ onBack
         contentContainerStyle={{ paddingTop: 20, paddingHorizontal: 16, paddingBottom: insets.bottom + 20, gap: 10 }}
       >
         <SubMenuItem icon="barbell-outline" label="Equipamiento" onPress={() => goToSubView('equipment')} />
-        <SubMenuItem icon="ribbon-outline" label="Sub objetivo" onPress={() => {}} />
+        <SubMenuItem icon="calendar-outline" label="Días y duración" onPress={() => goToSubView('trainingPreferences')} />
+        <SubMenuItem icon="ribbon-outline" label="Sub objetivo" onPress={() => goToSubView('subGoal')} />
         <SubMenuItem icon="star-outline" label="Ejercicios favoritos" onPress={() => {}} />
         <SubMenuItem icon="star-half-outline" label="Ejercicios no deseados" onPress={() => {}} />
       </ScrollView>
