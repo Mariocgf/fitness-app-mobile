@@ -1,21 +1,21 @@
-import { useColorScheme } from '@/src/hooks/use-color-scheme';
-import { useNutritionRegisterContext } from '@/src/store/nutrition-register-context';
-import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
-import { Ionicons } from '@expo/vector-icons';
-import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { useSegments } from 'expo-router';
-import * as Haptics from 'expo-haptics';
-import { useCallback, useState } from 'react';
-import { Alert, Modal, Platform, Pressable, Text, View } from 'react-native';
+import { useColorScheme } from "@/src/hooks/use-color-scheme";
+import { useNutritionRegisterContext } from "@/src/store/nutrition-register-context";
+import { useRoutineDetailContext } from "@/src/store/routine-detail-context";
+import { Ionicons } from "@expo/vector-icons";
+import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { useSegments } from "expo-router";
+import * as Haptics from "expo-haptics";
+import { useCallback, useState } from "react";
+import { Alert, Modal, Platform, Pressable, Text, View } from "react-native";
 import Animated, {
-    Easing,
-    interpolate,
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring,
-    withTiming,
-} from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -35,60 +35,97 @@ interface MenuOption {
 
 /** Iconos por tab (outline = inactivo, filled = activo) */
 const TAB_ICONS: Record<string, { outline: string; filled: string }> = {
-  index:              { outline: 'home-outline',      filled: 'home' },
-  fitness:            { outline: 'barbell-outline',   filled: 'barbell' },
-  'fitness/index':    { outline: 'barbell-outline',   filled: 'barbell' },
-  'fitness/routines': { outline: 'barbell-outline',   filled: 'barbell' },
-  nutrition:          { outline: 'nutrition-outline', filled: 'nutrition' },
-  health:             { outline: 'heart-outline',     filled: 'heart' },
+  index: { outline: "home-outline", filled: "home" },
+  fitness: { outline: "barbell-outline", filled: "barbell" },
+  "fitness/index": { outline: "barbell-outline", filled: "barbell" },
+  "fitness/routines": { outline: "barbell-outline", filled: "barbell" },
+  nutrition: { outline: "nutrition-outline", filled: "nutrition" },
+  health: { outline: "heart-outline", filled: "heart" },
 };
 
 /** Labels legibles para las rutas del tab bar */
 const ROUTE_LABELS: Record<string, string> = {
-  index:              'Home',
-  fitness:            'Fitness',
-  'fitness/index':    'Fitness',
-  'fitness/routines': 'Fitness',
-  nutrition:          'Nutrición',
-  health:             'Salud',
+  index: "Home",
+  fitness: "Fitness",
+  "fitness/index": "Fitness",
+  "fitness/routines": "Fitness",
+  nutrition: "Nutrición",
+  health: "Salud",
 };
 
 /** Opciones del menú contextual del botón central según la vista activa */
 const FAB_MENU_OPTIONS: Record<string, MenuOption[]> = {
   index: [
-    { icon: 'sparkles',          label: 'Generar rutina',     key: 'generate-routine' },
-    { icon: 'add-circle-outline', label: 'Agregar actividad', key: 'add-activity' },
+    { icon: "sparkles", label: "Generar rutina", key: "generate-routine" },
+    {
+      icon: "add-circle-outline",
+      label: "Agregar actividad",
+      key: "add-activity",
+    },
   ],
   fitness: [
-    { icon: 'create-outline',     label: 'Crear rutina',     key: 'create-routine' },
-    { icon: 'add-circle-outline', label: 'Nuevo ejercicio',  key: 'new-exercise' },
-    { icon: 'sparkles',           label: 'Generar rutina',   key: 'generate-routine' },
+    { icon: "create-outline", label: "Crear rutina", key: "create-routine" },
+    {
+      icon: "add-circle-outline",
+      label: "Nuevo ejercicio",
+      key: "new-exercise",
+    },
+    { icon: "sparkles", label: "Generar rutina", key: "generate-routine" },
   ],
-  'fitness/index': [
-    { icon: 'create-outline',     label: 'Crear rutina',     key: 'create-routine' },
-    { icon: 'add-circle-outline', label: 'Nuevo ejercicio',  key: 'new-exercise' },
-    { icon: 'sparkles',           label: 'Generar rutina',   key: 'generate-routine' },
+  "fitness/index": [
+    { icon: "create-outline", label: "Crear rutina", key: "create-routine" },
+    {
+      icon: "add-circle-outline",
+      label: "Nuevo ejercicio",
+      key: "new-exercise",
+    },
+    { icon: "sparkles", label: "Generar rutina", key: "generate-routine" },
   ],
-  'fitness/routines': [
-    { icon: 'create-outline',     label: 'Crear rutina',     key: 'create-routine' },
-    { icon: 'add-circle-outline', label: 'Nuevo ejercicio',  key: 'new-exercise' },
-    { icon: 'sparkles',           label: 'Generar rutina',   key: 'generate-routine' },
+  "fitness/routines": [
+    { icon: "create-outline", label: "Crear rutina", key: "create-routine" },
+    {
+      icon: "add-circle-outline",
+      label: "Nuevo ejercicio",
+      key: "new-exercise",
+    },
+    { icon: "sparkles", label: "Generar rutina", key: "generate-routine" },
   ],
   nutrition: [
-    { icon: 'restaurant-outline', label: 'Registrar alimentos', key: 'log-food' },
-    { icon: 'scan-outline',       label: 'Escanear comida',     key: 'scan-food', disabled: true },
-    { icon: 'sparkles',           label: 'Generar dieta',       key: 'generate-diet', disabled: true },
+    {
+      icon: "restaurant-outline",
+      label: "Registrar alimentos",
+      key: "log-food",
+    },
+    {
+      icon: "scan-outline",
+      label: "Escanear comida",
+      key: "scan-food",
+      disabled: true,
+    },
+    {
+      icon: "sparkles",
+      label: "Generar dieta",
+      key: "generate-diet",
+      disabled: true,
+    },
   ],
   health: [
-    { icon: 'pulse-outline',    label: 'Nueva métrica',    key: 'new-metric' },
-    { icon: 'calendar-outline', label: 'Agendar consulta', key: 'schedule-appointment' },
+    { icon: "pulse-outline", label: "Nueva métrica", key: "new-metric" },
   ],
 };
 
 /** Spring sin overshoot para apertura del menú */
-const OPEN_SPRING  = { damping: 22, stiffness: 280, overshootClamping: true } as const;
+const OPEN_SPRING = {
+  damping: 22,
+  stiffness: 280,
+  overshootClamping: true,
+} as const;
 /** Spring suave para feedback del botón */
-const PRESS_SPRING = { damping: 18, stiffness: 300, overshootClamping: true } as const;
+const PRESS_SPRING = {
+  damping: 18,
+  stiffness: 300,
+  overshootClamping: true,
+} as const;
 
 // ─── Sub-componentes ─────────────────────────────────────────────────────────
 
@@ -106,10 +143,17 @@ function TabItem({
   isDark: boolean;
   onPress: () => void;
 }) {
-  const icons = TAB_ICONS[route.name] ?? { outline: 'ellipse-outline', filled: 'ellipse' };
+  const icons = TAB_ICONS[route.name] ?? {
+    outline: "ellipse-outline",
+    filled: "ellipse",
+  };
   const iconColor = isFocused
-    ? (isDark ? '#ffffff' : '#18181b')
-    : (isDark ? '#71717a' : '#a1a1aa');
+    ? isDark
+      ? "#ffffff"
+      : "#18181b"
+    : isDark
+      ? "#71717a"
+      : "#a1a1aa";
 
   return (
     <Pressable
@@ -124,8 +168,12 @@ function TabItem({
       <Text
         className={`text-[10px] mt-1 font-semibold ${
           isFocused
-            ? (isDark ? 'text-white' : 'text-zinc-900')
-            : (isDark ? 'text-zinc-500' : 'text-zinc-400')
+            ? isDark
+              ? "text-white"
+              : "text-zinc-900"
+            : isDark
+              ? "text-zinc-500"
+              : "text-zinc-400"
         }`}
       >
         {label}
@@ -153,7 +201,7 @@ function FabMenuItem({
   onPressOut: () => void;
 }) {
   const isDisabled = option.disabled === true;
-  const dimColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
+  const dimColor = isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)";
   return (
     <Pressable
       onPress={isDisabled ? undefined : onPress}
@@ -161,16 +209,21 @@ function FabMenuItem({
       onPressOut={isDisabled ? undefined : onPressOut}
       className="flex-row items-center px-5 py-4"
       style={{
-        backgroundColor: isPressed && !isDisabled
-          ? (isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.055)')
-          : 'transparent',
+        backgroundColor:
+          isPressed && !isDisabled
+            ? isDark
+              ? "rgba(255,255,255,0.09)"
+              : "rgba(0,0,0,0.055)"
+            : "transparent",
         opacity: isDisabled ? 0.45 : 1,
       }}
     >
       {/* Fondo del icono */}
-      <View className={`w-9 h-9 rounded-xl items-center justify-center mr-3 ${
-        isDark ? 'bg-zinc-700' : 'bg-gray-100'
-      }`}>
+      <View
+        className={`w-9 h-9 rounded-xl items-center justify-center mr-3 ${
+          isDark ? "bg-zinc-700" : "bg-gray-100"
+        }`}
+      >
         <Ionicons
           name={option.icon as any}
           size={19}
@@ -178,9 +231,11 @@ function FabMenuItem({
         />
       </View>
 
-      <Text className={`text-[15px] font-semibold ${
-        isDark ? 'text-white' : 'text-zinc-900'
-      }`}>
+      <Text
+        className={`text-[15px] font-semibold ${
+          isDark ? "text-white" : "text-zinc-900"
+        }`}
+      >
         {option.label}
       </Text>
     </Pressable>
@@ -193,17 +248,33 @@ interface MyTabBarProps extends BottomTabBarProps {
   onFabAction?: (actionKey: string) => void;
 }
 
-export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabBarProps) {
+export function MyTabBar({
+  state,
+  descriptors,
+  navigation,
+  onFabAction,
+}: MyTabBarProps) {
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const isDark = colorScheme === "dark";
   const insets = useSafeAreaInsets();
   const segments = useSegments();
 
-  const [isMenuOpen, setIsMenuOpen]   = useState(false);
-  const [pressedKey, setPressedKey]   = useState<string | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [pressedKey, setPressedKey] = useState<string | null>(null);
 
   /** Contexto de la vista de detalle de rutina para opciones contextuales */
-  const { isDetailVisible, isSwapMode, actions: routineActions, onGenerateRoutine, onCreateRoutine, viewingActiveRoutine, isCreatingRoutine, isEditingRoutine, saveRoutineRef, isFormValidRef } = useRoutineDetailContext();
+  const {
+    isDetailVisible,
+    isSwapMode,
+    actions: routineActions,
+    onGenerateRoutine,
+    onCreateRoutine,
+    viewingActiveRoutine,
+    isCreatingRoutine,
+    isEditingRoutine,
+    saveRoutineRef,
+    isFormValidRef,
+  } = useRoutineDetailContext();
   const {
     isRegisterViewVisible,
     canSave: canSaveFoods,
@@ -214,11 +285,12 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   /** Progreso de animación del menú: 0 = cerrado, 1 = abierto */
   const menuProgress = useSharedValue(0);
   /** Escala del botón FAB para feedback de press */
-  const fabScale     = useSharedValue(1);
+  const fabScale = useSharedValue(1);
 
-  const activeRouteName = state.routes[state.index]?.name ?? 'index';
+  const activeRouteName = state.routes[state.index]?.name ?? "index";
   const segmentNames = segments as readonly string[];
-  const isNutritionRegisterRoute = segmentNames.includes('nutrition') && segmentNames.includes('register');
+  const isNutritionRegisterRoute =
+    segmentNames.includes("nutrition") && segmentNames.includes("register");
 
   /** Opciones del menú: contextuales según estado de la vista de rutina */
   const menuOptions: MenuOption[] = (() => {
@@ -226,55 +298,109 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
     if (isEditingRoutine) {
       const valid = isFormValidRef.current;
       return [
-        { icon: 'save-outline', label: 'Guardar cambios', key: 'save-only', disabled: !valid },
+        {
+          icon: "save-outline",
+          label: "Guardar cambios",
+          key: "save-only",
+          disabled: !valid,
+        },
       ];
     }
     if (isCreatingRoutine) {
       const valid = isFormValidRef.current;
       return [
-        { icon: 'checkmark-circle-outline', label: 'Guardar y activar', key: 'save-activate', disabled: !valid },
-        { icon: 'save-outline',             label: 'Solo guardar',       key: 'save-only',     disabled: !valid },
+        {
+          icon: "checkmark-circle-outline",
+          label: "Guardar y activar",
+          key: "save-activate",
+          disabled: !valid,
+        },
+        {
+          icon: "save-outline",
+          label: "Solo guardar",
+          key: "save-only",
+          disabled: !valid,
+        },
       ];
     }
     if (isRegisterViewVisible || isNutritionRegisterRoute) {
       return [
         {
-          icon: 'save-outline',
-          label: isSavingFoods ? 'Guardando...' : 'Guardar',
-          key: 'save-foods',
+          icon: "save-outline",
+          label: isSavingFoods ? "Guardando..." : "Guardar",
+          key: "save-foods",
           disabled: !canSaveFoods || isSavingFoods,
         },
       ];
     }
     // Fitness: opciones de editar/eliminar cuando se ve el detalle de una rutina
-    const isFitnessRoute = activeRouteName === 'fitness' || activeRouteName === 'fitness/index' || activeRouteName === 'fitness/routines';
+    const isFitnessRoute =
+      activeRouteName === "fitness" ||
+      activeRouteName === "fitness/index" ||
+      activeRouteName === "fitness/routines";
     if (isDetailVisible && isFitnessRoute) {
       const options: MenuOption[] = [];
       if (routineActions?.onActivate != null) {
-        options.push({ icon: 'checkmark-circle-outline', label: 'Activar rutina', key: 'activate-routine' });
+        options.push({
+          icon: "checkmark-circle-outline",
+          label: "Activar rutina",
+          key: "activate-routine",
+        });
       }
       if (routineActions?.onAdaptRoutine != null) {
-        options.push({ icon: 'sparkles', label: 'Adaptar con IA', key: 'adapt-ai-routine' });
+        options.push({
+          icon: "sparkles",
+          label: "Adaptar con IA",
+          key: "adapt-ai-routine",
+        });
       }
       if (routineActions?.onEdit != null) {
-        options.push({ icon: 'create-outline', label: 'Editar rutina', key: 'edit-routine' });
+        options.push({
+          icon: "create-outline",
+          label: "Editar rutina",
+          key: "edit-routine",
+        });
       }
-      options.push({ icon: 'trash-outline', label: 'Eliminar rutina', key: 'delete-routine' });
+      options.push({
+        icon: "trash-outline",
+        label: "Eliminar rutina",
+        key: "delete-routine",
+      });
       return options;
     }
-    if (isDetailVisible && activeRouteName === 'index') {
+    if (isDetailVisible && activeRouteName === "index") {
       // Modo edición de ejercicios activo
       if (isSwapMode) {
         return [
-          { icon: 'flash-outline',  label: 'Sugerencia',         key: 'request-suggestions' },
-          { icon: 'sparkles',       label: 'Sugerencia con IA',  key: 'request-suggestions-ai' },
-          { icon: 'close-circle-outline', label: 'Salir del modo editar', key: 'exit-swap-mode' },
+          {
+            icon: "flash-outline",
+            label: "Sugerencia",
+            key: "request-suggestions",
+          },
+          {
+            icon: "sparkles",
+            label: "Sugerencia con IA",
+            key: "request-suggestions-ai",
+          },
+          {
+            icon: "close-circle-outline",
+            label: "Salir del modo editar",
+            key: "exit-swap-mode",
+          },
         ];
       }
       // Vista de detalle abierta sin modo edición
       return [
-        { icon: 'refresh',          label: 'Regenerar rutina',    key: 'regenerate-routine' },
-        { icon: 'swap-horizontal',  label: 'Cambiar ejercicios',  key: 'change-exercises' },
+        {
+          icon: "refresh",
+          label: "Regenerar rutina",
+          key: "regenerate-routine",
+        },
+        {
+          icon: "swap-horizontal",
+          label: "Cambiar ejercicios",
+          key: "change-exercises",
+        },
       ];
     }
     return FAB_MENU_OPTIONS[activeRouteName] ?? FAB_MENU_OPTIONS.index;
@@ -285,13 +411,16 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   const openMenu = useCallback(() => {
     setIsMenuOpen(true);
     menuProgress.value = withSpring(1, OPEN_SPRING);
-    if (Platform.OS !== 'web') {
+    if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
   }, [menuProgress]);
 
   const closeMenu = useCallback(() => {
-    menuProgress.value = withTiming(0, { duration: 180, easing: Easing.in(Easing.cubic) });
+    menuProgress.value = withTiming(0, {
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+    });
     setTimeout(() => setIsMenuOpen(false), 185);
   }, [menuProgress]);
 
@@ -300,104 +429,137 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
     else openMenu();
   }, [isMenuOpen, openMenu, closeMenu]);
 
-  const handleMenuAction = useCallback((key: string) => {
-    console.log('[MyTabBar] handleMenuAction →', key);
-    closeMenu();
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const handleMenuAction = useCallback(
+    (key: string) => {
+      console.log("[MyTabBar] handleMenuAction →", key);
+      closeMenu();
+      if (Platform.OS !== "web")
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // ⚠️ React Native no permite 2 Modals simultáneos. El menú del FAB usa
-    // <Modal>, así que tenemos que esperar a que termine de cerrarse antes
-    // de disparar acciones que abran su propio Modal (confirmación, candidatos…).
-    const run = () => {
-      // Acciones contextuales de la vista de rutina
-      if (key === 'regenerate-routine' && routineActions?.onRegenerate) {
-        routineActions.onRegenerate();
-        return;
-      }
-      if (key === 'change-exercises' && routineActions?.onChangeExercises) {
-        routineActions.onChangeExercises();
-        return;
-      }
-      if (key === 'request-suggestions' && routineActions?.onRequestSuggestions) {
-        routineActions.onRequestSuggestions(false);
-        return;
-      }
-      if (key === 'request-suggestions-ai' && routineActions?.onRequestSuggestions) {
-        routineActions.onRequestSuggestions(true);
-        return;
-      }
-      if (key === 'exit-swap-mode' && routineActions?.onExitSwapMode) {
-        routineActions.onExitSwapMode();
-        return;
-      }
-      if (key === 'generate-routine' && onGenerateRoutine) {
-        onGenerateRoutine();
-        return;
-      }
-      if (key === 'create-routine' && onCreateRoutine) {
-        onCreateRoutine();
-        return;
-      }
-      if (key === 'save-activate' || key === 'save-only') {
-        if (!isFormValidRef.current) {
-          Alert.alert(
-            'Formulario incompleto',
-            'Dale un nombre a la rutina y agrégale al menos un ejercicio antes de guardar.',
-          );
+      // ⚠️ React Native no permite 2 Modals simultáneos. El menú del FAB usa
+      // <Modal>, así que tenemos que esperar a que termine de cerrarse antes
+      // de disparar acciones que abran su propio Modal (confirmación, candidatos…).
+      const run = () => {
+        // Acciones contextuales de la vista de rutina
+        if (key === "regenerate-routine" && routineActions?.onRegenerate) {
+          routineActions.onRegenerate();
           return;
         }
-        saveRoutineRef.current(key === 'save-activate');
-        return;
-      }
-      if (key === 'activate-routine' && routineActions?.onActivate) {
-        routineActions.onActivate();
-        return;
-      }
-      if (key === 'adapt-ai-routine' && routineActions?.onAdaptRoutine) {
-        routineActions.onAdaptRoutine();
-        return;
-      }
-      if (key === 'edit-routine' && routineActions?.onEdit) {
-        routineActions.onEdit();
-        return;
-      }
-      if (key === 'delete-routine' && routineActions?.onDelete) {
-        routineActions.onDelete();
-        return;
-      }
-      if (key === 'save-foods') {
-        if (!canSaveFoods || isSavingFoods) {
-          Alert.alert(
-            'Sin alimentos',
-            'Agregá al menos un alimento antes de guardar.',
-          );
+        if (key === "change-exercises" && routineActions?.onChangeExercises) {
+          routineActions.onChangeExercises();
           return;
         }
-        saveFoodsRef.current();
-        return;
-      }
-      if (key === 'log-food' && activeRouteName === 'nutrition') {
-        (navigation as any).navigate('nutrition', {
-          screen: 'register',
-          params: { mealType: 'AfternoonSnack' },
-        });
-        return;
-      }
-      onFabAction?.(key);
-    };
+        if (
+          key === "request-suggestions" &&
+          routineActions?.onRequestSuggestions
+        ) {
+          routineActions.onRequestSuggestions(false);
+          return;
+        }
+        if (
+          key === "request-suggestions-ai" &&
+          routineActions?.onRequestSuggestions
+        ) {
+          routineActions.onRequestSuggestions(true);
+          return;
+        }
+        if (key === "exit-swap-mode" && routineActions?.onExitSwapMode) {
+          routineActions.onExitSwapMode();
+          return;
+        }
+        if (key === "generate-routine" && onGenerateRoutine) {
+          onGenerateRoutine();
+          return;
+        }
+        if (key === "create-routine" && onCreateRoutine) {
+          onCreateRoutine();
+          return;
+        }
+        if (key === "save-activate" || key === "save-only") {
+          if (!isFormValidRef.current) {
+            Alert.alert(
+              "Formulario incompleto",
+              "Dale un nombre a la rutina y agrégale al menos un ejercicio antes de guardar.",
+            );
+            return;
+          }
+          saveRoutineRef.current(key === "save-activate");
+          return;
+        }
+        if (key === "activate-routine" && routineActions?.onActivate) {
+          routineActions.onActivate();
+          return;
+        }
+        if (key === "adapt-ai-routine" && routineActions?.onAdaptRoutine) {
+          routineActions.onAdaptRoutine();
+          return;
+        }
+        if (key === "edit-routine" && routineActions?.onEdit) {
+          routineActions.onEdit();
+          return;
+        }
+        if (key === "delete-routine" && routineActions?.onDelete) {
+          routineActions.onDelete();
+          return;
+        }
+        if (key === "save-foods") {
+          if (!canSaveFoods || isSavingFoods) {
+            Alert.alert(
+              "Sin alimentos",
+              "Agregá al menos un alimento antes de guardar.",
+            );
+            return;
+          }
+          saveFoodsRef.current();
+          return;
+        }
+        if (key === "log-food" && activeRouteName === "nutrition") {
+          (navigation as any).navigate("nutrition", {
+            screen: "register",
+            params: { mealType: "AfternoonSnack" },
+          });
+          return;
+        }
+        if (key === "new-metric" && activeRouteName === "health") {
+          (navigation as any).navigate("health", {
+            screen: "measurements",
+          });
+          return;
+        }
+        onFabAction?.(key);
+      };
 
-    // 220ms > 185ms del closeMenu para asegurar que el Modal del menú ya
-    // se desmontó antes de pedir abrir otro Modal.
-    setTimeout(run, 220);
-  }, [activeRouteName, canSaveFoods, closeMenu, isFormValidRef, isSavingFoods, navigation, onFabAction, routineActions, onGenerateRoutine, onCreateRoutine, saveFoodsRef, saveRoutineRef]);
+      // 220ms > 185ms del closeMenu para asegurar que el Modal del menú ya
+      // se desmontó antes de pedir abrir otro Modal.
+      setTimeout(run, 220);
+    },
+    [
+      activeRouteName,
+      canSaveFoods,
+      closeMenu,
+      isFormValidRef,
+      isSavingFoods,
+      navigation,
+      onFabAction,
+      routineActions,
+      onGenerateRoutine,
+      onCreateRoutine,
+      saveFoodsRef,
+      saveRoutineRef,
+    ],
+  );
 
-  const onFabPressIn  = useCallback(() => { fabScale.value = withSpring(0.92, PRESS_SPRING); }, [fabScale]);
-  const onFabPressOut = useCallback(() => { fabScale.value = withSpring(1,    PRESS_SPRING); }, [fabScale]);
+  const onFabPressIn = useCallback(() => {
+    fabScale.value = withSpring(0.92, PRESS_SPRING);
+  }, [fabScale]);
+  const onFabPressOut = useCallback(() => {
+    fabScale.value = withSpring(1, PRESS_SPRING);
+  }, [fabScale]);
 
   // ── Filtrado de rutas visibles ─────────────────────────────────────────────
 
-  const VISIBLE_LEFT  = ['index', 'fitness'];
-  const VISIBLE_RIGHT = ['nutrition', 'health'];
+  const VISIBLE_LEFT = ["index", "fitness"];
+  const VISIBLE_RIGHT = ["nutrition", "health"];
 
   /**
    * Determina si una ruta de tab está activa, considerando sub-rutas.
@@ -406,7 +568,7 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   const isTabActive = (tabName: string, currentRoute: string): boolean => {
     if (currentRoute === tabName) return true;
     // Para rutas anidadas como fitness/routines, fitness/index, etc.
-    if (currentRoute.startsWith(tabName + '/')) return true;
+    if (currentRoute.startsWith(tabName + "/")) return true;
     return false;
   };
 
@@ -423,7 +585,7 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   /** Rotación del "+" y escala del botón unificadas en un solo animated style */
   const fabAnimStyle = useAnimatedStyle(() => ({
     transform: [
-      { scale:  fabScale.value },
+      { scale: fabScale.value },
       { rotate: `${interpolate(menuProgress.value, [0, 1], [0, 45])}deg` },
     ],
   }));
@@ -431,20 +593,22 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   /** Crossfade out para los 3 puntos: counter-rotación para que quede horizontal mientras desvanece */
   const ellipsisAnimStyle = useAnimatedStyle(() => ({
     opacity: interpolate(menuProgress.value, [0, 0.5], [1, 0]),
-    transform: [{ rotate: `${interpolate(menuProgress.value, [0, 1], [0, -45])}deg` }],
+    transform: [
+      { rotate: `${interpolate(menuProgress.value, [0, 1], [0, -45])}deg` },
+    ],
   }));
 
   /** Crossfade in para el icono que se convierte en X (un "add" normal) */
   const crossIconAnimStyle = useAnimatedStyle(() => ({
     opacity: interpolate(menuProgress.value, [0.5, 1], [0, 1]),
-    position: 'absolute',
+    position: "absolute",
   }));
 
   /** Morphing del menú: escala desde abajo + opacidad */
   const menuAnimStyle = useAnimatedStyle(() => ({
     opacity: interpolate(menuProgress.value, [0, 0.35, 1], [0, 0.85, 1]),
     transform: [
-      { scale:      interpolate(menuProgress.value, [0, 1], [0.55, 1]) },
+      { scale: interpolate(menuProgress.value, [0, 1], [0.55, 1]) },
       { translateY: interpolate(menuProgress.value, [0, 1], [40, 0]) },
     ],
   }));
@@ -455,49 +619,57 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
   }));
 
   /** El tab bar se oculta cuando se ve la rutina activa (solo en fitness) o en index */
-  const isFitnessRoute = activeRouteName === 'fitness' || activeRouteName === 'fitness/index' || activeRouteName === 'fitness/routines';
-  if (isDetailVisible && (!isFitnessRoute || viewingActiveRoutine) && !isEditingRoutine) return null;
+  const isFitnessRoute =
+    activeRouteName === "fitness" ||
+    activeRouteName === "fitness/index" ||
+    activeRouteName === "fitness/routines";
+  if (
+    isDetailVisible &&
+    (!isFitnessRoute || viewingActiveRoutine) &&
+    !isEditingRoutine
+  )
+    return null;
 
   // ── Colores dinámicos del FAB y de los iconos del menú según la vista activa ──
   const getThemeColors = () => {
     if (isDetailVisible || isFitnessRoute) {
       // lime-400
       return {
-        fabBg: '#a3e635',
-        fabIconColor: '#18181b',
-        menuIconColor: '#a3e635',
+        fabBg: "#a3e635",
+        fabIconColor: "#18181b",
+        menuIconColor: "#a3e635",
         // En modo edición: lápiz; en detalle normal: ellipsis; en fitness: ellipsis-horizontal
         fabIconName: isSwapMode
-          ? 'create-outline'
+          ? "create-outline"
           : isDetailVisible
-            ? 'ellipsis-horizontal'
-            : 'add',
+            ? "ellipsis-horizontal"
+            : "add",
       };
     }
-    if (activeRouteName === 'nutrition') {
+    if (activeRouteName === "nutrition") {
       // amber-400
       return {
-        fabBg: '#fbbf24',
-        fabIconColor: '#18181b',
-        menuIconColor: '#fbbf24',
-        fabIconName: 'add',
+        fabBg: "#fbbf24",
+        fabIconColor: "#18181b",
+        menuIconColor: "#fbbf24",
+        fabIconName: "add",
       };
     }
-    if (activeRouteName === 'health') {
+    if (activeRouteName === "health") {
       // rose-600 light / rose-400 dark
       return {
-        fabBg: isDark ? '#fb7185' : '#e11d48',
-        fabIconColor: '#ffffff',
-        menuIconColor: isDark ? '#fb7185' : '#e11d48',
-        fabIconName: 'add',
+        fabBg: isDark ? "#fb7185" : "#e11d48",
+        fabIconColor: "#ffffff",
+        menuIconColor: isDark ? "#fb7185" : "#e11d48",
+        fabIconName: "add",
       };
     }
     // index / home — zinc-50 dark / zinc-950 light (Acento Global Marca)
     return {
-      fabBg: isDark ? '#fafafa' : '#09090b',
-      fabIconColor: isDark ? '#09090b' : '#fafafa',
-      menuIconColor: isDark ? '#09090b' : '#fafafa',
-      fabIconName: 'add',
+      fabBg: isDark ? "#fafafa" : "#09090b",
+      fabIconColor: isDark ? "#09090b" : "#fafafa",
+      menuIconColor: isDark ? "#09090b" : "#fafafa",
+      fabIconName: "add",
     };
   };
 
@@ -507,12 +679,14 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
 
   return (
     <>
-      <Modal visible={isMenuOpen} transparent animationType="none" onRequestClose={closeMenu}>
+      <Modal
+        visible={isMenuOpen}
+        transparent
+        animationType="none"
+        onRequestClose={closeMenu}
+      >
         {/* Overlay transparente para cerrar el menú al tocar fuera */}
-        <Animated.View
-          className="flex-1"
-          style={overlayAnimStyle}
-        >
+        <Animated.View className="flex-1" style={overlayAnimStyle}>
           <Pressable className="flex-1" onPress={closeMenu} />
         </Animated.View>
 
@@ -522,7 +696,7 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
           style={[
             {
               bottom: Math.max(insets.bottom, 8) + 8 + 56 + 16,
-              shadowColor: '#000',
+              shadowColor: "#000",
               shadowOffset: { width: 0, height: 8 },
               shadowOpacity: 0.18,
               shadowRadius: 24,
@@ -532,9 +706,11 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
           ]}
         >
           {/* Card del menú */}
-          <View className={`rounded-2xl overflow-hidden min-w-[230px] ${
-            isDark ? 'bg-zinc-800' : 'bg-white'
-          }`}>
+          <View
+            className={`rounded-2xl overflow-hidden min-w-[230px] ${
+              isDark ? "bg-zinc-800" : "bg-white"
+            }`}
+          >
             {menuOptions.map((option) => (
               <FabMenuItem
                 key={option.key}
@@ -551,12 +727,18 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
 
           {/* Triángulo indicador apuntando al botón */}
           <View className="items-center">
-            <View style={{
-              width: 0, height: 0,
-              borderLeftWidth: 11, borderRightWidth: 11, borderTopWidth: 9,
-              borderLeftColor: 'transparent', borderRightColor: 'transparent',
-              borderTopColor: isDark ? '#3f3f46' : '#ffffff',
-            }} />
+            <View
+              style={{
+                width: 0,
+                height: 0,
+                borderLeftWidth: 11,
+                borderRightWidth: 11,
+                borderTopWidth: 9,
+                borderLeftColor: "transparent",
+                borderRightColor: "transparent",
+                borderTopColor: isDark ? "#3f3f46" : "#ffffff",
+              }}
+            />
           </View>
         </Animated.View>
       </Modal>
@@ -565,12 +747,12 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
       <View
         className={`absolute self-center flex-row items-center rounded-full py-2 px-2 ${
           isDark
-            ? 'bg-zinc-900 border border-zinc-800'
-            : 'bg-white border border-zinc-200'
+            ? "bg-zinc-900 border border-zinc-800"
+            : "bg-white border border-zinc-200"
         }`}
         style={{
           bottom: Math.max(insets.bottom, 8) + 8,
-          shadowColor: '#000',
+          shadowColor: "#000",
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: isDark ? 0.4 : 0.1,
           shadowRadius: 16,
@@ -585,10 +767,18 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
             label={ROUTE_LABELS[route.name] ?? route.name}
             isDark={isDark}
             onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (Platform.OS !== "web")
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               if (isMenuOpen) closeMenu();
-              const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-              if (!isTabActive(route.name, activeRouteName) && !event.defaultPrevented) {
+              const event = navigation.emit({
+                type: "tabPress",
+                target: route.key,
+                canPreventDefault: true,
+              });
+              if (
+                !isTabActive(route.name, activeRouteName) &&
+                !event.defaultPrevented
+              ) {
                 navigation.navigate(route.name, route.params);
               }
             }}
@@ -619,12 +809,16 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
               fabAnimStyle,
             ]}
           >
-            {fabIconName === 'add' ? (
+            {fabIconName === "add" ? (
               <Ionicons name="add" size={32} color={fabIconColor} />
             ) : (
               <>
                 <Animated.View style={ellipsisAnimStyle}>
-                  <Ionicons name={fabIconName as any} size={fabIconName === 'create-outline' ? 26 : 32} color={fabIconColor} />
+                  <Ionicons
+                    name={fabIconName as any}
+                    size={fabIconName === "create-outline" ? 26 : 32}
+                    color={fabIconColor}
+                  />
                 </Animated.View>
                 <Animated.View style={crossIconAnimStyle} pointerEvents="none">
                   <Ionicons name="add" size={32} color={fabIconColor} />
@@ -642,10 +836,18 @@ export function MyTabBar({ state, descriptors, navigation, onFabAction }: MyTabB
             label={ROUTE_LABELS[route.name] ?? route.name}
             isDark={isDark}
             onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (Platform.OS !== "web")
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               if (isMenuOpen) closeMenu();
-              const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-              if (!isTabActive(route.name, activeRouteName) && !event.defaultPrevented) {
+              const event = navigation.emit({
+                type: "tabPress",
+                target: route.key,
+                canPreventDefault: true,
+              });
+              if (
+                !isTabActive(route.name, activeRouteName) &&
+                !event.defaultPrevented
+              ) {
                 navigation.navigate(route.name, route.params);
               }
             }}
