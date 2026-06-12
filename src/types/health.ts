@@ -53,3 +53,24 @@ export interface BodyMeasurementDto {
   /** Masa magra en kg calculada por el servidor. null si no hay datos suficientes. */
   leanMassKg: number | null;
 }
+
+/** Diferencia calculada entre dos mediciones para una métrica específica */
+export interface MeasurementMetricDelta {
+  key: keyof BodyMeasurementDto;
+  label: string;
+  unit: string;
+  baseValue: number;
+  targetValue: number;
+  diff: number;
+  /** null si baseValue es 0 (evita división por cero) */
+  percentChange: number | null;
+  direction: 'up' | 'down' | 'same';
+}
+
+/** Resultado de comparar dos mediciones: ambos registros + array de deltas por métrica */
+export interface MeasurementComparison {
+  base: BodyMeasurementDto;
+  target: BodyMeasurementDto;
+  /** Solo incluye métricas con valor no-null en ambos registros */
+  deltas: MeasurementMetricDelta[];
+}

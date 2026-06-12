@@ -99,11 +99,13 @@ const PERIMETER_FIELDS: { key: keyof BodyMeasurementDto; label: string }[] = [
 interface MeasurementDetailViewProps {
   measurement: BodyMeasurementDto;
   onBack: () => void;
+  onPressCompare?: () => void;
 }
 
 export function MeasurementDetailView({
   measurement,
   onBack,
+  onPressCompare,
 }: MeasurementDetailViewProps) {
   const hasComposition =
     measurement.weightKg != null ||
@@ -129,9 +131,19 @@ export function MeasurementDetailView({
             className="text-slate-900 dark:text-slate-50"
           />
         </TouchableOpacity>
-        <Text className="text-slate-900 dark:text-slate-50 text-xl font-bold">
+        <Text className="flex-1 text-slate-900 dark:text-slate-50 text-xl font-bold">
           Detalle de medición
         </Text>
+        {onPressCompare != null && (
+          <TouchableOpacity
+            onPress={onPressCompare}
+            activeOpacity={0.7}
+            className="flex-row items-center gap-1 px-3 py-1.5 bg-rose-600 dark:bg-rose-500 rounded-full"
+          >
+            <Ionicons name="swap-horizontal" size={16} className="text-white" />
+            <Text className="text-white text-sm font-semibold">Comparar</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>

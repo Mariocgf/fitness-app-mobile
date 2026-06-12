@@ -3,7 +3,10 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
+import { MeasurementComparePicker } from "@/src/components/features/health/MeasurementComparePicker";
+import { MeasurementComparisonSheet } from "@/src/components/features/health/MeasurementComparisonSheet";
 import { MeasurementDetailView } from "@/src/components/features/health/MeasurementDetailView";
+import { useMeasurementComparison } from "@/src/hooks/useMeasurementComparison";
 import { getBodyMeasurementById } from "@/src/services/health.service";
 import { BodyMeasurementDto } from "@/src/types/health";
 
@@ -17,6 +20,15 @@ export default function MeasurementDetailScreen() {
     data ? (JSON.parse(data) as BodyMeasurementDto) : null,
   );
   const [isFetching, setIsFetching] = useState(true);
+
+  // Estado del picker — controla el render condicional del sheet (no montar cerrado)
+  const [pickerVisible, setPickerVisible] = useState(false);
+
+  const { comparison, isLoadingTarget, targetError, selectTarget, reset } =
+    useMeasurementComparison(measurement);
+
+  // Sheet de resultado visible mientras carga o cuando ya hay comparación
+  const comparisonSheetVisible = isLoadingTarget || comparison != null || targetError != null;
 
   useEffect(() => {
     if (!id) {
@@ -49,9 +61,34 @@ export default function MeasurementDetailScreen() {
   if (!measurement) return null;
 
   return (
-    <MeasurementDetailView
-      measurement={measurement}
-      onBack={() => router.back()}
-    />
+    <>
+      <MeasurementDetailView
+        measurement={measurement}
+        onBack={() => router.back()}
+        onPressCompare={() => setPickerVisible(true)}
+      />
+
+      {/* Picker: montado condicionalmente para no ejecutar hooks pesados cuando está cerrado */}
+      {pickerVisible && (
+        <MeasurementComparePicker
+          excludeId={measurement.id}
+          onSelect={(targetId) => {
+            setPickerVisible(false);
+            selectTarget(targetId);
+          }}
+          onClose={() => setPickerVisible(false)}
+        />
+      )}
+
+      {/* Sheet de resultado: montado solo cuando hay actividad de comparación */}
+      {comparisonSheetVisible && (
+        <MeasurementComparisonSheet
+          comparison={comparison}
+          isLoading={isLoadingTarget}
+          error={targetError}
+          onClose={reset}
+        />
+      )}
+    </>
   );
 }
