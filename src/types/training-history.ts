@@ -79,3 +79,30 @@ export interface PagedTrainingHistoryResponseDto {
   totalCount: string;
   items: TrainingHistorySessionDto[];
 }
+
+/* ── Comparación de sesiones ─────────────────────────────────────────────── */
+
+export interface SessionMetricDelta {
+  key: string;
+  label: string;
+  unit: string;
+  baseValue: number;
+  targetValue: number;
+  diff: number;
+  percentChange: number | null;
+  direction: 'up' | 'down' | 'same';
+}
+
+export interface SessionExerciseDelta {
+  exerciseId: string;
+  exerciseName: string;
+  exerciseNameEs: string | null;
+  metrics: SessionMetricDelta[];
+}
+
+export interface TrainingSessionComparison {
+  base: TrainingHistorySession;
+  target: TrainingHistorySession;
+  summaryDeltas: SessionMetricDelta[];
+  exerciseDeltas: SessionExerciseDelta[];
+}

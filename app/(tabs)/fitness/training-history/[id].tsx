@@ -1,13 +1,16 @@
 import { DarkSheetLayout } from '@/src/components/common/DarkSheetLayout';
 import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
+import { SessionComparePicker } from '@/src/components/features/training-history/SessionComparePicker';
+import { SessionComparisonSheet } from '@/src/components/features/training-history/SessionComparisonSheet';
 import { SessionExerciseCard } from '@/src/components/features/training-history/SessionExerciseCard';
 import { TrainingHistoryCardSkeleton } from '@/src/components/features/training-history/TrainingHistoryCardSkeleton';
+import { useTrainingSessionComparison } from '@/src/hooks/useTrainingSessionComparison';
 import { useTrainingSessionDetail } from '@/src/hooks/useTrainingSessionDetail';
 import { formatDurationLong, formatSessionDateTime } from '@/src/utils/training-history.utils';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -29,10 +32,26 @@ export default function TrainingSessionDetailScreen() {
 
   const { session, isLoading, error, refresh } = useTrainingSessionDetail(id ?? '', token);
 
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const { comparison, isLoadingTarget, targetError, selectTarget, reset } =
+    useTrainingSessionComparison(session);
+
+  const comparisonSheetVisible = isLoadingTarget || comparison != null || targetError != null;
+
   const handleBack = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     router.push('/fitness/training-history' as any);
   };
+
+  const handlePressCompare = useCallback(() => setPickerVisible(true), []);
+  const handlePickerClose = useCallback(() => setPickerVisible(false), []);
+  const handlePickerSelect = useCallback(
+    (targetId: string) => {
+      setPickerVisible(false);
+      selectTarget(targetId);
+    },
+    [selectTarget],
+  );
 
   const header = (
     <View style={{ paddingTop: insets.top }} className="px-4 pb-4">
@@ -50,7 +69,19 @@ export default function TrainingSessionDetailScreen() {
         >
           {session ? session.routineName : 'Detalle de sesión'}
         </Text>
-        <View className="w-10" />
+        {/* Botón comparar — visible solo cuando hay sesión cargada */}
+        {session ? (
+          <TouchableOpacity
+            onPress={handlePressCompare}
+            activeOpacity={0.7}
+            className="flex-row items-center gap-1 px-3 py-1.5 bg-lime-400 rounded-full"
+          >
+            <Ionicons name="swap-horizontal" size={14} color="#1e293b" />
+            <Text className="text-slate-900 text-xs font-semibold">Comparar</Text>
+          </TouchableOpacity>
+        ) : (
+          <View className="w-10" />
+        )}
       </View>
 
       {/* Sub-header con fecha, duración y cant. ejercicios */}
@@ -79,55 +110,76 @@ export default function TrainingSessionDetailScreen() {
   );
 
   return (
-    <SwipeBackWrapper onSwipeBack={handleBack}>
-      <DarkSheetLayout header={header}>
-        {/* Estado de carga */}
-        {isLoading && (
-          <View className="px-4 pt-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <View key={i} className="mb-3">
-                <TrainingHistoryCardSkeleton variant="list" />
-              </View>
-            ))}
-          </View>
-        )}
+    <>
+      <SwipeBackWrapper onSwipeBack={handleBack}>
+        <DarkSheetLayout header={header}>
+          {/* Estado de carga */}
+          {isLoading && (
+            <View className="px-4 pt-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <View key={i} className="mb-3">
+                  <TrainingHistoryCardSkeleton variant="list" />
+                </View>
+              ))}
+            </View>
+          )}
 
-        {/* Estado de error */}
-        {!isLoading && error && (
-          <View className="flex-1 items-center justify-center py-20 px-6">
-            <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
-            <Text className="text-slate-900 dark:text-slate-50 text-base font-medium mt-4 text-center">
-              {error}
-            </Text>
-            <TouchableOpacity
-              onPress={refresh}
-              className="mt-4 bg-lime-400 px-6 py-3 rounded-xl"
-              activeOpacity={0.8}
+          {/* Estado de error */}
+          {!isLoading && error && (
+            <View className="flex-1 items-center justify-center py-20 px-6">
+              <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
+              <Text className="text-slate-900 dark:text-slate-50 text-base font-medium mt-4 text-center">
+                {error}
+              </Text>
+              <TouchableOpacity
+                onPress={refresh}
+                className="mt-4 bg-lime-400 px-6 py-3 rounded-xl"
+                activeOpacity={0.8}
+              >
+                <Text className="text-slate-900 font-semibold">Reintentar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Contenido principal */}
+          {!isLoading && !error && session && (
+            <ScrollView
+              contentContainerClassName="px-4 pt-4 pb-32"
+              showsVerticalScrollIndicator={false}
             >
-              <Text className="text-slate-900 font-semibold">Reintentar</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+              <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wide mb-3">
+                Ejercicios realizados
+              </Text>
+              {session.exercises.map((exercise, index) => (
+                <SessionExerciseCard
+                  key={exercise.exerciseId + index}
+                  exercise={exercise}
+                  index={index}
+                />
+              ))}
+            </ScrollView>
+          )}
+        </DarkSheetLayout>
+      </SwipeBackWrapper>
 
-        {/* Contenido principal */}
-        {!isLoading && !error && session && (
-          <ScrollView
-            contentContainerClassName="px-4 pt-4 pb-32"
-            showsVerticalScrollIndicator={false}
-          >
-            <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wide mb-3">
-              Ejercicios realizados
-            </Text>
-            {session.exercises.map((exercise, index) => (
-              <SessionExerciseCard
-                key={exercise.exerciseId + index}
-                exercise={exercise}
-                index={index}
-              />
-            ))}
-          </ScrollView>
-        )}
-      </DarkSheetLayout>
-    </SwipeBackWrapper>
+      {/* Picker: montado condicionalmente para no ejecutar hooks pesados cuando está cerrado */}
+      {pickerVisible && session && (
+        <SessionComparePicker
+          excludeId={session.id}
+          onSelect={handlePickerSelect}
+          onClose={handlePickerClose}
+        />
+      )}
+
+      {/* Sheet de resultado: montado solo cuando hay actividad de comparación */}
+      {comparisonSheetVisible && (
+        <SessionComparisonSheet
+          comparison={comparison}
+          isLoading={isLoadingTarget}
+          error={targetError}
+          onClose={reset}
+        />
+      )}
+    </>
   );
 }
