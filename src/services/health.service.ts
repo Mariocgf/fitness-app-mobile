@@ -1,5 +1,6 @@
 import apiClient from "../api/client";
 import {
+  BodyEvolutionDashboardDto,
   BodyMeasurementDto,
   BodyMeasurementPayload,
   HealthProfilePayload,
@@ -7,6 +8,11 @@ import {
   MedicalCondition,
   PagedBodyMeasurementsResponseDto,
 } from "../types/health";
+
+interface BodyEvolutionDashboardFilters {
+  fromDate?: string;
+  toDate?: string;
+}
 
 /**
  * Obtiene la lista de lesiones disponibles.
@@ -99,6 +105,36 @@ export const getBodyMeasurements = async (
     pageSize: raw.pageSize ?? pageSize,
     totalCount: raw.totalCount ?? 0,
     items: Array.isArray(raw.items) ? raw.items : [],
+  };
+};
+
+/**
+ * Obtiene las series de evolución física para graficar peso y perímetros.
+ * @param token Token de autenticación de Clerk.
+ * @param filters Rango opcional de fechas en formato YYYY-MM-DD.
+ */
+export const getBodyEvolutionDashboard = async (
+  token: string | null,
+  filters: BodyEvolutionDashboardFilters = {},
+): Promise<BodyEvolutionDashboardDto> => {
+  const params: BodyEvolutionDashboardFilters = {};
+  if (filters.fromDate != null) params.fromDate = filters.fromDate;
+  if (filters.toDate != null) params.toDate = filters.toDate;
+
+  const { data } = await apiClient.get<BodyEvolutionDashboardDto>(
+    "/api/health/body-measurements/dashboard",
+    {
+      params,
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+
+  // Defensa: si el backend envuelve la respuesta en { data: ... }, extraerla
+  const raw = (data as any)?.metrics != null ? data : ((data as any)?.data ?? data);
+  return {
+    fromDate: raw.fromDate ?? null,
+    toDate: raw.toDate ?? null,
+    metrics: Array.isArray(raw.metrics) ? raw.metrics : [],
   };
 };
 

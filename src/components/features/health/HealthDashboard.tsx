@@ -3,8 +3,9 @@ import { cssInterop } from 'nativewind';
 import React from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 
-import { BodyMeasurementDto } from '@/src/types/health';
+import { BodyEvolutionDashboardDto, BodyMeasurementDto } from '@/src/types/health';
 
+import { BodyEvolutionDashboardSection } from './BodyEvolutionDashboardSection';
 import { LastMeasurementCard } from './LastMeasurementCard';
 import { MeasurementHistorySection } from './MeasurementHistorySection';
 
@@ -16,9 +17,13 @@ interface HealthDashboardProps {
   lastMeasurement: BodyMeasurementDto | null;
   recentMeasurements: BodyMeasurementDto[];
   totalCount: number;
+  evolutionDashboard: BodyEvolutionDashboardDto | null;
+  isEvolutionLoading: boolean;
+  evolutionError: string | null;
   isLoading: boolean;
   error: string | null;
   onRefresh: () => void;
+  onRefreshEvolution: () => void;
   onRegister: () => void;
   onViewDetail?: () => void;
   onViewHistoryItem: (measurement: BodyMeasurementDto) => void;
@@ -33,9 +38,13 @@ export function HealthDashboard({
   lastMeasurement,
   recentMeasurements,
   totalCount,
+  evolutionDashboard,
+  isEvolutionLoading,
+  evolutionError,
   isLoading,
   error,
   onRefresh,
+  onRefreshEvolution,
   onRegister,
   onViewDetail,
   onViewHistoryItem,
@@ -97,6 +106,13 @@ export function HealthDashboard({
           onViewDetail={onViewDetail}
         />
       </View>
+
+      <BodyEvolutionDashboardSection
+        dashboard={evolutionDashboard}
+        isLoading={isEvolutionLoading}
+        error={evolutionError}
+        onRefresh={onRefreshEvolution}
+      />
 
       <MeasurementHistorySection
         measurements={recentMeasurements}

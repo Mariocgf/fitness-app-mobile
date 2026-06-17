@@ -26,6 +26,30 @@ export interface BodyMeasurementPayload {
   calfCm?: number;
 }
 
+/** Punto temporal para graficar una métrica corporal. */
+export interface BodyMetricPoint {
+  date: string;
+  value: number;
+}
+
+/** Serie de tendencia para una métrica corporal devuelta por el backend. */
+export interface BodyMetricTrend {
+  metric: string;
+  label: string;
+  unit: string;
+  latestValue: number | null;
+  absoluteChange: number | null;
+  percentageChange: number | null;
+  points: BodyMetricPoint[];
+}
+
+/** Dashboard de evolución física listo para renderizar en la vista de Salud. */
+export interface BodyEvolutionDashboardDto {
+  fromDate: string | null;
+  toDate: string | null;
+  metrics: BodyMetricTrend[];
+}
+
 /** Respuesta paginada del endpoint GET /api/health/body-measurements */
 export interface PagedBodyMeasurementsResponseDto {
   page: number;

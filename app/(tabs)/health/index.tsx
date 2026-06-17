@@ -1,4 +1,5 @@
 import { HealthDashboard } from '@/src/components/features/health/HealthDashboard';
+import { useBodyEvolutionDashboard } from '@/src/hooks/useBodyEvolutionDashboard';
 import { useBodyMeasurements } from '@/src/hooks/useBodyMeasurements';
 import { BodyMeasurementDto } from '@/src/types/health';
 import { useFocusEffect } from '@react-navigation/native';
@@ -11,6 +12,17 @@ export default function HealthScreen() {
   const router = useRouter();
   const { measurements, lastMeasurement, totalCount, isLoading, error, refresh } =
     useBodyMeasurements();
+  const {
+    dashboard: evolutionDashboard,
+    isLoading: isEvolutionLoading,
+    error: evolutionError,
+    refresh: refreshEvolution,
+  } = useBodyEvolutionDashboard();
+
+  const refreshHealthData = useCallback(() => {
+    refresh();
+    refreshEvolution();
+  }, [refresh, refreshEvolution]);
 
   // Evita el fetch doble: el hook ya carga en mount; solo refrescar en focuses posteriores
   const didInitialFocusRef = useRef(false);
@@ -20,8 +32,8 @@ export default function HealthScreen() {
         didInitialFocusRef.current = true;
         return;
       }
-      refresh();
-    }, [refresh]),
+      refreshHealthData();
+    }, [refreshHealthData]),
   );
 
   const handleRegister = useCallback(() => {
@@ -60,9 +72,13 @@ export default function HealthScreen() {
           lastMeasurement={lastMeasurement}
           recentMeasurements={measurements}
           totalCount={totalCount}
+          evolutionDashboard={evolutionDashboard}
+          isEvolutionLoading={isEvolutionLoading}
+          evolutionError={evolutionError}
           isLoading={isLoading}
           error={error}
-          onRefresh={refresh}
+          onRefresh={refreshHealthData}
+          onRefreshEvolution={refreshEvolution}
           onRegister={handleRegister}
           onViewDetail={lastMeasurement ? handleViewDetail : undefined}
           onViewHistoryItem={handleViewHistoryItem}
