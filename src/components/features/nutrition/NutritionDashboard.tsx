@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 import {
   NutritionDayDto,
@@ -70,10 +70,7 @@ export function NutritionDashboard({
 
   if (profile?.selectedSubGoalId == null) {
     return (
-      <View className="flex-1 px-4 pt-8">
-        <Text className="text-slate-900 dark:text-slate-50 text-4xl font-bold mb-6">
-          Nutrición
-        </Text>
+      <View className="flex-1 px-4 pt-4">
         <View className="bg-white dark:bg-slate-900 rounded-[28px] p-6">
           <Ionicons name="settings-outline" size={36} color="#fbbf24" />
           <Text className="text-slate-900 dark:text-slate-50 text-2xl font-bold mt-4">
@@ -110,25 +107,21 @@ export function NutritionDashboard({
   }
 
   return (
-    <View className="pt-8 pb-32">
-      <View className="px-4 mb-5">
-        <Text className="text-slate-900 dark:text-slate-50 text-4xl font-bold">
-          Nutrición
-        </Text>
-      </View>
+    <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+      <View className="pt-4 pb-32">
+        <CalorieRingCard day={day} target={target} />
 
-      <CalorieRingCard day={day} target={target} />
-
-      <View className="gap-3 mt-6">
-        {MEAL_ORDER.map((mealType) => (
-          <MealSummaryCard
-            key={mealType}
-            day={day}
-            mealType={mealType}
-            onPress={onMealPress}
-          />
-        ))}
+        <View className="gap-3 mt-6">
+          {MEAL_ORDER.map((mealType) => (
+            <MealSummaryCard
+              key={mealType}
+              day={day}
+              mealType={mealType}
+              onPress={onMealPress}
+            />
+          ))}
+        </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }

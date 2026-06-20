@@ -4,6 +4,7 @@ import { useAuth } from '@clerk/clerk-expo';
 
 import { MyTabBar } from '@/src/components/common/MyTabBar';
 import { NutritionRegisterProvider } from '@/src/store/nutrition-register-context';
+import { NutritionRoutineProvider } from '@/src/store/nutrition-routine-context';
 import { RoutineDetailProvider } from '@/src/store/routine-detail-context';
 
 export default function TabLayout() {
@@ -18,6 +19,7 @@ export default function TabLayout() {
 
   return (
     <RoutineDetailProvider>
+      <NutritionRoutineProvider>
       <NutritionRegisterProvider>
         <Tabs
           tabBar={(props) => <MyTabBar {...props} />}
@@ -57,6 +59,7 @@ export default function TabLayout() {
           />
         </Tabs>
       </NutritionRegisterProvider>
+      </NutritionRoutineProvider>
     </RoutineDetailProvider>
   );
 }

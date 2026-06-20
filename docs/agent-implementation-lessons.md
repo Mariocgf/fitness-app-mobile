@@ -38,6 +38,12 @@ Este archivo registra errores cometidos durante la implementación para no repet
 | `git diff` sin contexto seguro | Se intentó revisar diff desde el shell y Git respondió como si no estuviera en repo; al validar con `git -C` apareció `dubious ownership`. | Antes de usar diff/status en este repo, confirmar ownership con `git -C <repo> status` y no perder tiempo interpretando el primer error como ausencia de repo. |
 | RulerPicker bloqueado por `Pressable` padre | El selector de gramos se abría, pero no dejaba arrastrar porque el `Pressable` que lo disparaba seguía envolviendo el `ScrollView` horizontal y capturaba el gesto. | El `Pressable` queda solo para el estado cerrado; al abrir, el picker se renderiza dentro de un `View` y el `ScrollView` usa `nestedScrollEnabled`. |
 
+| Rutina IA sin GET activo | El backend no tiene endpoint para recuperar la rutina activa. Solo `POST /generate` que regenera y desactiva la anterior. | Persistir en cliente con AsyncStorage + Context. No hacer fetch en cada visita. |
+| Cards del plan sin macros | `POST /generate` solo devuelve `type`, `name`, `description`. kcal/macros recién aparecen en `GET /meals/{id}`. | No mostrar ni inventar kcal en la lista. Solo en el detalle. |
+| Registrar comida IA sin barcode | El endpoint actual de consumo exige `barcode` + macros por 100g del catálogo. La IA devuelve macros totales sin barcode. | Botón "Registrar alimento" deshabilitado hasta que el backend exponga endpoint para comida custom. |
+| Macros del detalle son strings | `calories`, `proteins`, `carbs`, `fats` vienen como `"350"`, `"350 kcal"` o `"~350"`. | Parsear siempre con `parseMacro(value)` → `parseFloat(value.replace(/[^\d.]/g, '')) || 0`. |
+| Imports duplicados de react-native | NativeWind + ScrollView importados en dos líneas del mismo módulo disparan `import/no-duplicates`. | Consolidar en una sola línea de imports de `react-native`. |
+
 ## Regla de oro
 
 NO codifiques por imagen ni por intuición. Primero verificá contrato, DTO real, estado actual del repo y dependencias. Después implementá. Si el backend devuelve algo útil parcialmente, la UI debe degradar con criterio, no esconder datos.
