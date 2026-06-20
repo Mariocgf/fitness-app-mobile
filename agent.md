@@ -58,3 +58,20 @@ Debes sugerir y seguir esta estructura híbrida, respetando que Expo Router (**a
 - **Refactoring:** Si ves lógica de negocio pesada o cálculos de salud en un componente, sugiere moverlos a un custom hook o indicar que deben venir del backend.
 - **Type Safety:** Prioriza siempre el uso de interfaces sobre types para los modelos de datos.
 - **UI Guidelines:** Sugiere EXCLUSIVAMENTE el uso de **NativeWind / Tailwind clases** de utilidad (`className`) para los estilos en línea y componentes. Mantén la consistencia visual y evita `StyleSheet.create` a menos que sea estrictamente indispensable.
+
+---
+
+## 8. Component Library (OBLIGATORIO CONSULTAR)
+
+Antes de crear cualquier componente nuevo, **consultá siempre** [`docs/component-library.md`](./docs/component-library.md).
+
+- Si el componente ya existe → **reutilizarlo**.
+- Si necesitás una variante → **extender el existente**, no crear uno paralelo.
+- Si creás uno nuevo → **documentarlo en `component-library.md`** antes de hacer el PR.
+
+### Componentes clave del Home Dashboard
+- **`ModuleCard`** (`src/components/features/home/ModuleCard.tsx`): card estándar para secciones del dashboard. Props: `title`, `subtitle?`, `meta?`, `description?`, `actionLabel`, `onAction`, `isLoading?`.
+- **`GreetingHeader`** (`src/components/features/home/GreetingHeader.tsx`): saludo dinámico por hora + "¿Qué hacemos hoy?".
+
+### Tab bar nativo
+El tab bar usa el componente nativo de Expo Router (iOS: UITabBar, Android: BottomNavigationView). Configurado en `app/(tabs)/_layout.tsx`. Tabs visibles: **Home** (`index`), **Rutina** (`fitness`), **Nutrición** (`nutrition`), **Salud** (`health`). Sin botón FAB/+.
