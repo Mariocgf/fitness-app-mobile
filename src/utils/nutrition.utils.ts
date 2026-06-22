@@ -48,6 +48,20 @@ export const getMealCalories = (
 ): number =>
   getMealItems(day, mealType).reduce((total, item) => total + item.calories, 0);
 
+/**
+ * Calorías consumidas del día. Toma el total del backend, pero nunca por debajo
+ * de lo que reconstruyen los macros (protege ante totales desfasados).
+ */
+export const getConsumedCalories = (day: NutritionDayDto | null): number => {
+  if (!day) return 0;
+  return Math.round(
+    Math.max(
+      day.totalCalories,
+      day.totalProteinGrams * 4 + day.totalCarbsGrams * 4 + day.totalFatGrams * 9,
+    ),
+  );
+};
+
 export const formatMacro = (value: number | null | undefined): string => {
   if (value == null) return '0g';
   const rounded = Math.round(value * 10) / 10;

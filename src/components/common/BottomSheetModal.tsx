@@ -25,8 +25,8 @@ export function BottomSheetModal({
       <View className="flex-1 bg-black/50">
         <Pressable className="flex-1" onPress={onClose} />
         <View
-          className="bg-white dark:bg-slate-900 rounded-t-3xl overflow-hidden"
-          style={{ height, paddingBottom: insets.bottom + 20 }}
+          className="bg-zinc-950 rounded-t-3xl overflow-hidden"
+          style={{ height, paddingBottom: insets.bottom }}
         >
           {children}
         </View>

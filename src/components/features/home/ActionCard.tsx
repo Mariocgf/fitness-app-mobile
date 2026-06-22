@@ -10,6 +10,8 @@ cssInterop(Ionicons, {
   className: { target: 'style', nativeStyleToProp: { color: true } },
 });
 
+const LIME = '#a3e635';
+
 export type CardState = 'initial' | 'loading' | 'success';
 
 interface ActionCardProps {
@@ -20,8 +22,28 @@ interface ActionCardProps {
   isLoadingInitial?: boolean;
 }
 
-export const ActionCard = forwardRef<View, ActionCardProps>(({ cardState, onGenerate, onViewPlan, routine, isLoadingInitial = false }, ref) => {
+/** Devuelve el nombre del día de hoy en español */
+const getTodayNameSpanish = (): string => {
+  const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  return days[new Date().getDay()];
+};
 
+/** Icon-tile cuadrado con ícono de acento (lime) sobre superficie secundaria */
+function AccentIconTile({ name }: { name: keyof typeof Ionicons.glyphMap }) {
+  return (
+    <View className="w-16 h-16 rounded-2xl bg-zinc-800 items-center justify-center">
+      <Ionicons name={name} size={30} color={LIME} />
+    </View>
+  );
+}
+
+/**
+ * Card "Tu rutina activa" del módulo Fitness (dark-only, acento lime).
+ * Tres estados: `initial` (sin rutina → generar), `loading` (generando con IA),
+ * `success` (rutina activa con icon-tile, día, meta y "Continuar rutina").
+ * Soporta `ref` para medir su layout y animar la expansión al detalle.
+ */
+export const ActionCard = forwardRef<View, ActionCardProps>(({ cardState, onGenerate, onViewPlan, routine, isLoadingInitial = false }, ref) => {
   const sparkleOpacity = useSharedValue(1);
   const sparkleScale = useSharedValue(1);
 
@@ -40,39 +62,43 @@ export const ActionCard = forwardRef<View, ActionCardProps>(({ cardState, onGene
     transform: [{ scale: sparkleScale.value }],
   }));
 
+  const firstDay = routine?.days?.[0];
+  const exerciseCount = firstDay?.exercises.length ?? 0;
+  const approxTime = firstDay?.approxTimeSession ?? '45 min';
+  const meta = exerciseCount > 0 ? `${exerciseCount} ejercicios • ${approxTime}` : approxTime;
+
   return (
     <View
       ref={ref}
       collapsable={false}
-      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 mx-4 mt-3"
+      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 mx-4"
     >
       {isLoadingInitial ? (
         <View className="flex-row items-center py-3">
-          <ActivityIndicator size="small" color="#a3e635" />
-          <Text className="text-slate-500 dark:text-slate-400 ml-3">Sincronizando...</Text>
+          <ActivityIndicator size="small" color={LIME} />
+          <Text className="text-zinc-400 ml-3">Sincronizando...</Text>
         </View>
       ) : (
         <>
           {/* Sin rutina activa */}
           {cardState === 'initial' && (
             <>
-              <View className="flex-row items-start mb-4">
-                <View className="flex-1 pr-4">
-                  <Text className="text-slate-900 dark:text-slate-50 text-2xl font-bold mb-2">
-                    Genera tu rutina
-                  </Text>
-                  <Text className="text-slate-500 dark:text-slate-400 leading-5">
-                    No tienes planes activos.{'\n'}Obtén tu primera rutina personalizada ahora.
+              <View className="flex-row items-center mb-5">
+                <AccentIconTile name="sparkles" />
+                <View className="flex-1 ml-4">
+                  <Text className="text-white text-xl font-bold mb-1">Generá tu rutina</Text>
+                  <Text className="text-zinc-400 text-sm leading-5">
+                    Obtené tu primer plan personalizado con IA.
                   </Text>
                 </View>
-                <Ionicons name="sparkles" size={40} className="text-slate-900 dark:text-slate-50" />
               </View>
               <TouchableOpacity
                 onPress={onGenerate}
-                activeOpacity={0.8}
-                className="py-4 rounded-xl items-center bg-lime-400"
+                activeOpacity={0.85}
+                className="flex-row items-center justify-center py-4 rounded-xl bg-lime-400"
               >
-                <Text className="text-slate-900 font-bold text-base">Generar rutina</Text>
+                <Text className="text-zinc-900 font-bold text-base mr-2">Generar rutina</Text>
+                <Ionicons name="sparkles" size={18} color="#18181b" />
               </TouchableOpacity>
             </>
           )}
@@ -80,21 +106,19 @@ export const ActionCard = forwardRef<View, ActionCardProps>(({ cardState, onGene
           {/* Generando rutina con IA */}
           {cardState === 'loading' && (
             <>
-              <View className="flex-row items-start mb-4">
-                <View className="flex-1 pr-4">
-                  <Text className="text-slate-900 dark:text-slate-50 text-2xl font-bold mb-2">
-                    Genera tu rutina
-                  </Text>
-                  <Text className="text-slate-500 dark:text-slate-400 leading-5">
+              <View className="flex-row items-center mb-5">
+                <Animated.View style={animatedStyle}>
+                  <AccentIconTile name="sparkles" />
+                </Animated.View>
+                <View className="flex-1 ml-4">
+                  <Text className="text-white text-xl font-bold mb-1">Generando rutina</Text>
+                  <Text className="text-zinc-400 text-sm leading-5">
                     Analizando tus preferencias con IA...
                   </Text>
                 </View>
-                <Animated.View style={animatedStyle}>
-                  <Ionicons name="sparkles" size={40} className="text-slate-900 dark:text-slate-50" />
-                </Animated.View>
               </View>
               <View className="py-4 rounded-xl items-center bg-lime-400 opacity-50">
-                <ActivityIndicator size="small" color="#1e293b" />
+                <ActivityIndicator size="small" color="#18181b" />
               </View>
             </>
           )}
@@ -102,37 +126,27 @@ export const ActionCard = forwardRef<View, ActionCardProps>(({ cardState, onGene
           {/* Rutina activa */}
           {cardState === 'success' && routine && (
             <>
-              <View className="flex-row items-start mb-4">
-                <View className="flex-1 pr-4">
-                  <Text className="text-slate-900 dark:text-slate-50 text-2xl font-bold mb-2">
+              <View className="flex-row items-center mb-5">
+                <AccentIconTile name={routine.source === 'Manual' ? 'barbell' : 'fitness'} />
+                <View className="flex-1 ml-4">
+                  <Text className="text-white text-xl font-bold mb-1" numberOfLines={1}>
                     {routine.name}
                   </Text>
-                  <Text className="text-slate-500 dark:text-slate-400 leading-5">
-                    {routine.days.length} días/semana{'\n'}45 min por sesión.
-                  </Text>
+                  <View className="flex-row items-center mb-1">
+                    <Ionicons name="calendar-outline" size={14} color="#71717a" />
+                    <Text className="text-zinc-400 text-sm ml-1.5">{getTodayNameSpanish()}</Text>
+                  </View>
+                  <Text className="text-zinc-400 text-sm">{meta}</Text>
                 </View>
-                <Ionicons
-                  name={routine.source === 'Manual' ? 'barbell-outline' : 'sparkles'}
-                  size={40}
-                  className="text-slate-900 dark:text-slate-50"
-                />
               </View>
-              <View className="flex-row gap-3">
-                <TouchableOpacity
-                  onPress={onViewPlan}
-                  activeOpacity={0.8}
-                  className="flex-1 py-4 rounded-xl items-center bg-lime-400"
-                >
-                  <Text className="text-slate-900 font-bold text-base">Ver rutina</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={onViewPlan}
-                  activeOpacity={0.8}
-                  className="px-4 rounded-xl items-center justify-center bg-slate-950 dark:bg-slate-50"
-                >
-                  <Ionicons name="play" size={22} className="text-lime-400" />
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                onPress={onViewPlan}
+                activeOpacity={0.85}
+                className="flex-row items-center justify-center py-4 rounded-xl bg-lime-400"
+              >
+                <Text className="text-zinc-900 font-bold text-base mr-2">Continuar rutina</Text>
+                <Ionicons name="arrow-forward" size={18} color="#18181b" />
+              </TouchableOpacity>
             </>
           )}
         </>
@@ -140,3 +154,5 @@ export const ActionCard = forwardRef<View, ActionCardProps>(({ cardState, onGene
     </View>
   );
 });
+
+ActionCard.displayName = 'ActionCard';

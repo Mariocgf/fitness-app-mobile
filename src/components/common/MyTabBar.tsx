@@ -1,9 +1,6 @@
-import { useColorScheme } from "@/src/hooks/use-color-scheme";
-import { useNutritionRegisterContext } from "@/src/store/nutrition-register-context";
 import { useRoutineDetailContext } from "@/src/store/routine-detail-context";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { useSegments } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useCallback, useState } from "react";
 import { Alert, Modal, Platform, Pressable, Text, View } from "react-native";
@@ -134,26 +131,18 @@ function TabItem({
   route,
   isFocused,
   label,
-  isDark,
   onPress,
 }: {
   route: { name: string };
   isFocused: boolean;
   label: string;
-  isDark: boolean;
   onPress: () => void;
 }) {
   const icons = TAB_ICONS[route.name] ?? {
     outline: "ellipse-outline",
     filled: "ellipse",
   };
-  const iconColor = isFocused
-    ? isDark
-      ? "#ffffff"
-      : "#18181b"
-    : isDark
-      ? "#71717a"
-      : "#a1a1aa";
+  const iconColor = isFocused ? "#ffffff" : "#71717a";
 
   return (
     <Pressable
@@ -167,13 +156,7 @@ function TabItem({
       />
       <Text
         className={`text-[10px] mt-1 font-semibold ${
-          isFocused
-            ? isDark
-              ? "text-white"
-              : "text-zinc-900"
-            : isDark
-              ? "text-zinc-500"
-              : "text-zinc-400"
+          isFocused ? "text-white" : "text-zinc-500"
         }`}
       >
         {label}
@@ -185,7 +168,6 @@ function TabItem({
 /** Ítem individual dentro del menú desplegable del FAB */
 function FabMenuItem({
   option,
-  isDark,
   isPressed,
   iconColor,
   onPress,
@@ -193,7 +175,6 @@ function FabMenuItem({
   onPressOut,
 }: {
   option: MenuOption;
-  isDark: boolean;
   isPressed: boolean;
   iconColor: string;
   onPress: () => void;
@@ -201,7 +182,7 @@ function FabMenuItem({
   onPressOut: () => void;
 }) {
   const isDisabled = option.disabled === true;
-  const dimColor = isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)";
+  const dimColor = "rgba(255,255,255,0.3)";
   return (
     <Pressable
       onPress={isDisabled ? undefined : onPress}
@@ -210,20 +191,12 @@ function FabMenuItem({
       className="flex-row items-center px-5 py-4"
       style={{
         backgroundColor:
-          isPressed && !isDisabled
-            ? isDark
-              ? "rgba(255,255,255,0.09)"
-              : "rgba(0,0,0,0.055)"
-            : "transparent",
+          isPressed && !isDisabled ? "rgba(255,255,255,0.09)" : "transparent",
         opacity: isDisabled ? 0.45 : 1,
       }}
     >
       {/* Fondo del icono */}
-      <View
-        className={`w-9 h-9 rounded-xl items-center justify-center mr-3 ${
-          isDark ? "bg-zinc-700" : "bg-gray-100"
-        }`}
-      >
+      <View className="w-9 h-9 rounded-xl items-center justify-center mr-3 bg-zinc-700">
         <Ionicons
           name={option.icon as any}
           size={19}
@@ -231,11 +204,7 @@ function FabMenuItem({
         />
       </View>
 
-      <Text
-        className={`text-[15px] font-semibold ${
-          isDark ? "text-white" : "text-zinc-900"
-        }`}
-      >
+      <Text className="text-[15px] font-semibold text-white">
         {option.label}
       </Text>
     </Pressable>
@@ -254,10 +223,7 @@ export function MyTabBar({
   navigation,
   onFabAction,
 }: MyTabBarProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const insets = useSafeAreaInsets();
-  const segments = useSegments();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [pressedKey, setPressedKey] = useState<string | null>(null);
@@ -271,16 +237,9 @@ export function MyTabBar({
     onCreateRoutine,
     viewingActiveRoutine,
     isCreatingRoutine,
-    isEditingRoutine,
     saveRoutineRef,
     isFormValidRef,
   } = useRoutineDetailContext();
-  const {
-    isRegisterViewVisible,
-    canSave: canSaveFoods,
-    isSaving: isSavingFoods,
-    saveFoodsRef,
-  } = useNutritionRegisterContext();
 
   /** Progreso de animación del menú: 0 = cerrado, 1 = abierto */
   const menuProgress = useSharedValue(0);
@@ -288,24 +247,10 @@ export function MyTabBar({
   const fabScale = useSharedValue(1);
 
   const activeRouteName = state.routes[state.index]?.name ?? "index";
-  const segmentNames = segments as readonly string[];
-  const isNutritionRegisterRoute =
-    segmentNames.includes("nutrition") && segmentNames.includes("register");
 
   /** Opciones del menú: contextuales según estado de la vista de rutina */
   const menuOptions: MenuOption[] = (() => {
-    // Editor de rutina abierto en modo creación o edición
-    if (isEditingRoutine) {
-      const valid = isFormValidRef.current;
-      return [
-        {
-          icon: "save-outline",
-          label: "Guardar cambios",
-          key: "save-only",
-          disabled: !valid,
-        },
-      ];
-    }
+    // Editor de rutina abierto en modo creación
     if (isCreatingRoutine) {
       const valid = isFormValidRef.current;
       return [
@@ -320,16 +265,6 @@ export function MyTabBar({
           label: "Solo guardar",
           key: "save-only",
           disabled: !valid,
-        },
-      ];
-    }
-    if (isRegisterViewVisible || isNutritionRegisterRoute) {
-      return [
-        {
-          icon: "save-outline",
-          label: isSavingFoods ? "Guardando..." : "Guardar",
-          key: "save-foods",
-          disabled: !canSaveFoods || isSavingFoods,
         },
       ];
     }
@@ -502,17 +437,6 @@ export function MyTabBar({
           routineActions.onDelete();
           return;
         }
-        if (key === "save-foods") {
-          if (!canSaveFoods || isSavingFoods) {
-            Alert.alert(
-              "Sin alimentos",
-              "Agregá al menos un alimento antes de guardar.",
-            );
-            return;
-          }
-          saveFoodsRef.current();
-          return;
-        }
         if (key === "log-food" && activeRouteName === "nutrition") {
           (navigation as any).navigate("nutrition", {
             screen: "register",
@@ -535,16 +459,13 @@ export function MyTabBar({
     },
     [
       activeRouteName,
-      canSaveFoods,
       closeMenu,
       isFormValidRef,
-      isSavingFoods,
       navigation,
       onFabAction,
       routineActions,
       onGenerateRoutine,
       onCreateRoutine,
-      saveFoodsRef,
       saveRoutineRef,
     ],
   );
@@ -623,12 +544,7 @@ export function MyTabBar({
     activeRouteName === "fitness" ||
     activeRouteName === "fitness/index" ||
     activeRouteName === "fitness/routines";
-  if (
-    isDetailVisible &&
-    (!isFitnessRoute || viewingActiveRoutine) &&
-    !isEditingRoutine
-  )
-    return null;
+  if (isDetailVisible && (!isFitnessRoute || viewingActiveRoutine)) return null;
 
   // ── Colores dinámicos del FAB y de los iconos del menú según la vista activa ──
   const getThemeColors = () => {
@@ -656,19 +572,19 @@ export function MyTabBar({
       };
     }
     if (activeRouteName === "health") {
-      // rose-600 light / rose-400 dark
+      // rose-400
       return {
-        fabBg: isDark ? "#fb7185" : "#e11d48",
+        fabBg: "#fb7185",
         fabIconColor: "#ffffff",
-        menuIconColor: isDark ? "#fb7185" : "#e11d48",
+        menuIconColor: "#fb7185",
         fabIconName: "add",
       };
     }
-    // index / home — zinc-50 dark / zinc-950 light (Acento Global Marca)
+    // index / home — zinc-50 (Acento Global Marca)
     return {
-      fabBg: isDark ? "#fafafa" : "#09090b",
-      fabIconColor: isDark ? "#09090b" : "#fafafa",
-      menuIconColor: isDark ? "#09090b" : "#fafafa",
+      fabBg: "#fafafa",
+      fabIconColor: "#09090b",
+      menuIconColor: "#09090b",
       fabIconName: "add",
     };
   };
@@ -706,16 +622,11 @@ export function MyTabBar({
           ]}
         >
           {/* Card del menú */}
-          <View
-            className={`rounded-2xl overflow-hidden min-w-[230px] ${
-              isDark ? "bg-zinc-800" : "bg-white"
-            }`}
-          >
+          <View className="rounded-2xl overflow-hidden min-w-[230px] bg-zinc-800">
             {menuOptions.map((option) => (
               <FabMenuItem
                 key={option.key}
                 option={option}
-                isDark={isDark}
                 isPressed={pressedKey === option.key}
                 iconColor={menuIconColor}
                 onPress={() => handleMenuAction(option.key)}
@@ -736,7 +647,7 @@ export function MyTabBar({
                 borderTopWidth: 9,
                 borderLeftColor: "transparent",
                 borderRightColor: "transparent",
-                borderTopColor: isDark ? "#3f3f46" : "#ffffff",
+                borderTopColor: "#3f3f46",
               }}
             />
           </View>
@@ -745,16 +656,12 @@ export function MyTabBar({
 
       {/* Tab Bar principal */}
       <View
-        className={`absolute self-center flex-row items-center rounded-full py-2 px-2 ${
-          isDark
-            ? "bg-zinc-900 border border-zinc-800"
-            : "bg-white border border-zinc-200"
-        }`}
+        className="absolute self-center flex-row items-center rounded-full py-2 px-2 bg-zinc-900 border border-zinc-800"
         style={{
           bottom: Math.max(insets.bottom, 8) + 8,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: isDark ? 0.4 : 0.1,
+          shadowOpacity: 0.4,
           shadowRadius: 16,
           elevation: 8,
         }}
@@ -765,7 +672,6 @@ export function MyTabBar({
             route={route}
             isFocused={isTabActive(route.name, activeRouteName)}
             label={ROUTE_LABELS[route.name] ?? route.name}
-            isDark={isDark}
             onPress={() => {
               if (Platform.OS !== "web")
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -834,7 +740,6 @@ export function MyTabBar({
             route={route}
             isFocused={isTabActive(route.name, activeRouteName)}
             label={ROUTE_LABELS[route.name] ?? route.name}
-            isDark={isDark}
             onPress={() => {
               if (Platform.OS !== "web")
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

@@ -1,12 +1,17 @@
-import { DarkSheetLayout } from '@/src/components/common/DarkSheetLayout';
 import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
+import { TAB_BAR_HEIGHT } from '@/src/components/features/routine/routine-detail-shared';
 import { SessionComparePicker } from '@/src/components/features/training-history/SessionComparePicker';
 import { SessionComparisonSheet } from '@/src/components/features/training-history/SessionComparisonSheet';
 import { SessionExerciseCard } from '@/src/components/features/training-history/SessionExerciseCard';
+import { SessionStatsCard } from '@/src/components/features/training-history/SessionStatsCard';
 import { TrainingHistoryCardSkeleton } from '@/src/components/features/training-history/TrainingHistoryCardSkeleton';
 import { useTrainingSessionComparison } from '@/src/hooks/useTrainingSessionComparison';
 import { useTrainingSessionDetail } from '@/src/hooks/useTrainingSessionDetail';
-import { formatDurationLong, formatSessionDateTime } from '@/src/utils/training-history.utils';
+import {
+  computeSessionStats,
+  formatDurationLong,
+  formatSessionDateTimeDot,
+} from '@/src/utils/training-history.utils';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -39,7 +44,6 @@ export default function TrainingSessionDetailScreen() {
   const comparisonSheetVisible = isLoadingTarget || comparison != null || targetError != null;
 
   const handleBack = () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     router.push('/fitness/training-history' as any);
   };
 
@@ -53,69 +57,26 @@ export default function TrainingSessionDetailScreen() {
     [selectTarget],
   );
 
-  const header = (
-    <View style={{ paddingTop: insets.top }} className="px-4 pb-4">
-      <View className="flex-row items-center justify-between py-3">
-        <TouchableOpacity
-          onPress={handleBack}
-          className="p-2 -ml-2 rounded-full"
-          activeOpacity={0.7}
-        >
-          <Ionicons name="chevron-back" size={28} color="#64748b" />
-        </TouchableOpacity>
-        <Text
-          className="flex-1 text-center text-base font-semibold text-slate-900 dark:text-slate-50"
-          numberOfLines={1}
-        >
-          {session ? session.routineName : 'Detalle de sesión'}
-        </Text>
-        {/* Botón comparar — visible solo cuando hay sesión cargada */}
-        {session ? (
-          <TouchableOpacity
-            onPress={handlePressCompare}
-            activeOpacity={0.7}
-            className="flex-row items-center gap-1 px-3 py-1.5 bg-lime-400 rounded-full"
-          >
-            <Ionicons name="swap-horizontal" size={14} color="#1e293b" />
-            <Text className="text-slate-900 text-xs font-semibold">Comparar</Text>
-          </TouchableOpacity>
-        ) : (
-          <View className="w-10" />
-        )}
-      </View>
-
-      {/* Sub-header con fecha, duración y cant. ejercicios */}
-      {session && (
-        <View className="items-center gap-1 mt-1">
-          <Text className="text-slate-500 dark:text-slate-400 text-sm">
-            {formatSessionDateTime(session.trainedAt)}
-          </Text>
-          <View className="flex-row items-center gap-4 mt-1">
-            <View className="flex-row items-center">
-              <Ionicons name="time-outline" size={14} color="#94a3b8" />
-              <Text className="text-slate-500 dark:text-slate-400 text-sm ml-1">
-                {formatDurationLong(session.totalSeconds)}
-              </Text>
-            </View>
-            <View className="flex-row items-center">
-              <Ionicons name="barbell-outline" size={14} color="#94a3b8" />
-              <Text className="text-slate-500 dark:text-slate-400 text-sm ml-1">
-                {session.exercises.length} {session.exercises.length === 1 ? 'ejercicio' : 'ejercicios'}
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
-    </View>
-  );
+  const bottomPadding = TAB_BAR_HEIGHT + insets.bottom + 24;
 
   return (
     <>
       <SwipeBackWrapper onSwipeBack={handleBack}>
-        <DarkSheetLayout header={header}>
+        <View className="flex-1 bg-zinc-950">
+          {/* Botón back (fijo arriba) */}
+          <View style={{ paddingTop: insets.top }} className="px-5 pt-3">
+            <TouchableOpacity
+              onPress={handleBack}
+              activeOpacity={0.7}
+              className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 items-center justify-center"
+            >
+              <Ionicons name="chevron-back" size={22} color="#a3e635" />
+            </TouchableOpacity>
+          </View>
+
           {/* Estado de carga */}
           {isLoading && (
-            <View className="px-4 pt-4">
+            <View className="px-5 pt-6">
               {Array.from({ length: 3 }).map((_, i) => (
                 <View key={i} className="mb-3">
                   <TrainingHistoryCardSkeleton variant="list" />
@@ -128,15 +89,13 @@ export default function TrainingSessionDetailScreen() {
           {!isLoading && error && (
             <View className="flex-1 items-center justify-center py-20 px-6">
               <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
-              <Text className="text-slate-900 dark:text-slate-50 text-base font-medium mt-4 text-center">
-                {error}
-              </Text>
+              <Text className="text-white text-base font-medium mt-4 text-center">{error}</Text>
               <TouchableOpacity
                 onPress={refresh}
                 className="mt-4 bg-lime-400 px-6 py-3 rounded-xl"
                 activeOpacity={0.8}
               >
-                <Text className="text-slate-900 font-semibold">Reintentar</Text>
+                <Text className="text-zinc-900 font-semibold">Reintentar</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -144,10 +103,40 @@ export default function TrainingSessionDetailScreen() {
           {/* Contenido principal */}
           {!isLoading && !error && session && (
             <ScrollView
-              contentContainerClassName="px-4 pt-4 pb-32"
+              contentContainerStyle={{ paddingBottom: bottomPadding }}
+              contentContainerClassName="px-5 pt-4"
               showsVerticalScrollIndicator={false}
             >
-              <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wide mb-3">
+              {/* Título + meta */}
+              <Text className="text-white text-4xl font-bold" numberOfLines={2}>
+                {session.routineName}
+              </Text>
+              <Text className="text-zinc-400 text-base mt-2">
+                {formatSessionDateTimeDot(session.trainedAt)}
+              </Text>
+
+              <View className="flex-row items-center justify-between mt-2 mb-6">
+                <Text className="text-zinc-400 text-base">
+                  {formatDurationLong(session.totalSeconds)}
+                  {'  •  '}
+                  {session.exercises.length}{' '}
+                  {session.exercises.length === 1 ? 'ejercicio' : 'ejercicios'}
+                </Text>
+                <TouchableOpacity
+                  onPress={handlePressCompare}
+                  activeOpacity={0.7}
+                  className="flex-row items-center gap-1.5"
+                >
+                  <Ionicons name="stats-chart" size={18} color="#a3e635" />
+                  <Text className="text-lime-400 text-base font-semibold">Comparar</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Resumen de la sesión */}
+              <SessionStatsCard stats={computeSessionStats(session)} />
+
+              {/* Ejercicios */}
+              <Text className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mt-8 mb-4">
                 Ejercicios realizados
               </Text>
               {session.exercises.map((exercise, index) => (
@@ -155,11 +144,12 @@ export default function TrainingSessionDetailScreen() {
                   key={exercise.exerciseId + index}
                   exercise={exercise}
                   index={index}
+                  defaultExpanded={index === 0}
                 />
               ))}
             </ScrollView>
           )}
-        </DarkSheetLayout>
+        </View>
       </SwipeBackWrapper>
 
       {/* Picker: montado condicionalmente para no ejecutar hooks pesados cuando está cerrado */}

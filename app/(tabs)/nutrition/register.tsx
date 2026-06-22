@@ -1,7 +1,6 @@
 import { FoodRegisterView } from '@/src/components/features/nutrition/FoodRegisterView';
 import { useFoodRegister } from '@/src/hooks/useFoodRegister';
 import { useNutritionDay } from '@/src/hooks/useNutritionDay';
-import { NutritionRegisterState } from '@/src/store/nutrition-register-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback } from 'react';
 import { Alert } from 'react-native';
@@ -56,12 +55,7 @@ export default function FoodRegisterScreen() {
   }, [saveFoods]);
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-slate-950">
-      <NutritionRegisterState
-        canSave={canSave}
-        isSaving={isSaving}
-        onSave={handleSaveFoods}
-      />
+    <SafeAreaView className="flex-1 bg-zinc-950">
       <FoodRegisterView
         selectedMealType={selectedMealType}
         selectedMealCalories={selectedMealCalories}
@@ -70,11 +64,14 @@ export default function FoodRegisterScreen() {
         error={error}
         addError={addError}
         isAdding={isAdding}
+        isSaving={isSaving}
+        canSave={canSave}
         onBack={handleBack}
         onMealChange={selectMealType}
         onRefresh={refresh}
         onAddFood={addFood}
         onFoodGramsChange={updateFoodGrams}
+        onSave={handleSaveFoods}
       />
     </SafeAreaView>
   );

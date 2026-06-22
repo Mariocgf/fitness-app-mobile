@@ -1,80 +1,91 @@
-import { ExerciseActionButtons } from '@/src/components/features/ExerciseActionButtons';
-import { TimerCard } from '@/src/components/features/TimerCard';
 import { SessionExercise } from '@/src/types/session';
+import { formatExerciseLoad, formatRepRange, formatReps, formatTime } from '@/src/utils/format.utils';
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { View } from 'react-native';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import { ScrollView, Text, View } from 'react-native';
 import { ExerciseGif } from './ExerciseGif';
 import { InstructionsModal } from './InstructionsModal';
 
 interface ExercisePhaseProps {
   currentExercise: SessionExercise;
-  exerciseIndex: number;
   currentSet: number;
   totalSets: number;
   isTimeBased: boolean;
   exerciseTimeLeft: number | null;
-  timeBasedDuration: number;
   globalTime: number;
   showInstructions: boolean;
-  onToggleInstructions: () => void;
-  exerciseBlockY: { value: number };
-  onFinishSet: () => void;
-  onFinishSessionEarly: () => void;
-  onIncomplete: () => void;
+  onCloseInstructions: () => void;
 }
 
+/**
+ * Contenido de la fase de ejecución (dark `zinc`/`lime`): GIF hero, timer,
+ * "Serie N de M" y subtítulo reps•peso. NO incluye header ni la sección de
+ * botones — esos viven en `ActiveSessionView` y quedan fijos (fuera del
+ * cross-fade entre fases).
+ */
 export const ExercisePhase: React.FC<ExercisePhaseProps> = ({
   currentExercise,
-  exerciseIndex,
   currentSet,
   totalSets,
   isTimeBased,
   exerciseTimeLeft,
-  timeBasedDuration,
   globalTime,
   showInstructions,
-  onToggleInstructions,
-  exerciseBlockY,
-  onFinishSet,
-  onFinishSessionEarly,
-  onIncomplete,
+  onCloseInstructions,
 }) => {
-  const exerciseBlockStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: exerciseBlockY.value }],
-  }));
+  /* Timer activo: cuenta regresiva en ejercicios por tiempo, cronómetro global en el resto */
+  const timeLabel = formatTime(isTimeBased ? exerciseTimeLeft ?? 0 : globalTime);
+
+  /* Objetivo: rango de reps (o duración en ejercicios por tiempo) + carga */
+  const repsLabel = isTimeBased
+    ? formatReps(currentExercise)
+    : `${formatRepRange(currentExercise)} repeticiones`;
+  const loadLabel = formatExerciseLoad(currentExercise);
 
   return (
-    <Animated.View style={exerciseBlockStyle}>
-      <View className="w-full aspect-square">
-        {currentExercise.gifUrl ? (
-          <ExerciseGif uri={currentExercise.gifUrl} />
-        ) : (
-          <View className="flex-1 items-center justify-center">
-            <ExerciseActionButtons
-              onIncomplete={onIncomplete}
-              onFlag={onFinishSessionEarly}
-              onNext={onFinishSet}
-            />
-          </View>
-        )}
-      </View>
-      <TimerCard
-        key={`ex-${exerciseIndex}-${currentSet}`}
-        mode={isTimeBased ? 'countdown' : 'stopwatch'}
-        time={isTimeBased ? (exerciseTimeLeft ?? 0) : globalTime}
-        totalDuration={isTimeBased ? timeBasedDuration : undefined}
-        remainingLabel={isTimeBased && exerciseTimeLeft !== null ? String(exerciseTimeLeft) : undefined}
-      />
+    <>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* GIF hero */}
+        <View className="w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 mt-2">
+          {currentExercise.gifUrl ? (
+            <ExerciseGif uri={currentExercise.gifUrl} />
+          ) : (
+            <View className="flex-1 items-center justify-center">
+              <Ionicons name="image-outline" size={48} color="#52525b" />
+            </View>
+          )}
+        </View>
 
-      {currentExercise && (
-        <InstructionsModal
-          visible={showInstructions}
-          onClose={onToggleInstructions}
-          exerciseId={currentExercise.exerciseId}
-          exerciseName={currentExercise.name}
-        />
-      )}
-    </Animated.View>
+        {/* Timer */}
+        <Text className="text-lime-400 text-base font-medium mt-6">{timeLabel}</Text>
+
+        {/* Serie actual */}
+        <Text className="text-white text-5xl font-bold mt-1">
+          Serie <Text className="text-lime-400">{currentSet}</Text> de {totalSets}
+        </Text>
+
+        {/* Objetivo: reps • peso */}
+        <Text className="text-zinc-400 text-lg mt-2">
+          {repsLabel}
+          {loadLabel !== '-' ? (
+            <Text>
+              {'  '}
+              <Text className="text-lime-400">•</Text> {loadLabel}
+            </Text>
+          ) : null}
+        </Text>
+      </ScrollView>
+
+      <InstructionsModal
+        visible={showInstructions}
+        onClose={onCloseInstructions}
+        exerciseId={currentExercise.exerciseId}
+        exerciseName={currentExercise.name}
+      />
+    </>
   );
 };

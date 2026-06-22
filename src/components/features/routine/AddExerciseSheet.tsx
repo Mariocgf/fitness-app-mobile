@@ -7,19 +7,21 @@ import {
 } from '@/src/services/exercise.service';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ExerciseThumbnail } from '@/src/components/features/routine/ExerciseThumbnail';
+import { ExerciseDetailView } from '@/src/components/features/routine/ExerciseDetailView';
+import { BottomSheetModal } from '@/src/components/common/BottomSheetModal';
+import { SelectablePill } from '@/src/components/common/SelectablePill';
+import { RoutineExercise } from '@/src/types/routine';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
-  Modal,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 /* ──────────────────────────────────────────────────────────────────────────── */
 /*                              Props                                          */
@@ -34,6 +36,29 @@ interface AddExerciseSheetProps {
 }
 
 /* ──────────────────────────────────────────────────────────────────────────── */
+/*                          Helpers                                            */
+/* ──────────────────────────────────────────────────────────────────────────── */
+
+/** Construye un RoutineExercise mínimo para alimentar la vista de detalle. */
+const toDetailExercise = (item: ExerciseSearchItem): RoutineExercise => ({
+  id: item.exerciseId,
+  exerciseId: item.exerciseId,
+  order: '',
+  name: item.name,
+  gifUrl: item.gifUrl,
+  sets: '',
+  repType: 'Fixed',
+  minRep: null,
+  maxRep: null,
+  currentRep: null,
+  durationSeconds: null,
+  rest: '',
+  loadType: null,
+  plannedWeightKg: null,
+  primaryMuscleGroup: null,
+});
+
+/* ──────────────────────────────────────────────────────────────────────────── */
 /*                         AddExerciseSheet                                    */
 /* ──────────────────────────────────────────────────────────────────────────── */
 
@@ -41,11 +66,10 @@ export const AddExerciseSheet: React.FC<AddExerciseSheetProps> = ({
   visible,
   onClose,
   onAdd,
-  confirmLabel = 'Agregar',
+  confirmLabel = 'Agregar seleccionado',
   excludedExerciseIds = [],
 }) => {
   const { getToken } = useAuth();
-  const insets = useSafeAreaInsets();
 
   /* ── Refs para valores inestables que no deben causar re-renders ─────── */
 
@@ -72,6 +96,10 @@ export const AddExerciseSheet: React.FC<AddExerciseSheetProps> = ({
   const [page, setPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
+
+  /* ── Ejercicio cuyo detalle se está viendo (overlay) ───────────────────── */
+
+  const [detailExercise, setDetailExercise] = useState<ExerciseSearchItem | null>(null);
 
   /* ── Refs para controlar triggers y evitar loops ────────────────────────── */
 
@@ -243,225 +271,228 @@ export const AddExerciseSheet: React.FC<AddExerciseSheetProps> = ({
 
   /* ── Render ─────────────────────────────────────────────────────────────── */
 
-  const selectedExercise = useMemo(
-    () => exercises.find((e) => e.exerciseId === selectedExerciseId),
-    [exercises, selectedExerciseId],
-  );
-
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View className="flex-1 bg-black/50">
-        {/* Overlay opaco para cerrar */}
-        <Pressable className="flex-1" onPress={onClose} />
+    <BottomSheetModal visible={visible} onClose={onClose}>
+      <View className="flex-1 bg-zinc-950">
+        {/* Header */}
+        <View className="px-5 pt-5 pb-3">
+          <Text className="text-3xl font-bold text-white mb-4">Ejercicios</Text>
 
-        {/* Sheet - altura fija para evitar recálculos de layout */}
-        <View
-          className="bg-white dark:bg-slate-900 rounded-t-3xl overflow-hidden"
-          style={{ height: '85%', paddingBottom: insets.bottom + 20 }}
-        >
-          {/* Header */}
-          <View className="px-5 pt-5 pb-3">
-            <Text className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
-              Ejercicios
-            </Text>
+          {/* Búsqueda */}
+          <View className="flex-row items-center bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3.5">
+            <Ionicons name="search-outline" size={20} color="#a1a1aa" />
+            <TextInput
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+              placeholder="Buscar ejercicios…"
+              placeholderTextColor="#71717a"
+              className="flex-1 ml-2 text-base text-white"
+              returnKeyType="search"
+            />
+            {searchTerm.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchTerm('')}>
+                <Ionicons name="close-circle" size={20} color="#71717a" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
 
-            {/* Búsqueda */}
-            <View className="flex-row items-center bg-slate-100 dark:bg-slate-800 rounded-xl px-4 py-3">
-              <Ionicons name="search-outline" size={18} color="#94a3b8" />
-              <TextInput
-                value={searchTerm}
-                onChangeText={setSearchTerm}
-                placeholder="Buscar ejercicio…"
-                placeholderTextColor="#94a3b8"
-                className="flex-1 ml-2 text-base text-slate-900 dark:text-white"
-                returnKeyType="search"
-              />
-              {searchTerm.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchTerm('')}>
-                  <Ionicons name="close-circle" size={18} color="#94a3b8" />
-                </TouchableOpacity>
-              )}
-            </View>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Filtros: Músculo */}
+          <View className="mb-4">
+            <Text className="text-base font-semibold text-white mb-2 px-5">Músculo</Text>
+            {loadingFilters ? (
+              <ActivityIndicator size="small" color="#a3e635" className="self-start ml-5" />
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
+              >
+                {muscles.map((muscle) => (
+                  <SelectablePill
+                    key={muscle}
+                    label={translateMuscle(muscle)}
+                    selected={selectedMuscle === muscle}
+                    onPress={() => selectMuscle(muscle)}
+                    accent="lime"
+                  />
+                ))}
+              </ScrollView>
+            )}
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Músculos */}
-            <View className="px-5 mb-4">
-              <Text className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-                Músculo
-              </Text>
-              {loadingFilters ? (
-                <ActivityIndicator size="small" color="#a3e635" />
-              ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View className="flex-row gap-2">
-                    {muscles.map((muscle) => {
-                      const isSelected = selectedMuscle === muscle;
-                      return (
-                        <TouchableOpacity
-                          key={muscle}
-                          onPress={() => selectMuscle(muscle)}
-                          className={`px-4 py-2 rounded-full border ${
-                            isSelected
-                              ? 'bg-zinc-950 dark:bg-zinc-50 border-zinc-950 dark:border-zinc-50'
-                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
-                          }`}
-                        >
-                          <Text
-                            className={`text-sm font-medium ${
-                              isSelected ? 'text-white dark:text-zinc-950' : 'text-slate-700 dark:text-slate-300'
-                            }`}
-                          >
-                            {translateMuscle(muscle)}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </ScrollView>
-              )}
-            </View>
+          {/* Filtros: Equipamiento */}
+          <View className="mb-5">
+            <Text className="text-base font-semibold text-white mb-2 px-5">Equipamiento</Text>
+            {loadingFilters ? (
+              <ActivityIndicator size="small" color="#a3e635" className="self-start ml-5" />
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
+              >
+                {equipments.map((eq) => (
+                  <SelectablePill
+                    key={eq}
+                    label={translateEquipment(eq)}
+                    selected={selectedEquipment === eq}
+                    onPress={() => selectEquipment(eq)}
+                    accent="lime"
+                  />
+                ))}
+              </ScrollView>
+            )}
+          </View>
 
-            {/* Equipamiento */}
-            <View className="px-5 mb-4">
-              <Text className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-                Equipamiento
-              </Text>
-              {loadingFilters ? (
-                <ActivityIndicator size="small" color="#a3e635" />
-              ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View className="flex-row gap-2">
-                    {equipments.map((eq) => {
-                      const isSelected = selectedEquipment === eq;
-                      return (
-                        <TouchableOpacity
-                          key={eq}
-                          onPress={() => selectEquipment(eq)}
-                          className={`px-4 py-2 rounded-full border ${
-                            isSelected
-                              ? 'bg-zinc-950 dark:bg-zinc-50 border-zinc-950 dark:border-zinc-50'
-                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
-                          }`}
-                        >
-                          <Text
-                            className={`text-sm font-medium ${
-                              isSelected ? 'text-white dark:text-zinc-950' : 'text-slate-700 dark:text-slate-300'
-                            }`}
-                          >
-                            {translateEquipment(eq)}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </ScrollView>
-              )}
-            </View>
+          {/* Resultados */}
+          <View className="px-5 pb-4">
+            <Text className="text-2xl font-bold text-white mb-3">Resultados</Text>
 
-            {/* Lista de ejercicios */}
-            <View className="px-5 pb-4">
-              {loadingExercises && exercises.length === 0 ? (
-                <ActivityIndicator size="large" color="#a3e635" className="py-8" />
-              ) : exercises.length === 0 ? (
-                <View className="items-center py-8">
-                  <Ionicons name="barbell-outline" size={40} color="#94a3b8" />
-                  <Text className="text-slate-400 dark:text-slate-500 mt-2">
-                    No se encontraron ejercicios
-                  </Text>
-                </View>
-              ) : (
-                <>
-                  {exercises.map((exercise) => {
-                    const isSelected = selectedExerciseId === exercise.exerciseId;
-                    const isExcluded = excludedExerciseIds.includes(exercise.exerciseId);
-                    return (
+            {loadingExercises && exercises.length === 0 ? (
+              <ActivityIndicator size="large" color="#a3e635" className="py-8" />
+            ) : exercises.length === 0 ? (
+              <View className="items-center py-10">
+                <Ionicons name="barbell-outline" size={40} color="#52525b" />
+                <Text className="text-zinc-500 mt-2">No se encontraron ejercicios</Text>
+              </View>
+            ) : (
+              <>
+                {exercises.map((exercise) => {
+                  const isSelected = selectedExerciseId === exercise.exerciseId;
+                  const isExcluded = excludedExerciseIds.includes(exercise.exerciseId);
+                  const tags = (exercise.equipments ?? []).slice(0, 2);
+                  return (
+                    <View
+                      key={exercise.exerciseId}
+                      className={`flex-row items-center bg-zinc-900 rounded-2xl p-3 border mb-2.5 ${
+                        isSelected ? 'border-lime-400' : 'border-zinc-800'
+                      }`}
+                      style={isExcluded ? { opacity: 0.45 } : undefined}
+                    >
+                      {/* Zona seleccionable (todo menos el botón info) */}
                       <TouchableOpacity
-                        key={exercise.exerciseId}
                         activeOpacity={isExcluded ? 1 : 0.7}
                         onPress={() => !isExcluded && handleSelectExercise(exercise.exerciseId)}
-                        className={`flex-row items-center bg-slate-50 dark:bg-slate-800 rounded-2xl p-3 border mb-2 ${
-                          isSelected ? 'border-lime-400' : 'border-slate-200 dark:border-slate-700'
-                        }`}
-                        style={isExcluded ? { opacity: 0.45 } : undefined}
+                        className="flex-1 flex-row items-center"
                       >
-                        {/* GIF o placeholder */}
-                        {exercise.gifUrl ? (
-                          <Image
-                            source={{ uri: exercise.gifUrl }}
-                            className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-700 mr-3"
-                            resizeMode="cover"
-                          />
-                        ) : (
-                          <View className="w-14 h-14 bg-slate-100 dark:bg-slate-700 rounded-xl items-center justify-center mr-3">
-                            <Ionicons name="image-outline" size={20} color="#94a3b8" />
-                          </View>
-                        )}
+                        <ExerciseThumbnail
+                          uri={exercise.gifUrl}
+                          size={56}
+                          className="bg-zinc-800 mr-3"
+                          iconColor="#71717a"
+                        />
 
-                        {/* Nombre */}
                         <View className="flex-1">
                           <Text
-                            className="font-semibold text-sm text-slate-900 dark:text-slate-50"
+                            className="font-semibold text-base text-white"
                             numberOfLines={2}
                           >
                             {exercise.name}
                           </Text>
-                          {isExcluded && (
-                            <Text className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                              Ya agregado
-                            </Text>
-                          )}
+
+                          {isExcluded ? (
+                            <Text className="text-xs text-zinc-500 mt-1">Ya agregado</Text>
+                          ) : tags.length > 0 ? (
+                            <View className="flex-row flex-wrap gap-1.5 mt-1.5">
+                              {tags.map((tag) => (
+                                <View
+                                  key={tag}
+                                  className="bg-zinc-800 rounded-md px-2 py-0.5"
+                                >
+                                  <Text className="text-[11px] text-zinc-400">
+                                    {translateEquipment(tag)}
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
+                          ) : null}
                         </View>
 
-                        {/* Check, Chevron o icono blocked */}
-                        <Ionicons
-                          name={isExcluded ? 'checkmark-done' : isSelected ? 'checkmark-circle' : 'chevron-forward'}
-                          size={20}
-                          color={isExcluded ? '#64748b' : isSelected ? '#a3e635' : '#94a3b8'}
-                        />
+                        {/* Check de selección */}
+                        {isSelected && (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={22}
+                            color="#a3e635"
+                            style={{ marginLeft: 8 }}
+                          />
+                        )}
                       </TouchableOpacity>
-                    );
-                  })}
 
-                  {/* Botón Más ejercicio */}
-                  {hasNextPage && (
-                    <TouchableOpacity
-                      onPress={handleLoadMore}
-                      disabled={loadingExercises}
-                      className="bg-slate-100 dark:bg-slate-800 rounded-xl py-3 items-center mt-2"
-                    >
-                      {loadingExercises ? (
-                        <ActivityIndicator size="small" color="#a3e635" />
-                      ) : (
-                        <Text className="text-slate-600 dark:text-slate-300 font-medium">
-                          Más ejercicios
-                        </Text>
-                      )}
-                    </TouchableOpacity>
-                  )}
-                </>
-              )}
-            </View>
-          </ScrollView>
+                      {/* Botón info → abre detalle */}
+                      <TouchableOpacity
+                        onPress={() => setDetailExercise(exercise)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        className="w-10 h-10 rounded-full bg-zinc-800 items-center justify-center ml-2"
+                      >
+                        <Ionicons name="information-circle-outline" size={22} color="#a1a1aa" />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
 
-          {/* Botón Agregar (fixed bottom) */}
-          <View className="px-5 pt-3">
-            <TouchableOpacity
-              onPress={handleAdd}
-              disabled={!selectedExerciseId}
-              className={`h-[56px] rounded-full items-center justify-center ${
-                selectedExerciseId
-                  ? 'bg-slate-900 dark:bg-slate-950'
-                  : 'bg-slate-300 dark:bg-slate-700'
+                {/* Ver más ejercicios */}
+                {hasNextPage && (
+                  <TouchableOpacity
+                    onPress={handleLoadMore}
+                    disabled={loadingExercises}
+                    activeOpacity={0.7}
+                    className="flex-row items-center justify-center bg-zinc-900 border border-zinc-800 rounded-2xl py-4 mt-1.5 gap-2"
+                  >
+                    {loadingExercises ? (
+                      <ActivityIndicator size="small" color="#a3e635" />
+                    ) : (
+                      <>
+                        <Ionicons name="add-circle-outline" size={20} color="#a3e635" />
+                        <Text className="text-zinc-300 font-medium">Ver más ejercicios</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </View>
+        </ScrollView>
+
+        {/* Botón Agregar (fixed bottom) */}
+        <View className="px-5 pt-3">
+          <TouchableOpacity
+            onPress={handleAdd}
+            disabled={!selectedExerciseId}
+            activeOpacity={0.85}
+            className={`h-[56px] rounded-full flex-row items-center justify-center gap-2 ${
+              selectedExerciseId ? 'bg-lime-400' : 'bg-zinc-800'
+            }`}
+          >
+            <Ionicons
+              name="add"
+              size={22}
+              color={selectedExerciseId ? '#000' : '#52525b'}
+            />
+            <Text
+              className={`font-bold text-base ${
+                selectedExerciseId ? 'text-black' : 'text-zinc-600'
               }`}
             >
-              <Text className="text-white font-semibold text-base">
-                {confirmLabel}
-              </Text>
-            </TouchableOpacity>
-          </View>
+              {confirmLabel}
+            </Text>
+          </TouchableOpacity>
         </View>
+
+        {/* Overlay de detalle del ejercicio */}
+        {detailExercise && (
+          <GestureHandlerRootView className="absolute inset-0 z-30">
+            <ExerciseDetailView
+              exercise={toDetailExercise(detailExercise)}
+              onBack={() => setDetailExercise(null)}
+              onClose={() => setDetailExercise(null)}
+              embedded
+            />
+          </GestureHandlerRootView>
+        )}
       </View>
-    </Modal>
+    </BottomSheetModal>
   );
 };

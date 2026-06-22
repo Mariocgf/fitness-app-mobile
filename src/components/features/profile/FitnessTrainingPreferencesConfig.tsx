@@ -176,8 +176,8 @@ export default function FitnessTrainingPreferencesConfig({
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#64748b" />
+      <View className="flex-1 items-center justify-center bg-zinc-950">
+        <ActivityIndicator size="large" color="#a1a1aa" />
       </View>
     );
   }
@@ -194,7 +194,7 @@ export default function FitnessTrainingPreferencesConfig({
         }}
       >
         <SectionCard
-          icon={<Ionicons name="calendar-outline" size={20} className="text-slate-500" />}
+          icon={<Ionicons name="calendar-outline" size={20} className="text-zinc-400" />}
           title="Disponibilidad"
           subtitle="¿Qué días tenés disponibles?"
         >
@@ -206,7 +206,7 @@ export default function FitnessTrainingPreferencesConfig({
         </SectionCard>
 
         <SectionCard
-          icon={<Ionicons name="time-outline" size={20} className="text-slate-500" />}
+          icon={<Ionicons name="time-outline" size={20} className="text-zinc-400" />}
           title="Duración"
           subtitle="¿Cuánto tiempo podés entrenar?"
         >
@@ -224,16 +224,16 @@ export default function FitnessTrainingPreferencesConfig({
 
       <View
         style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: insets.bottom + 8 }}
-        className="px-4 pt-3 bg-white dark:bg-slate-950"
+        className="px-4 pt-3 bg-zinc-950"
       >
         <TouchableOpacity
           onPress={handleSave}
           disabled={isSaving}
           activeOpacity={0.85}
-          className="w-full py-4 rounded-full items-center bg-slate-950 dark:bg-slate-100"
+          className="w-full py-4 rounded-full items-center bg-zinc-50"
           style={{ opacity: isSaving ? 0.7 : 1 }}
         >
-          <Text className="text-base font-semibold text-white dark:text-slate-950">
+          <Text className="text-base font-semibold text-zinc-950">
             {isSaving ? 'Guardando...' : 'Guardar'}
           </Text>
         </TouchableOpacity>

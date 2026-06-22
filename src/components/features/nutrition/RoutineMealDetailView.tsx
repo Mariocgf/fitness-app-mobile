@@ -4,18 +4,19 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { TAB_BAR_HEIGHT } from '@/src/components/features/routine/routine-detail-shared';
 import { RoutineMealDetailDto, RoutineMealSummaryDto } from '@/src/types/nutritionRoutine';
-import { MEAL_LABELS } from '@/src/utils/nutrition.utils';
-import {
-  computeMacroPercent,
-  parseMacro,
-  parseInstructionsToSteps,
-} from '@/src/utils/nutritionRoutine.utils';
-import { MacroRing } from './MacroRing';
+import { MEAL_ICONS, MEAL_LABELS } from '@/src/utils/nutrition.utils';
+import { parseMacro, parseInstructionsToSteps } from '@/src/utils/nutritionRoutine.utils';
+import { MacroBreakdownCard } from './MacroBreakdownCard';
 
 cssInterop(Ionicons, {
   className: { target: 'style', nativeStyleToProp: { color: true } },
 });
+
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const AMBER = '#fbbf24';
 
 function SkeletonItem({ className }: { className?: string }) {
   const opacity = useRef(new Animated.Value(0.4)).current;
@@ -31,32 +32,7 @@ function SkeletonItem({ className }: { className?: string }) {
     return () => animation.stop();
   }, [opacity]);
 
-  return (
-    <Animated.View
-      style={{ opacity }}
-      className={`bg-zinc-200 dark:bg-zinc-800 ${className}`}
-    />
-  );
-}
-
-interface MacroRowProps {
-  color: string;
-  label: string;
-  grams: number;
-  percent: number;
-}
-
-function MacroRow({ color, label, grams, percent }: MacroRowProps) {
-  return (
-    <View className="flex-row items-center py-3 border-b border-slate-100 dark:border-slate-800">
-      <View className="w-3 h-3 rounded-full mr-3 flex-shrink-0" style={{ backgroundColor: color }} />
-      <Text className="flex-1 text-slate-900 dark:text-slate-50 text-base">{label}</Text>
-      <View className="items-end">
-        <Text className="text-slate-900 dark:text-slate-50 text-base font-bold">{grams} g</Text>
-        <Text className="text-slate-500 dark:text-slate-400 text-xs">{percent}% del total</Text>
-      </View>
-    </View>
-  );
+  return <Animated.View style={{ opacity }} className={`bg-zinc-800 ${className}`} />;
 }
 
 interface RoutineMealDetailViewProps {
@@ -72,9 +48,9 @@ interface RoutineMealDetailViewProps {
 }
 
 /**
- * Vista de detalle de una comida de la rutina IA.
- * Muestra: tipo, nombre, anillo de macros, descripción, ingredientes y preparación.
- * El botón "Registrar alimento" queda deshabilitado hasta que el backend lo soporte.
+ * Vista de detalle de una comida de la rutina IA (dark zinc/amber).
+ * Muestra: tipo, nombre, card de macros (kcal + columnas), ingredientes,
+ * preparación y el CTA "Registrar alimento".
  */
 export function RoutineMealDetailView({
   summary,
@@ -88,9 +64,10 @@ export function RoutineMealDetailView({
   onLog,
 }: RoutineMealDetailViewProps) {
   const insets = useSafeAreaInsets();
+  /* El CTA flota sobre el tab bar nativo (mismo patrón que FoodRegisterView) */
+  const bottomOffset = insets.bottom + TAB_BAR_HEIGHT + 8;
   const displayName = detail?.name ?? summary?.name ?? '';
   const displayType = detail?.type ?? summary?.type;
-  const displayDescription = detail?.description ?? summary?.description ?? '';
   const typeLabel = displayType ? MEAL_LABELS[displayType] : '';
 
   /* Macros parseados */
@@ -99,133 +76,75 @@ export function RoutineMealDetailView({
   const carbs = detail ? parseMacro(detail.carbs) : 0;
   const fats = detail ? parseMacro(detail.fats) : 0;
 
-  const proteinKcal = proteins * 4;
-  const carbsKcal = carbs * 4;
-  const fatKcal = fats * 9;
-  const totalKcal = proteinKcal + carbsKcal + fatKcal || calories;
-
   const steps = detail ? parseInstructionsToSteps(detail.recipe.instructions) : [];
 
   return (
-    <View className="flex-1 bg-slate-100 dark:bg-slate-950">
+    <View className="flex-1 bg-zinc-950">
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 8) + 8 + 72 + 16 }}
+        contentContainerStyle={{ paddingBottom: bottomOffset + 72 + 16 }}
       >
         {/* Header con back */}
-        <View style={{ paddingTop: insets.top + 16 }} className="px-4 pb-4 flex-row items-center">
+        <View style={{ paddingTop: insets.top + 16 }} className="px-4">
           <TouchableOpacity
             onPress={onBack}
             activeOpacity={0.75}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 items-center justify-center mr-3"
+            className="w-10 h-10 rounded-full bg-zinc-800 items-center justify-center"
           >
-            <Ionicons name="chevron-back" size={22} className="text-slate-900 dark:text-slate-100" />
+            <Ionicons name="chevron-back" size={22} color="#f4f4f5" />
           </TouchableOpacity>
-          <Text className="text-slate-900 dark:text-slate-50 text-lg font-bold flex-1" numberOfLines={2}>
-            {displayName || ' '}
-          </Text>
         </View>
 
-        {/* Badge de tipo */}
+        {/* Título centrado */}
+        <Text className="text-white text-3xl font-bold text-center px-6 mt-3" numberOfLines={3}>
+          {displayName || ' '}
+        </Text>
+
+        {/* Badge de tipo (outline + ícono) */}
         {typeLabel ? (
-          <View className="px-4 pb-4">
-            <View className="self-start bg-amber-400 px-3 py-1 rounded-full">
-              <Text className="text-black text-sm font-semibold">{typeLabel}</Text>
+          <View className="items-center mt-3 mb-5">
+            <View className="flex-row items-center gap-2 border border-zinc-700 px-4 py-1.5 rounded-full">
+              {displayType ? (
+                <Ionicons name={MEAL_ICONS[displayType] as IoniconName} size={16} color={AMBER} />
+              ) : null}
+              <Text className="text-amber-400 text-sm font-semibold">{typeLabel}</Text>
             </View>
           </View>
-        ) : null}
+        ) : (
+          <View className="h-5" />
+        )}
 
-        {/* Anillo de macros */}
+        {/* Card de macros */}
         {isLoading ? (
           <View className="px-4 mb-4">
-            <SkeletonItem className="w-full h-64 rounded-2xl" />
+            <SkeletonItem className="w-full h-44 rounded-2xl" />
           </View>
         ) : detail ? (
-          <View className="bg-white dark:bg-slate-900 rounded-2xl mx-4 mb-4 p-4">
-            {/* Calorías */}
-            <View className="flex-row items-center mb-4">
-              <Ionicons name="flame-outline" size={18} className="text-amber-400 mr-1.5" />
-              <Text className="text-slate-900 dark:text-slate-50 text-lg font-bold">
-                {calories} kcal
-              </Text>
-            </View>
-
-            {/* Anillo + leyenda */}
-            <View className="flex-row items-center gap-4">
-              <MacroRing
-                proteinGrams={proteins}
-                carbsGrams={carbs}
-                fatGrams={fats}
-                targetCalories={calories}
-                centerTop={String(Math.round(calories))}
-                centerBottom="kcal"
-                size={180}
-              />
-              <View className="flex-1">
-                <MacroRow
-                  color="#3b82f6"
-                  label="Proteína"
-                  grams={Math.round(proteins)}
-                  percent={computeMacroPercent(proteinKcal, totalKcal)}
-                />
-                <MacroRow
-                  color="#f97316"
-                  label="Carbohidratos"
-                  grams={Math.round(carbs)}
-                  percent={computeMacroPercent(carbsKcal, totalKcal)}
-                />
-                <MacroRow
-                  color="#10b981"
-                  label="Grasa"
-                  grams={Math.round(fats)}
-                  percent={computeMacroPercent(fatKcal, totalKcal)}
-                />
-              </View>
-            </View>
-          </View>
+          <MacroBreakdownCard calories={calories} proteins={proteins} carbs={carbs} fats={fats} />
         ) : null}
 
         {/* Error */}
         {error && !isLoading && (
-          <View className="mx-4 mb-4 p-4 bg-white dark:bg-slate-900 rounded-2xl items-center">
-            <Text className="text-rose-500 text-sm text-center mb-3">{error}</Text>
-            <TouchableOpacity
-              onPress={onRetry}
-              className="bg-amber-400 px-6 py-2 rounded-xl"
-            >
-              <Text className="text-black font-semibold">Reintentar</Text>
+          <View className="mx-4 mb-4 p-4 bg-zinc-900 border border-zinc-800 rounded-2xl items-center">
+            <Text className="text-rose-400 text-sm text-center mb-3">{error}</Text>
+            <TouchableOpacity onPress={onRetry} className="bg-amber-400 px-6 py-2 rounded-xl">
+              <Text className="text-zinc-900 font-semibold">Reintentar</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Descripción */}
-        <View className="bg-white dark:bg-slate-900 rounded-2xl mx-4 mb-4 p-4">
-          <View className="flex-row items-center mb-2 gap-2">
-            <Ionicons name="document-text-outline" size={18} className="text-slate-900 dark:text-slate-50" />
-            <Text className="text-slate-900 dark:text-slate-50 text-base font-bold">Descripción</Text>
-          </View>
-          <Text className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
-            {displayDescription || ' '}
-          </Text>
-        </View>
-
         {/* Ingredientes */}
         {detail && detail.recipe.ingredients.length > 0 && (
-          <View className="bg-white dark:bg-slate-900 rounded-2xl mx-4 mb-4 p-4">
-            <View className="flex-row items-center mb-3 gap-2">
-              <Ionicons name="list-outline" size={18} className="text-slate-900 dark:text-slate-50" />
-              <Text className="text-slate-900 dark:text-slate-50 text-base font-bold">Ingredientes</Text>
-            </View>
+          <View className="bg-zinc-900 border border-zinc-800 rounded-2xl mx-4 mb-4 p-5">
+            <Text className="text-white text-lg font-bold mb-1">Ingredientes</Text>
             {detail.recipe.ingredients.map((ing, idx) => (
-              <View key={idx} className="flex-row items-start gap-2 mb-2">
-                <View className="w-5 h-5 rounded-full border border-slate-300 dark:border-slate-600 items-center justify-center mt-0.5 flex-shrink-0">
-                  <Ionicons name="checkmark" size={11} className="text-slate-400 dark:text-slate-500" />
-                </View>
-                <Text className="flex-1 text-slate-700 dark:text-slate-300 text-sm leading-snug">
-                  <Text className="font-semibold">{ing.amount} </Text>
-                  {ing.name}
-                </Text>
+              <View
+                key={idx}
+                className="flex-row items-center py-3 border-b border-zinc-800/80"
+              >
+                <Text className="text-amber-400 text-base font-semibold w-20">{ing.amount}</Text>
+                <Text className="flex-1 text-white text-base">{ing.name}</Text>
               </View>
             ))}
           </View>
@@ -233,19 +152,14 @@ export function RoutineMealDetailView({
 
         {/* Preparación */}
         {detail && steps.length > 0 && (
-          <View className="bg-white dark:bg-slate-900 rounded-2xl mx-4 mb-4 p-4">
-            <View className="flex-row items-center mb-3 gap-2">
-              <Ionicons name="restaurant-outline" size={18} className="text-slate-900 dark:text-slate-50" />
-              <Text className="text-slate-900 dark:text-slate-50 text-base font-bold">Preparación</Text>
-            </View>
+          <View className="bg-zinc-900 border border-zinc-800 rounded-2xl mx-4 mb-4 p-5">
+            <Text className="text-white text-lg font-bold mb-1">Preparación</Text>
             {steps.map((step, idx) => (
-              <View key={idx} className="flex-row gap-3 mb-3">
-                <View className="w-7 h-7 rounded-full bg-amber-400 items-center justify-center flex-shrink-0 mt-0.5">
-                  <Text className="text-black text-xs font-bold">{idx + 1}</Text>
+              <View key={idx} className="flex-row items-center gap-3 py-3 border-b border-zinc-800/80">
+                <View className="w-8 h-8 rounded-xl border border-zinc-700 items-center justify-center flex-shrink-0">
+                  <Text className="text-amber-400 text-sm font-semibold">{idx + 1}</Text>
                 </View>
-                <Text className="flex-1 text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
-                  {step}
-                </Text>
+                <Text className="flex-1 text-white text-base leading-snug">{step}</Text>
               </View>
             ))}
           </View>
@@ -254,29 +168,30 @@ export function RoutineMealDetailView({
         {/* Skeleton de contenido mientras carga */}
         {isLoading && (
           <View className="px-4 gap-3">
-            <SkeletonItem className="w-full h-20 rounded-2xl" />
+            <SkeletonItem className="w-full h-32 rounded-2xl" />
             <SkeletonItem className="w-full h-32 rounded-2xl" />
           </View>
         )}
-
-        {/* Botón registrar */}
-        <View className="px-4 mt-2">
-          {logError ? (
-            <Text className="text-rose-500 text-xs text-center mb-2">{logError}</Text>
-          ) : null}
-          <TouchableOpacity
-            onPress={onLog}
-            disabled={!detail || isLogging}
-            activeOpacity={0.8}
-            className="bg-zinc-950 dark:bg-zinc-50 py-4 rounded-2xl items-center"
-            style={{ opacity: !detail || isLogging ? 0.4 : 1 }}
-          >
-            <Text className="text-zinc-50 dark:text-zinc-950 font-bold text-base">
-              {isLogging ? 'Registrando...' : 'Registrar alimento'}
-            </Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
+
+      {/* CTA fijo abajo */}
+      <View className="absolute left-0 right-0 px-4" style={{ bottom: bottomOffset }}>
+        {logError ? (
+          <Text className="text-rose-400 text-xs text-center mb-2">{logError}</Text>
+        ) : null}
+        <TouchableOpacity
+          onPress={onLog}
+          disabled={!detail || isLogging}
+          activeOpacity={0.8}
+          className="bg-amber-400 py-4 rounded-2xl flex-row items-center justify-center gap-2"
+          style={{ opacity: !detail || isLogging ? 0.4 : 1 }}
+        >
+          <Ionicons name="restaurant" size={20} color="#18181b" />
+          <Text className="text-zinc-900 font-bold text-base">
+            {isLogging ? 'Registrando...' : 'Registrar alimento'}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

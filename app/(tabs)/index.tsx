@@ -85,9 +85,9 @@ export default function HomeScreen() {
   const routineMeta = exerciseCount > 0 ? `${exerciseCount} ejercicios • ${approxTime}` : undefined;
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-950">
+    <SafeAreaView className="flex-1 bg-zinc-950">
       <ScrollView contentContainerClassName="pt-8 pb-10">
-        <GreetingHeader userName={userName} />
+        <GreetingHeader userName={userName} avatarUrl={user?.imageUrl} />
 
         {/* Card: Rutina */}
         <ModuleCard
@@ -95,8 +95,12 @@ export default function HomeScreen() {
           subtitle={routine ? todayDay : undefined}
           meta={routine ? routineMeta : undefined}
           description={!routine && !isFetchingRoutine ? 'No tenés una rutina activa.' : undefined}
-          actionLabel={routine ? 'Continuar rutina' : 'Generar rutina'}
-          onAction={() => router.navigate('/(tabs)/fitness')}
+          actionLabel={routine ? 'Ver rutina' : 'Generar rutina'}
+          onAction={() =>
+            routine
+              ? router.navigate({ pathname: '/(tabs)/fitness', params: { openRoutineId: routine.id } })
+              : router.navigate('/(tabs)/fitness')
+          }
           isLoading={isFetchingRoutine}
         />
 

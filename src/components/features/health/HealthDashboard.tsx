@@ -54,8 +54,8 @@ export function HealthDashboard({
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#e11d48" />
-        <Text className="text-slate-500 dark:text-slate-400 mt-4">
+        <ActivityIndicator size="large" color="#fb7185" />
+        <Text className="text-zinc-400 mt-4">
           Cargando mediciones...
         </Text>
       </View>
@@ -69,20 +69,20 @@ export function HealthDashboard({
         <Ionicons
           name="alert-circle-outline"
           size={44}
-          className="text-rose-600 dark:text-rose-400"
+          className="text-rose-400"
         />
-        <Text className="text-slate-900 dark:text-slate-50 text-xl font-bold mt-3">
+        <Text className="text-white text-xl font-bold mt-3">
           Algo falló
         </Text>
-        <Text className="text-slate-500 dark:text-slate-400 text-center mt-2">
+        <Text className="text-zinc-400 text-center mt-2">
           {error}
         </Text>
         <TouchableOpacity
           onPress={onRefresh}
-          activeOpacity={0.8}
-          className="bg-rose-600 dark:bg-rose-400 rounded-full px-6 py-3 mt-5"
+          activeOpacity={0.85}
+          className="bg-rose-400 rounded-full px-6 py-3 mt-5"
         >
-          <Text className="text-white dark:text-slate-900 font-bold">
+          <Text className="text-zinc-900 font-bold">
             Reintentar
           </Text>
         </TouchableOpacity>
@@ -94,7 +94,7 @@ export function HealthDashboard({
   return (
     <View className="pt-8 pb-32 gap-6">
       <View className="px-4">
-        <Text className="text-slate-900 dark:text-slate-50 text-4xl font-bold">
+        <Text className="text-white text-4xl font-bold">
           Salud
         </Text>
       </View>

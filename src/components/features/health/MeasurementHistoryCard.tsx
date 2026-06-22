@@ -47,16 +47,16 @@ export function MeasurementHistoryCard({ measurement, onPress }: MeasurementHist
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.75}
-      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4"
+      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4"
     >
       <View className="flex-row items-center gap-3">
-        <View className="w-1 self-stretch bg-rose-600 dark:bg-rose-400 rounded-full" />
+        <View className="w-1 self-stretch bg-rose-400 rounded-full" />
 
         <View className="flex-1">
-          <Text className="text-slate-900 dark:text-slate-50 font-semibold text-base">
+          <Text className="text-white font-semibold text-base">
             {formatDate(measurement.date)}
           </Text>
-          <Text className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
+          <Text className="text-zinc-400 text-sm mt-0.5">
             {subtitle || 'Sin datos registrados'}
           </Text>
         </View>
@@ -64,7 +64,7 @@ export function MeasurementHistoryCard({ measurement, onPress }: MeasurementHist
         <Ionicons
           name="chevron-forward"
           size={16}
-          className="text-slate-400 dark:text-slate-500"
+          className="text-zinc-500"
         />
       </View>
     </TouchableOpacity>

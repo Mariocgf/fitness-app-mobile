@@ -7,83 +7,61 @@ import { SetsTable } from './SetsTable';
 interface SessionExerciseCardProps {
   exercise: TrainingHistoryExercise;
   index: number;
+  /** Estado inicial de expansión (por defecto colapsado) */
+  defaultExpanded?: boolean;
 }
 
 /**
- * Card de un ejercicio dentro del detalle de sesión.
- * Muestra nombre (prefiere español), músculos objetivo, badge RPE y tabla de sets colapsable.
+ * Card de un ejercicio dentro del detalle de sesión (dark-only zinc / acento lime).
+ * Número en círculo, nombre, "N / M series completadas", badge RPE y listado de sets colapsable.
+ * No muestra los músculos objetivo: la maqueta es más austera (ver agent-implementation-lessons).
  */
-export function SessionExerciseCard({ exercise, index }: SessionExerciseCardProps) {
-  const [expanded, setExpanded] = useState(true);
+export function SessionExerciseCard({
+  exercise,
+  index,
+  defaultExpanded = false,
+}: SessionExerciseCardProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   const displayName = exercise.exerciseNameEs ?? exercise.exerciseName;
   const completedSets = exercise.sets.filter((s) => s.isCompleted).length;
 
   return (
-    <View className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 mb-3 overflow-hidden">
+    <View className="bg-zinc-900 border border-zinc-800 rounded-3xl mb-4 overflow-hidden">
       {/* Header del ejercicio */}
       <TouchableOpacity
         onPress={() => setExpanded((prev) => !prev)}
         activeOpacity={0.7}
-        className="flex-row items-start p-4"
+        className="flex-row items-center p-5"
       >
-        {/* Número de ejercicio */}
-        <View className="w-7 h-7 rounded-full bg-lime-400 items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-          <Text className="text-slate-900 text-xs font-bold">{index + 1}</Text>
+        {/* Número de ejercicio (círculo outline) */}
+        <View className="w-11 h-11 rounded-full border border-zinc-700 items-center justify-center mr-4 flex-shrink-0">
+          <Text className="text-zinc-300 text-base font-semibold">{index + 1}</Text>
         </View>
 
-        <View className="flex-1">
-          {/* Nombre */}
-          <Text className="text-slate-900 dark:text-slate-50 font-semibold text-sm leading-5" numberOfLines={2}>
+        <View className="flex-1 mr-3">
+          <Text className="text-white font-semibold text-lg leading-6" numberOfLines={2}>
             {displayName}
           </Text>
-
-          {/* Músculos objetivo */}
-          {exercise.targetMuscles.length > 0 && (
-            <View className="flex-row flex-wrap gap-1 mt-1">
-              {exercise.targetMuscles.map((muscle) => (
-                <View
-                  key={muscle}
-                  className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full"
-                >
-                  <Text className="text-slate-600 dark:text-slate-400 text-xs capitalize">
-                    {muscle}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* RPE y resumen de sets */}
-          <View className="flex-row items-center gap-3 mt-2">
-            {exercise.rpe > 0 && (
-              <View className="flex-row items-center">
-                <View className="bg-lime-400/20 px-2 py-0.5 rounded-full flex-row items-center">
-                  <Ionicons name="speedometer-outline" size={11} color="#65a30d" />
-                  <Text className="text-lime-700 dark:text-lime-400 text-xs font-semibold ml-1">
-                    RPE {exercise.rpe}
-                  </Text>
-                </View>
-              </View>
-            )}
-            <Text className="text-slate-500 dark:text-slate-400 text-xs">
-              {completedSets}/{exercise.sets.length} sets completados
-            </Text>
-          </View>
+          <Text className="text-zinc-500 text-sm mt-0.5">
+            {completedSets} / {exercise.sets.length} series completadas
+          </Text>
         </View>
 
+        {/* Badge RPE */}
+        {exercise.rpe > 0 && (
+          <View className="bg-zinc-800 rounded-lg px-3 py-1.5 mr-2">
+            <Text className="text-lime-400 text-sm font-semibold">RPE {exercise.rpe}</Text>
+          </View>
+        )}
+
         {/* Toggle chevron */}
-        <Ionicons
-          name={expanded ? 'chevron-up' : 'chevron-down'}
-          size={16}
-          color="#94a3b8"
-          style={{ marginTop: 2 }}
-        />
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={20} color="#a3e635" />
       </TouchableOpacity>
 
-      {/* Tabla de sets (colapsable) */}
+      {/* Listado de sets (colapsable) */}
       {expanded && (
-        <View className="px-4 pb-4">
+        <View className="border-t border-zinc-800">
           <SetsTable sets={exercise.sets} />
         </View>
       )}

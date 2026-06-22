@@ -3,7 +3,6 @@ import { ExerciseLog, SessionDay, SessionExercise, SessionExerciseEntry, Session
 import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
-import { useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSessionAudio } from './useSessionAudio';
 
 export type Phase = 'COUNTDOWN' | 'EXERCISE' | 'REST' | 'SUMMARY';
@@ -69,11 +68,6 @@ interface UseActiveSessionReturn {
     repsTotal: number;
     avgRpe: number;
   };
-
-  /* Refs para animaciones */
-  whiteBoxHeightRef: React.MutableRefObject<number>;
-  exerciseBlockY: { value: number };
-  restBlockY: { value: number };
 
   /* Handlers */
   handleFinishSet: () => void;
@@ -171,11 +165,6 @@ export function useActiveSession({
     return { exercisesDone, exercisesTotal, setsDone, setsTotal, repsDone, repsTotal, avgRpe };
   }, [logs, day.exercises]);
 
-  /* ── Refs para animaciones ── */
-  const whiteBoxHeightRef = useRef(0);
-  const exerciseBlockY = useSharedValue(0);
-  const restBlockY = useSharedValue(600);
-
   /* ── Effects ── */
 
   /* Countdown inicial */
@@ -229,18 +218,6 @@ export function useActiveSession({
     }
   }, [phase, isTimeBased, timeBasedDuration, exerciseIndex, currentSet]);
 
-
-  /* Animaciones de transición entre fases */
-  useEffect(() => {
-    const h = whiteBoxHeightRef.current || 600;
-    if (phase === 'REST') {
-      exerciseBlockY.value = withTiming(-h, { duration: 400 });
-      restBlockY.value = withTiming(0, { duration: 400 });
-    } else if (phase === 'EXERCISE') {
-      exerciseBlockY.value = withTiming(0, { duration: 400 });
-      restBlockY.value = withTiming(h, { duration: 400 });
-    }
-  }, [phase]);
 
   /* Timer countdown ejercicio timed */
   useEffect(() => {
@@ -528,9 +505,6 @@ export function useActiveSession({
     setShowInstructions,
     logs,
     summaryStats,
-    whiteBoxHeightRef,
-    exerciseBlockY,
-    restBlockY,
     handleFinishSet,
     handleFinishRest,
     handleSaveRpe,

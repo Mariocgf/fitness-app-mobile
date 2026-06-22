@@ -46,6 +46,32 @@ export const formatReps = (exercise: {
   return exercise.currentRep != null ? String(exercise.currentRep) : '-';
 };
 
+/**
+ * Formatea el objetivo de repeticiones como rango "min–max" cuando existe,
+ * o un valor único (currentRep/maxRep/minRep) en su defecto.
+ * Devuelve "-" si no hay dato de repeticiones disponible.
+ */
+export const formatRepRange = (exercise: {
+  minRep?: string | number | null;
+  maxRep?: string | number | null;
+  currentRep?: string | number | null;
+}): string => {
+  const toInt = (v: string | number | null | undefined): number =>
+    v != null ? parseInt(String(v), 10) : NaN;
+
+  const min = toInt(exercise.minRep);
+  const max = toInt(exercise.maxRep);
+  if (Number.isFinite(min) && Number.isFinite(max) && min > 0 && max > 0 && min !== max) {
+    return `${min}–${max}`;
+  }
+
+  const current = toInt(exercise.currentRep);
+  if (Number.isFinite(current) && current > 0) return String(current);
+  if (Number.isFinite(max) && max > 0) return String(max);
+  if (Number.isFinite(min) && min > 0) return String(min);
+  return '-';
+};
+
 export type ExerciseLoadType = 'BodyWeight' | 'ExternalWeight';
 
 export const formatExerciseLoad = (exercise: {

@@ -36,50 +36,45 @@ export function BodyEvolutionDashboardSection({
 
   return (
     <View className="gap-3">
-      <View className="px-4 flex-row items-start justify-between gap-4">
-        <View className="flex-1">
-          <Text className="text-slate-900 dark:text-slate-50 text-xl font-bold">
-            Evolución física
-          </Text>
-          <Text className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-            Tendencias de peso y perímetros registradas por vos.
-          </Text>
-        </View>
+      <View className="px-4">
+        <Text className="text-white text-xl font-bold">
+          Evolución física
+        </Text>
       </View>
 
       <View className="px-4 gap-3">
         {isLoading && (
-          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 items-center justify-center h-36">
-            <ActivityIndicator size="small" color="#e11d48" />
-            <Text className="text-slate-500 dark:text-slate-400 text-sm mt-3">
+          <View className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 items-center justify-center h-36">
+            <ActivityIndicator size="small" color="#fb7185" />
+            <Text className="text-zinc-400 text-sm mt-3">
               Cargando evolución...
             </Text>
           </View>
         )}
 
         {!isLoading && error != null && (
-          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+          <View className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
             <View className="flex-row items-start gap-3">
               <Ionicons
                 name="warning-outline"
                 size={22}
-                className="text-rose-600 dark:text-rose-400"
+                className="text-rose-400"
               />
               <View className="flex-1">
-                <Text className="text-slate-900 dark:text-slate-50 font-bold text-base">
+                <Text className="text-white font-bold text-base">
                   No pudimos cargar las tendencias
                 </Text>
-                <Text className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+                <Text className="text-zinc-400 text-sm mt-1">
                   {error}
                 </Text>
               </View>
             </View>
             <TouchableOpacity
               onPress={onRefresh}
-              activeOpacity={0.8}
-              className="mt-4 py-3 rounded-xl items-center bg-rose-600 dark:bg-rose-400"
+              activeOpacity={0.85}
+              className="mt-4 py-3 rounded-2xl items-center bg-rose-400"
             >
-              <Text className="text-white dark:text-slate-900 font-bold">
+              <Text className="text-zinc-900 font-bold">
                 Reintentar evolución
               </Text>
             </TouchableOpacity>
@@ -87,18 +82,18 @@ export function BodyEvolutionDashboardSection({
         )}
 
         {!isLoading && error == null && metrics.length === 0 && (
-          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+          <View className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
             <View className="flex-row items-start gap-3">
               <Ionicons
                 name="body-outline"
                 size={24}
-                className="text-slate-500 dark:text-slate-400"
+                className="text-zinc-400"
               />
               <View className="flex-1">
-                <Text className="text-slate-900 dark:text-slate-50 font-bold text-base">
+                <Text className="text-white font-bold text-base">
                   Sin evolución para mostrar
                 </Text>
-                <Text className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+                <Text className="text-zinc-400 text-sm mt-1">
                   Registrá mediciones corporales para ver cómo cambian tus métricas.
                 </Text>
               </View>

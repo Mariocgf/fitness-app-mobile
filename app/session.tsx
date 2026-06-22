@@ -8,7 +8,12 @@ import { SessionDay, SessionLog } from '@/src/types/session';
 import { useMutation } from '@tanstack/react-query';
 
 export default function SessionScreen() {
-  const { routineId, dayData } = useLocalSearchParams<{ routineId: string; dayData: string }>();
+  const { routineId, dayData, routineName, nextSessionDay } = useLocalSearchParams<{
+    routineId: string;
+    dayData: string;
+    routineName?: string;
+    nextSessionDay?: string;
+  }>();
   const { getToken } = useAuth();
   const router = useRouter();
 
@@ -48,9 +53,11 @@ export default function SessionScreen() {
 
   return (
     <View className="flex-1 bg-zinc-950">
-      <ActiveSessionView 
-        routineId={routineId} 
-        day={day} 
+      <ActiveSessionView
+        routineId={routineId}
+        day={day}
+        routineName={routineName}
+        nextSessionDay={nextSessionDay}
         onFinishSession={handleFinishSession}
         onCancel={() => router.back()}
       />

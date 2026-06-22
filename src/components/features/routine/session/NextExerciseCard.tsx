@@ -9,6 +9,11 @@ interface NextExerciseCardProps {
   isLastSession?: boolean;
 }
 
+/**
+ * "Siguiente ejercicio" de la fase de descanso (dark `zinc`/`lime`).
+ * Miniatura + label uppercase + nombre. En la última serie muestra la variante
+ * celebratoria en `lime-400`.
+ */
 export const NextExerciseCard: React.FC<NextExerciseCardProps> = ({ nextExercise, isLastSession }) => {
   if (isLastSession) {
     return (
@@ -25,19 +30,21 @@ export const NextExerciseCard: React.FC<NextExerciseCardProps> = ({ nextExercise
   }
 
   return (
-    <View className="bg-white dark:bg-slate-900 rounded-3xl p-4 flex-row items-center gap-4">
-      <View className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800">
+    <View className="flex-row items-center gap-4">
+      <View className="w-20 h-20 rounded-2xl overflow-hidden bg-zinc-900">
         {nextExercise?.gifUrl ? (
           <ExerciseGif uri={nextExercise.gifUrl} />
         ) : (
           <View className="flex-1 items-center justify-center">
-            <Ionicons name="image-outline" size={28} color="#94a3b8" />
+            <Ionicons name="image-outline" size={28} color="#52525b" />
           </View>
         )}
       </View>
       <View className="flex-1">
-        <Text className="text-slate-500 dark:text-slate-400 text-sm">Próximo ejercicio</Text>
-        <Text className="text-slate-900 dark:text-slate-50 font-semibold" numberOfLines={2}>
+        <Text className="text-zinc-500 text-xs font-semibold uppercase tracking-wider">
+          Siguiente ejercicio
+        </Text>
+        <Text className="text-white font-semibold text-lg mt-1" numberOfLines={2}>
           {nextExercise?.name}
         </Text>
       </View>

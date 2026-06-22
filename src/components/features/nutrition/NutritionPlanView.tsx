@@ -44,7 +44,7 @@ function SkeletonItem({ className }: { className?: string }) {
   return (
     <Animated.View
       style={{ opacity }}
-      className={`bg-zinc-200 dark:bg-zinc-800 ${className}`}
+      className={`bg-zinc-800 ${className}`}
     />
   );
 }
@@ -87,10 +87,10 @@ function RoutinePlanContent({
         onSelectDay={setActiveDayName}
       />
       <View className="px-4 pb-3">
-        <Text className="text-slate-900 dark:text-slate-50 text-xl font-bold">
+        <Text className="text-white text-2xl font-bold">
           {ROUTINE_DAY_FULL_LABELS[activeDayName]}
         </Text>
-        <Text className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
+        <Text className="text-zinc-400 text-sm mt-0.5">
           {routine.name}
         </Text>
       </View>
@@ -151,13 +151,13 @@ export function NutritionPlanView() {
   if (!routine && !draft) {
     return (
       <View className="flex-1 items-center justify-center px-8 py-16">
-        <View className="w-16 h-16 rounded-full bg-amber-50 dark:bg-amber-900/20 items-center justify-center mb-4">
+        <View className="w-16 h-16 rounded-full bg-amber-900/20 items-center justify-center mb-4">
           <Ionicons name="restaurant-outline" size={32} className="text-amber-400" />
         </View>
-        <Text className="text-slate-900 dark:text-slate-50 text-xl font-bold text-center mb-2">
+        <Text className="text-white text-xl font-bold text-center mb-2">
           Sin plan nutricional
         </Text>
-        <Text className="text-slate-500 dark:text-slate-400 text-base text-center mb-6 leading-relaxed">
+        <Text className="text-zinc-400 text-base text-center mb-6 leading-relaxed">
           Generá tu plan semanal personalizado con IA basado en tu perfil nutricional.
         </Text>
         {error && (
@@ -168,7 +168,7 @@ export function NutritionPlanView() {
           activeOpacity={0.8}
           className="bg-amber-400 px-8 py-4 rounded-xl"
         >
-          <Text className="text-black font-bold text-base">Generar plan</Text>
+          <Text className="text-zinc-900 font-bold text-base">Generar plan</Text>
         </TouchableOpacity>
       </View>
     );
@@ -181,9 +181,9 @@ export function NutritionPlanView() {
     return (
       <View className="flex-1">
         {/* Banner de Draft */}
-        <View className="mx-4 mb-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl px-4 py-3 flex-row items-center gap-3">
-          <Ionicons name="sparkles-outline" size={20} className="text-amber-500" />
-          <Text className="text-amber-800 dark:text-amber-300 text-sm font-medium flex-1">
+        <View className="mx-4 mb-2 bg-amber-900/20 border border-amber-700 rounded-xl px-4 py-3 flex-row items-center gap-3">
+          <Ionicons name="sparkles-outline" size={20} className="text-amber-400" />
+          <Text className="text-amber-300 text-sm font-medium flex-1">
             Plan generado — revisalo antes de activarlo
           </Text>
         </View>
@@ -199,7 +199,7 @@ export function NutritionPlanView() {
         </ScrollView>
 
         {/* Barra de acciones fija en el fondo */}
-        <View className="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-4 pt-3 pb-6 gap-2">
+        <View className="absolute bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 px-4 pt-3 pb-6 gap-2">
           {/* Aceptar */}
           <TouchableOpacity
             onPress={accept}
@@ -210,11 +210,11 @@ export function NutritionPlanView() {
             }`}
           >
             {isAccepting ? (
-              <ActivityIndicator size="small" color="#000" />
+              <ActivityIndicator size="small" color="#18181b" />
             ) : (
-              <Ionicons name="checkmark-circle-outline" size={20} className="text-black" />
+              <Ionicons name="checkmark-circle-outline" size={20} color="#18181b" />
             )}
-            <Text className="text-black font-bold text-base">
+            <Text className="text-zinc-900 font-bold text-base">
               {isAccepting ? 'Activando...' : 'Aceptar plan'}
             </Text>
           </TouchableOpacity>
@@ -226,21 +226,17 @@ export function NutritionPlanView() {
               disabled={actionDisabled}
               activeOpacity={0.8}
               className={`flex-1 flex-row items-center justify-center py-3 rounded-xl border gap-1.5 ${
-                actionDisabled
-                  ? 'border-slate-200 dark:border-slate-700'
-                  : 'border-slate-300 dark:border-slate-700'
+                actionDisabled ? 'border-zinc-800' : 'border-zinc-700'
               }`}
             >
               <Ionicons
                 name="refresh-outline"
                 size={17}
-                className={actionDisabled ? 'text-slate-300 dark:text-slate-600' : 'text-slate-700 dark:text-slate-300'}
+                className={actionDisabled ? 'text-zinc-600' : 'text-zinc-300'}
               />
               <Text
                 className={`font-semibold text-sm ${
-                  actionDisabled
-                    ? 'text-slate-300 dark:text-slate-600'
-                    : 'text-slate-700 dark:text-slate-300'
+                  actionDisabled ? 'text-zinc-600' : 'text-zinc-300'
                 }`}
               >
                 Generar otra
@@ -253,9 +249,7 @@ export function NutritionPlanView() {
               disabled={actionDisabled}
               activeOpacity={0.8}
               className={`flex-1 flex-row items-center justify-center py-3 rounded-xl border gap-1.5 ${
-                actionDisabled
-                  ? 'border-slate-200 dark:border-slate-700'
-                  : 'border-rose-200 dark:border-rose-900'
+                actionDisabled ? 'border-zinc-800' : 'border-rose-900'
               }`}
             >
               {isRejecting ? (
@@ -264,14 +258,12 @@ export function NutritionPlanView() {
                 <Ionicons
                   name="close-circle-outline"
                   size={17}
-                  className={actionDisabled ? 'text-slate-300 dark:text-slate-600' : 'text-rose-500'}
+                  className={actionDisabled ? 'text-zinc-600' : 'text-rose-500'}
                 />
               )}
               <Text
                 className={`font-semibold text-sm ${
-                  actionDisabled
-                    ? 'text-slate-300 dark:text-slate-600'
-                    : 'text-rose-500'
+                  actionDisabled ? 'text-zinc-600' : 'text-rose-500'
                 }`}
               >
                 {isRejecting ? 'Descartando...' : 'Descartar'}

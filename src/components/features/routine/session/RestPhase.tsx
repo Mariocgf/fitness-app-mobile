@@ -1,18 +1,18 @@
+import { FillBar } from '@/src/components/common/FillBar';
 import { SessionSlider } from '@/src/components/common/SessionSlider';
-import { TimerCard } from '@/src/components/features/TimerCard';
 import { RepetitionMode } from '@/src/hooks/useActiveSession';
+import { SessionExercise } from '@/src/types/session';
 import { formatTime } from '@/src/utils/format.utils';
 import React from 'react';
-import { Text, View } from 'react-native';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import { ScrollView, Text, View } from 'react-native';
+import { NextExerciseCard } from './NextExerciseCard';
 import { RpeSection } from './RpeSection';
 
 interface RestPhaseProps {
   restTimeLeft: number;
   initialRest: number;
-  globalTime: number;
-  exerciseIndex: number;
-  currentSet: number;
+  nextExercise: SessionExercise;
+  isLastSession: boolean;
   rpe: number;
   onRpeChange: (value: number) => void;
   onSaveRpe: () => void;
@@ -23,15 +23,20 @@ interface RestPhaseProps {
   partialReps: number;
   onPartialRepsChange: (value: number) => void;
   repetitionMax: number;
-  restBlockY: { value: number };
 }
 
+/**
+ * Contenido de la fase de descanso (dark `zinc`/`lime`): timer countdown grande
+ * + barra de progreso, "Siguiente ejercicio", esfuerzo percibido (slider
+ * existente) y reps realizadas si la serie fue incompleta. NO incluye header ni
+ * la sección de botones — esos viven en `ActiveSessionView` y quedan fijos (fuera
+ * del cross-fade entre fases).
+ */
 export const RestPhase: React.FC<RestPhaseProps> = ({
   restTimeLeft,
   initialRest,
-  globalTime,
-  exerciseIndex,
-  currentSet,
+  nextExercise,
+  isLastSession,
   rpe,
   onRpeChange,
   onSaveRpe,
@@ -42,24 +47,32 @@ export const RestPhase: React.FC<RestPhaseProps> = ({
   partialReps,
   onPartialRepsChange,
   repetitionMax,
-  restBlockY,
 }) => {
-  const restBlockStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: restBlockY.value }],
-  }));
+  const progress = initialRest > 0 ? restTimeLeft / initialRest : 0;
 
   return (
-    <Animated.View
-      style={[restBlockStyle, { position: 'absolute', left: 0, right: 0, top: 0 }]}
+    <ScrollView
+      className="flex-1"
+      contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16 }}
+      showsVerticalScrollIndicator={false}
     >
-      <TimerCard
-        key={`rest-${exerciseIndex}-${currentSet}`}
-        mode="countdown"
-        time={restTimeLeft}
-        totalDuration={initialRest}
-        remainingLabel={formatTime(globalTime)}
-      />
-      <View className="px-4 pt-4 pb-4">
+      {/* Timer countdown + barra de progreso */}
+      <Text
+        adjustsFontSizeToFit
+        numberOfLines={1}
+        className="text-lime-400 text-8xl font-bold text-center mt-6"
+      >
+        {formatTime(restTimeLeft)}
+      </Text>
+      <FillBar progress={progress} accent="lime" className="w-full mt-4" />
+
+      {/* Siguiente ejercicio */}
+      <View className="mt-8">
+        <NextExerciseCard nextExercise={nextExercise} isLastSession={isLastSession} />
+      </View>
+
+      {/* Esfuerzo percibido (slider existente) */}
+      <View className="border-t border-zinc-800 mt-6 pt-6">
         <RpeSection
           rpe={rpe}
           onRpeChange={onRpeChange}
@@ -68,21 +81,22 @@ export const RestPhase: React.FC<RestPhaseProps> = ({
           isLoading={isAdjustingLoad}
           canUpdate={canUpdateRpe}
         />
-        {repetitionMode === 'partial' && (
-          <View>
-            <Text className="text-slate-900 dark:text-slate-50 font-bold text-xl mb-3">
-              Repeticiones realizadas
-            </Text>
-            <SessionSlider
-              value={partialReps}
-              onValueChange={onPartialRepsChange}
-              min={0}
-              max={repetitionMax}
-            />
-          </View>
-        )}
       </View>
 
-    </Animated.View>
+      {/* Repeticiones realizadas (solo si la serie fue incompleta) */}
+      {repetitionMode === 'partial' && (
+        <View className="border-t border-zinc-800 mt-6 pt-6">
+          <Text className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-3">
+            Repeticiones realizadas
+          </Text>
+          <SessionSlider
+            value={partialReps}
+            onValueChange={onPartialRepsChange}
+            min={0}
+            max={repetitionMax}
+          />
+        </View>
+      )}
+    </ScrollView>
   );
 };

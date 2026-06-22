@@ -1,8 +1,11 @@
-import { ExerciseLog, SessionExercise } from '@/src/types/session';
-import { formatTime } from '@/src/utils/format.utils';
+import { IconTile } from '@/src/components/common/IconTile';
+import { formatTimeSpan } from '@/src/utils/format.utils';
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const LIME = '#a3e635'; // lime-400
 
 interface SummaryStats {
   exercisesDone: number;
@@ -17,184 +20,119 @@ interface SummaryStats {
 interface SummaryPhaseProps {
   globalTime: number;
   stats: SummaryStats;
-  logs: ExerciseLog[];
-  exercises: SessionExercise[];
+  /** Nombre de la rutina entrenada (ej. "Fuerza Pro - Nivel Intermedio") */
+  routineName?: string;
+  /** Etiqueta cruda del próximo día de la rutina (ej. "Día 2 - Espalda") */
+  nextSessionDay?: string;
   onSave: () => void;
 }
 
-interface StatCardProps {
+/**
+ * Toma solo el día de la etiqueta del próximo día y descarta el grupo muscular.
+ * El backend entrega "Día 2 - Espalda"; mostramos únicamente "Día 2".
+ */
+const formatNextSessionDay = (raw: string): string =>
+  raw.split(/\s+[-–]\s+/)[0].trim();
+
+interface StatCellProps {
   label: string;
-  value: string;
+  value: number;
+  /** Total opcional; si se omite, se muestra solo el valor (ej. esfuerzo promedio) */
+  total?: number;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ label, value }) => (
-  <View className="flex-1 bg-white dark:bg-slate-900 rounded-2xl p-4">
-    <Text className="text-slate-900 dark:text-slate-50 text-sm font-medium mb-2">{label}</Text>
-    <Text className="text-lime-400 text-2xl font-bold">{value}</Text>
+/** Celda del grid 2×2 de estadísticas: label arriba, valor (+ total atenuado) abajo. */
+const StatCell: React.FC<StatCellProps> = ({ label, value, total }) => (
+  <View className="flex-1 items-center py-5">
+    <Text className="text-zinc-500 text-sm mb-2">{label}</Text>
+    <Text className="text-white text-3xl font-bold">
+      {value}
+      {total !== undefined && (
+        <Text className="text-zinc-600 font-bold"> / {total}</Text>
+      )}
+    </Text>
   </View>
 );
 
 export const SummaryPhase: React.FC<SummaryPhaseProps> = ({
   globalTime,
   stats,
-  logs,
-  exercises,
+  routineName,
+  nextSessionDay,
   onSave,
 }) => {
   const insets = useSafeAreaInsets();
 
   return (
     <View
-      className="flex-1 bg-slate-100 dark:bg-slate-950"
+      className="flex-1 bg-zinc-950"
       style={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }}
     >
       <ScrollView
-        className="flex-1 px-4"
+        className="flex-1 px-6"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 24 }}
       >
-        {/* Título + tiempo */}
-        <View className="mb-8">
-          <Text className="text-slate-900 dark:text-slate-50 text-5xl font-black leading-tight">
-            {'Sesión\ncompletada'}
-          </Text>
-          <Text className="text-slate-900 dark:text-slate-50 text-5xl font-black italic mt-1">
-            {formatTime(globalTime)}
-          </Text>
-        </View>
-
-        {/* Stats generales */}
-        <Text className="text-slate-900 dark:text-slate-50 text-lg font-semibold mb-3">
-          Resumen
-        </Text>
-        <View className="gap-3 mb-6">
-          <View className="flex-row gap-3">
-            <StatCard
-              label="Ejercicios realizados"
-              value={`${stats.exercisesDone}/${stats.exercisesTotal}`}
-            />
-            <StatCard
-              label="Series completadas"
-              value={`${stats.setsDone}/${stats.setsTotal}`}
-            />
-          </View>
-          <View className="flex-row gap-3">
-            <StatCard
-              label="Repeticiones completadas"
-              value={`${stats.repsDone}/${stats.repsTotal}`}
-            />
-            <StatCard
-              label="Esfuerzo promedio"
-              value={`${stats.avgRpe}`}
-            />
+        {/* Ícono celebratorio */}
+        <View className="items-center mb-6">
+          <View className="w-24 h-24 rounded-full items-center justify-center border border-zinc-800 bg-zinc-900">
+            <View className="absolute w-24 h-24 rounded-full bg-lime-400/10" />
+            <Ionicons name="barbell-outline" size={40} color={LIME} />
           </View>
         </View>
 
-        {/* Detalle por ejercicio */}
-        <Text className="text-slate-900 dark:text-slate-50 text-lg font-semibold mb-3">
-          Detalle
+        {/* Título + nombre de rutina */}
+        <Text className="text-white text-3xl font-bold text-center">Rutina completada</Text>
+        {routineName && (
+          <Text className="text-zinc-400 text-base text-center mt-1" numberOfLines={1}>
+            {routineName}
+          </Text>
+        )}
+
+        {/* Tiempo total */}
+        <Text className="text-white text-6xl font-bold text-center mt-6" adjustsFontSizeToFit numberOfLines={1}>
+          {formatTimeSpan(globalTime)}
         </Text>
-        <View className="gap-3">
-          {exercises.map((ex) => {
-            const log = logs.find((l) => l.exerciseId === ex.id);
-            const isTimeBased = ex.repType === 'Timed';
-            const targetSets = parseInt(ex.sets) || 1;
-            const targetReps = parseInt(ex.currentRep || ex.maxRep || ex.minRep || '0', 10);
-            const targetDuration = parseInt(ex.durationSeconds || '0', 10);
+        <Text className="text-zinc-400 text-base text-center mt-2">
+          {stats.exercisesDone} {stats.exercisesDone === 1 ? 'ejercicio completado' : 'ejercicios completados'}
+        </Text>
 
-            return (
-              <View key={ex.id} className="bg-white dark:bg-slate-900 rounded-2xl p-4">
-                <Text
-                  className="text-slate-900 dark:text-slate-50 font-bold text-base mb-3"
-                  numberOfLines={1}
-                >
-                  {ex.name}
-                </Text>
-
-                {/* Fila encabezado */}
-                <View className="flex-row mb-2">
-                  <Text className="w-14 text-slate-400 text-xs font-medium">Serie</Text>
-                  <Text className="flex-1 text-slate-400 text-xs font-medium text-center">
-                    {isTimeBased ? 'Duración' : 'Reps'}
-                  </Text>
-                  <Text className="w-20 text-slate-400 text-xs font-medium text-right">
-                    Estado
-                  </Text>
-                </View>
-
-                {/* Sets realizados */}
-                {log && log.sets.length > 0 ? (
-                  log.sets.map((set) => {
-                    const done = isTimeBased
-                      ? `${set.durationSeconds ?? 0}s`
-                      : `${set.repsPerformed}`;
-                    const target = isTimeBased
-                      ? `${targetDuration}s`
-                      : `${targetReps}`;
-
-                    return (
-                      <View key={set.setNumber} className="flex-row items-center py-1.5 border-t border-slate-100 dark:border-slate-800">
-                        <Text className="w-14 text-slate-900 dark:text-slate-50 text-sm">
-                          {set.setNumber}
-                        </Text>
-                        <Text className="flex-1 text-slate-900 dark:text-slate-50 text-sm font-semibold text-center">
-                          {done}
-                          <Text className="text-slate-400 font-normal"> / {target}</Text>
-                        </Text>
-                        <View className="w-20 items-end">
-                          <View
-                            className={`px-2 py-0.5 rounded-full ${
-                              set.isCompleted
-                                ? 'bg-lime-100 dark:bg-lime-900'
-                                : 'bg-orange-100 dark:bg-orange-900'
-                            }`}
-                          >
-                            <Text
-                              className={`text-xs font-medium ${
-                                set.isCompleted
-                                  ? 'text-lime-700 dark:text-lime-300'
-                                  : 'text-orange-700 dark:text-orange-300'
-                              }`}
-                            >
-                              {set.isCompleted ? 'Completa' : 'Parcial'}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    );
-                  })
-                ) : null}
-
-                {/* Sets no realizados */}
-                {Array.from({
-                  length: Math.max(0, targetSets - (log?.sets.length ?? 0)),
-                }).map((_, i) => {
-                  const setNumber = (log?.sets.length ?? 0) + i + 1;
-                  return (
-                    <View key={`pending-${setNumber}`} className="flex-row items-center py-1.5 border-t border-slate-100 dark:border-slate-800">
-                      <Text className="w-14 text-slate-400 text-sm">{setNumber}</Text>
-                      <Text className="flex-1 text-slate-400 text-sm text-center">—</Text>
-                      <View className="w-20 items-end">
-                        <View className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
-                          <Text className="text-xs font-medium text-slate-400">No hecha</Text>
-                        </View>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            );
-          })}
+        {/* Grid de estadísticas 2×2 */}
+        <View className="bg-zinc-900 rounded-3xl mt-8 overflow-hidden">
+          <View className="flex-row">
+            <StatCell label="Ejercicios" value={stats.exercisesDone} total={stats.exercisesTotal} />
+            <View className="w-px bg-zinc-800" />
+            <StatCell label="Series" value={stats.setsDone} total={stats.setsTotal} />
+          </View>
+          <View className="h-px bg-zinc-800" />
+          <View className="flex-row">
+            <StatCell label="Repeticiones" value={stats.repsDone} total={stats.repsTotal} />
+            <View className="w-px bg-zinc-800" />
+            <StatCell label="Esfuerzo promedio" value={stats.avgRpe} />
+          </View>
         </View>
+
+        {/* Próxima sesión */}
+        {nextSessionDay && (
+          <View className="bg-zinc-900 rounded-2xl mt-4 px-4 py-4 flex-row items-center gap-4">
+            <IconTile name="calendar-outline" color={LIME} />
+            <View className="flex-1">
+              <Text className="text-zinc-500 text-sm">Próxima sesión</Text>
+              <Text className="text-white text-lg font-semibold mt-0.5">
+                {formatNextSessionDay(nextSessionDay)}
+              </Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
-      {/* Botón */}
-      <View className="px-4 pt-4">
+      {/* CTA */}
+      <View className="px-6 pt-4">
         <TouchableOpacity
-          className="bg-zinc-950 dark:bg-zinc-50 w-full h-14 rounded-full items-center justify-center"
+          className="bg-lime-400 w-full h-14 rounded-2xl items-center justify-center"
           onPress={onSave}
         >
-          <Text className="text-white dark:text-zinc-950 font-semibold text-base">Continuar</Text>
+          <Text className="text-zinc-900 font-semibold text-base">Continuar</Text>
         </TouchableOpacity>
       </View>
     </View>

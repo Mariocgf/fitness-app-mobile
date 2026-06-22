@@ -48,9 +48,6 @@ interface RoutineDetailContextValue {
   /** True mientras CreateRoutineView está abierto en modo creación */
   isCreatingRoutine: boolean;
   setIsCreatingRoutine: (creating: boolean) => void;
-  /** True mientras CreateRoutineView está abierto en modo edición */
-  isEditingRoutine: boolean;
-  setIsEditingRoutine: (editing: boolean) => void;
   /** Ref estable para guardar desde el FAB — siempre inicializado, nunca null por timing */
   saveRoutineRef: React.MutableRefObject<((activate: boolean) => void)>;
   /** Ref que indica si el formulario de rutina es válido (nombre + al menos 1 ejercicio) */
@@ -74,8 +71,6 @@ const RoutineDetailContext = createContext<RoutineDetailContextValue>({
   setViewingActiveRoutine: () => {},
   isCreatingRoutine: false,
   setIsCreatingRoutine: () => {},
-  isEditingRoutine: false,
-  setIsEditingRoutine: () => {},
   saveRoutineRef: { current: () => {} },
   isFormValidRef: { current: false },
 });
@@ -89,7 +84,6 @@ export function RoutineDetailProvider({ children }: { children: React.ReactNode 
   const [activeRoutine, setActiveRoutine] = useState<Routine | null>(null);
   const [viewingActiveRoutine, setViewingActiveRoutine] = useState(false);
   const [isCreatingRoutine, setIsCreatingRoutine] = useState(false);
-  const [isEditingRoutine, setIsEditingRoutine] = useState(false);
   const saveRoutineRef = useRef<(activate: boolean) => void>(() => {
     console.warn('[RoutineDetailContext] saveRoutineRef called but no handler registered');
   });
@@ -112,11 +106,9 @@ export function RoutineDetailProvider({ children }: { children: React.ReactNode 
     setViewingActiveRoutine,
     isCreatingRoutine,
     setIsCreatingRoutine,
-    isEditingRoutine,
-    setIsEditingRoutine,
     saveRoutineRef,
     isFormValidRef,
-  }), [isDetailVisible, isSwapMode, actions, onGenerateRoutine, onCreateRoutine, activeRoutine, viewingActiveRoutine, isCreatingRoutine, isEditingRoutine]);
+  }), [isDetailVisible, isSwapMode, actions, onGenerateRoutine, onCreateRoutine, activeRoutine, viewingActiveRoutine, isCreatingRoutine]);
 
   return (
     <RoutineDetailContext.Provider value={value}>

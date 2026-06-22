@@ -1,7 +1,10 @@
-import { RoutineSummary, RoutineSource } from '@/src/types/routine';
+import { IconTile } from '@/src/components/common/IconTile';
+import { RoutineSummary } from '@/src/types/routine';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
+
+const LIME = '#a3e635';
 
 interface RoutineListCardProps {
   routine: RoutineSummary;
@@ -9,89 +12,68 @@ interface RoutineListCardProps {
 }
 
 /**
- * Card para listado vertical de rutinas (vista paginada).
- * Muestra: nombre, tag de source, badge "Activa", fechas y cantidad de días.
+ * Card de la biblioteca "Mis rutinas" (listado vertical, dark-only, acento lime).
+ *
+ * Dos variantes según `routine.isActive`:
+ * - Activa: card destacada con borde lime, badge "Activa" y CTA "Continuar rutina".
+ * - Resto: fila compacta con icon-tile, nombre, `source • N días` y chevron.
+ *
+ * NO muestra "Nivel" ni íconos por grupo muscular: `RoutineSummary` no expone esos
+ * campos, así que no se inventan (ver agent-implementation-lessons.md). El ícono se
+ * deriva del source, igual que `RoutineLibraryCard`.
  */
 export function RoutineListCard({ routine, onPress }: RoutineListCardProps) {
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-AR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  };
+  const isAI = routine.source === 'AI';
+  const iconName = isAI ? 'fitness' : 'barbell';
+  const dayLabel = `${routine.dayCount} ${routine.dayCount === 1 ? 'día' : 'días'}`;
 
-  const getSourceStyles = (source: RoutineSource) => {
-    if (source === 'AI') {
-      return {
-        container: 'bg-violet-100 dark:bg-violet-900/30',
-        text: 'text-violet-700 dark:text-violet-300',
-      };
-    }
-    return {
-      container: 'bg-slate-100 dark:bg-slate-800',
-      text: 'text-slate-600 dark:text-slate-400',
-    };
-  };
+  if (routine.isActive) {
+    return (
+      <View className="rounded-3xl border border-lime-400 bg-zinc-900 p-4">
+        <View className="flex-row items-center">
+          <IconTile name={iconName} color={LIME} size={52} iconSize={26} />
+          <View className="flex-1 ml-3 pr-2">
+            <Text className="text-white font-bold text-lg" numberOfLines={1}>
+              {routine.name}
+            </Text>
+            <Text className="text-zinc-400 text-sm mt-0.5">
+              {dayLabel} • <Text className="text-lime-400 font-semibold">Activa</Text>
+            </Text>
+          </View>
+          <View className="flex-row items-center bg-lime-400/15 px-2.5 py-1 rounded-full">
+            <View className="w-1.5 h-1.5 rounded-full bg-lime-400 mr-1.5" />
+            <Text className="text-lime-400 text-xs font-semibold">Activa</Text>
+          </View>
+        </View>
 
-  const sourceStyles = getSourceStyles(routine.source);
+        <TouchableOpacity
+          onPress={() => onPress(routine)}
+          activeOpacity={0.85}
+          className="flex-row items-center justify-center bg-lime-400 rounded-2xl py-3.5 mt-4"
+        >
+          <Text className="text-zinc-900 font-bold text-base mr-2">Continuar rutina</Text>
+          <Ionicons name="arrow-forward" size={18} color="#18181b" />
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <TouchableOpacity
       onPress={() => onPress(routine)}
       activeOpacity={0.8}
-      className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800"
+      className="flex-row items-center rounded-2xl bg-zinc-900 border border-zinc-800 p-4"
     >
-      {/* Header: Nombre y badge Activa */}
-      <View className="flex-row items-start justify-between mb-2">
-        <Text
-          className="text-slate-900 dark:text-slate-50 font-semibold text-base flex-1 mr-2"
-          numberOfLines={2}
-        >
+      <IconTile name={iconName} color={LIME} size={48} iconSize={24} />
+      <View className="flex-1 ml-3 pr-2">
+        <Text className="text-white font-semibold text-base" numberOfLines={2}>
           {routine.name}
         </Text>
-        {routine.isActive && (
-          <View className="flex-row items-center bg-lime-400 px-2 py-1 rounded-full">
-            <Ionicons name="checkmark" size={12} color="#0f172a" />
-            <Text className="text-slate-900 text-xs font-medium ml-1">Activa</Text>
-          </View>
-        )}
-      </View>
-
-      {/* Tags y metadata */}
-      <View className="flex-row items-center flex-wrap gap-2 mb-3">
-        {/* Tag de source */}
-        <View className={`px-2 py-1 rounded-full ${sourceStyles.container}`}>
-          <Text className={`text-xs font-medium ${sourceStyles.text}`}>
-            {routine.source === 'AI' ? 'Generada por IA' : 'Creada manual'}
-          </Text>
-        </View>
-
-        {/* Cantidad de días */}
-        <View className="flex-row items-center px-2 py-1">
-          <Ionicons name="calendar-outline" size={12} color="#94a3b8" />
-          <Text className="text-slate-500 dark:text-slate-400 text-xs ml-1">
-            {routine.dayCount} {routine.dayCount === 1 ? 'día' : 'días'}
-          </Text>
-        </View>
-      </View>
-
-      {/* Fechas */}
-      <View className="flex-row items-center justify-between">
-        <View className="flex-row items-center">
-          <Ionicons name="time-outline" size={12} color="#94a3b8" />
-          <Text className="text-slate-500 dark:text-slate-400 text-xs ml-1">
-            Creada: {formatDate(routine.createdAt)}
-          </Text>
-        </View>
-
-        <Text className="text-slate-400 dark:text-slate-500 text-xs">
-          {routine.updatedAt
-            ? `Modificada: ${formatDate(routine.updatedAt)}`
-            : 'No modificada'}
+        <Text className="text-zinc-500 text-sm mt-0.5">
+          {isAI ? 'IA' : 'Manual'} • {dayLabel}
         </Text>
       </View>
+      <Ionicons name="chevron-forward" size={20} color="#52525b" />
     </TouchableOpacity>
   );
 }

@@ -15,49 +15,34 @@ interface LastMeasurementCardProps {
   onViewDetail?: () => void;
 }
 
-/** Formatea una fecha YYYY-MM-DD a "8 de jun. 2026" */
+const MONTHS = [
+  "ene", "feb", "mar", "abr", "may", "jun",
+  "jul", "ago", "sep", "oct", "nov", "dic",
+];
+
+/** Formatea una fecha YYYY-MM-DD a "16 jun 2026". */
 const formatDate = (dateStr: string): string => {
-  const MONTHS = [
-    "ene",
-    "feb",
-    "mar",
-    "abr",
-    "may",
-    "jun",
-    "jul",
-    "ago",
-    "sep",
-    "oct",
-    "nov",
-    "dic",
-  ];
   const [year, month, day] = dateStr.split("-").map(Number);
-  return `${day} de ${MONTHS[month - 1]}. ${year}`;
+  return `${day} ${MONTHS[month - 1]} ${year}`;
 };
 
-/** Chip pequeño con valor numérico + unidad + etiqueta inferior */
-function MetricChip({
+/** Columna de composición corporal: etiqueta arriba, valor + unidad abajo. */
+function CompositionColumn({
+  label,
   value,
   unit,
-  label,
 }: {
+  label: string;
   value: string;
   unit: string;
-  label: string;
 }) {
   return (
-    <View className="flex-1 items-center bg-slate-100 dark:bg-slate-800 rounded-2xl py-3 px-2">
-      <View className="flex-row items-baseline gap-0.5">
-        <Text className="text-slate-900 dark:text-slate-50 text-xl font-bold">
-          {value}
-        </Text>
-        <Text className="text-slate-500 dark:text-slate-400 text-xs font-medium">
-          {unit}
-        </Text>
+    <View className="flex-1">
+      <Text className="text-zinc-400 text-sm mb-1">{label}</Text>
+      <View className="flex-row items-baseline gap-1">
+        <Text className="text-white text-3xl font-bold">{value}</Text>
+        <Text className="text-zinc-400 text-sm font-medium">{unit}</Text>
       </View>
-      <Text className="text-slate-500 dark:text-slate-400 text-xs mt-1 text-center">
-        {label}
-      </Text>
     </View>
   );
 }
@@ -74,29 +59,25 @@ export function LastMeasurementCard({
   // ── Estado vacío ─────────────────────────────────────────────────────────
   if (measurement === null) {
     return (
-      <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+      <View className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
         <View className="flex-row items-start mb-4">
           <View className="flex-1 pr-4">
-            <Text className="text-slate-900 dark:text-slate-50 text-2xl font-bold mb-2">
+            <Text className="text-white text-2xl font-bold mb-2">
               Medidas corporales
             </Text>
-            <Text className="text-slate-500 dark:text-slate-400 leading-5">
+            <Text className="text-zinc-400 leading-5">
               Todavía no tenés mediciones.{"\n"}Registrá tus primeras medidas
               para seguir tu progreso.
             </Text>
           </View>
-          <Ionicons
-            name="body-outline"
-            size={40}
-            className="text-slate-900 dark:text-slate-50"
-          />
+          <Ionicons name="body-outline" size={40} color="#ffffff" />
         </View>
         <TouchableOpacity
           onPress={onRegister}
-          activeOpacity={0.8}
-          className="py-4 rounded-xl items-center bg-rose-600 dark:bg-rose-400"
+          activeOpacity={0.85}
+          className="py-4 rounded-2xl items-center bg-rose-400"
         >
-          <Text className="text-white dark:text-slate-900 font-bold text-base">
+          <Text className="text-zinc-900 font-bold text-base">
             Registrar primera medición
           </Text>
         </TouchableOpacity>
@@ -105,12 +86,26 @@ export function LastMeasurementCard({
   }
 
   // ── Con medición ─────────────────────────────────────────────────────────
-  const hasComposition =
-    measurement.weightKg != null ||
-    measurement.bodyFatPercentage != null ||
-    measurement.leanMassKg != null;
+  // Solo se muestran las columnas de composición con dato real.
+  const compositionItems = [
+    measurement.weightKg != null && {
+      label: "Peso",
+      value: measurement.weightKg.toString(),
+      unit: "kg",
+    },
+    measurement.bodyFatPercentage != null && {
+      label: "Grasa",
+      value: measurement.bodyFatPercentage.toFixed(1),
+      unit: "%",
+    },
+    measurement.leanMassKg != null && {
+      label: "Masa magra",
+      value: measurement.leanMassKg.toFixed(1),
+      unit: "kg",
+    },
+  ].filter(Boolean) as { label: string; value: string; unit: string }[];
 
-  // Calcula cuántas medidas perimetrales fueron registradas
+  // Cantidad de medidas perimetrales registradas.
   const perimeterCount = [
     measurement.waistCm,
     measurement.neckCm,
@@ -123,7 +118,7 @@ export function LastMeasurementCard({
   ].filter((v) => v != null).length;
 
   return (
-    <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+    <View className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
       {/* Área de información — tappable para ver detalle */}
       <TouchableOpacity
         onPress={onViewDetail}
@@ -131,68 +126,42 @@ export function LastMeasurementCard({
         disabled={!onViewDetail}
         className="p-5 pb-4"
       >
-        {/* Encabezado con título, fecha y flecha */}
-        <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-slate-900 dark:text-slate-50 text-xl font-bold">
-            Última medición
-          </Text>
-          <View className="flex-row items-center gap-2">
-            <View className="flex-row items-center gap-1">
-              <Ionicons
-                name="calendar-outline"
-                size={14}
-                className="text-slate-500 dark:text-slate-400"
-              />
-              <Text className="text-slate-500 dark:text-slate-400 text-sm">
-                {formatDate(measurement.date)}
-              </Text>
-            </View>
-            {onViewDetail && (
-              <Ionicons
-                name="chevron-forward"
-                size={16}
-                className="text-slate-400 dark:text-slate-500"
-              />
-            )}
+        {/* Título + fecha debajo + flecha */}
+        <View className="flex-row items-start justify-between mb-5">
+          <View>
+            <Text className="text-white text-2xl font-bold">
+              Última medición
+            </Text>
+            <Text className="text-zinc-400 text-sm mt-0.5">
+              {formatDate(measurement.date)}
+            </Text>
           </View>
+          {onViewDetail && (
+            <Ionicons name="chevron-forward" size={18} color="#71717a" />
+          )}
         </View>
 
-        {/* Chips de composición corporal */}
-        {hasComposition && (
-          <View className="flex-row gap-2 mb-4">
-            {measurement.weightKg != null && (
-              <MetricChip
-                value={measurement.weightKg.toString()}
-                unit="kg"
-                label="Peso"
-              />
-            )}
-            {measurement.bodyFatPercentage != null && (
-              <MetricChip
-                value={measurement.bodyFatPercentage.toFixed(1)}
-                unit="%"
-                label="Grasa"
-              />
-            )}
-            {measurement.leanMassKg != null && (
-              <MetricChip
-                value={measurement.leanMassKg.toFixed(1)}
-                unit="kg"
-                label="Masa magra"
-              />
-            )}
+        {/* Columnas de composición corporal separadas por divisores */}
+        {compositionItems.length > 0 && (
+          <View className="flex-row mb-5">
+            {compositionItems.map((item, index) => (
+              <React.Fragment key={item.label}>
+                {index > 0 && <View className="w-px self-stretch bg-zinc-800" />}
+                <CompositionColumn
+                  label={item.label}
+                  value={item.value}
+                  unit={item.unit}
+                />
+              </React.Fragment>
+            ))}
           </View>
         )}
 
         {/* Resumen de medidas perimetrales */}
         {perimeterCount > 0 && (
-          <View className="flex-row items-center gap-1.5">
-            <Ionicons
-              name="resize-outline"
-              size={14}
-              className="text-slate-500 dark:text-slate-400"
-            />
-            <Text className="text-slate-500 dark:text-slate-400 text-sm">
+          <View className="flex-row items-center gap-2">
+            <Ionicons name="body-outline" size={18} color="#a1a1aa" />
+            <Text className="text-zinc-400 text-sm">
               {perimeterCount} medida{perimeterCount !== 1 ? "s" : ""} perimetral
               {perimeterCount !== 1 ? "es" : ""} registrada
               {perimeterCount !== 1 ? "s" : ""}
@@ -201,14 +170,15 @@ export function LastMeasurementCard({
         )}
       </TouchableOpacity>
 
-      {/* Botón de acción — separado del área tappable */}
-      <View className="px-5 pb-5 pt-4">
+      {/* CTA — separado del área tappable */}
+      <View className="px-5 pb-5 pt-1">
         <TouchableOpacity
           onPress={onRegister}
-          activeOpacity={0.8}
-          className="py-4 rounded-xl items-center bg-rose-600 dark:bg-rose-400"
+          activeOpacity={0.85}
+          className="py-4 rounded-2xl items-center justify-center flex-row gap-2 bg-rose-400"
         >
-          <Text className="text-white dark:text-slate-900 font-bold text-base">
+          <Ionicons name="add-circle-outline" size={22} color="#18181b" />
+          <Text className="text-zinc-900 font-bold text-base">
             Registrar nueva medición
           </Text>
         </TouchableOpacity>

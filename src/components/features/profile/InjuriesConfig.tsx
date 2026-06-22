@@ -107,8 +107,8 @@ export default function InjuriesConfig({ onBack, onRegisterBackHandler }: Injuri
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#64748b" />
+      <View className="flex-1 items-center justify-center bg-zinc-950">
+        <ActivityIndicator size="large" color="#a1a1aa" />
       </View>
     );
   }
@@ -144,10 +144,10 @@ export default function InjuriesConfig({ onBack, onRegisterBackHandler }: Injuri
           onPress={handleSave}
           disabled={isSaving}
           activeOpacity={0.85}
-          className="w-full py-4 rounded-full items-center bg-slate-950 dark:bg-slate-100"
+          className="w-full py-4 rounded-full items-center bg-zinc-50"
           style={{ opacity: isSaving ? 0.7 : 1 }}
         >
-          <Text className="text-base font-semibold text-white dark:text-slate-950">
+          <Text className="text-base font-semibold text-zinc-950">
             {isSaving ? 'Guardando...' : 'Guardar'}
           </Text>
         </TouchableOpacity>
@@ -233,8 +233,8 @@ export function ConditionsConfig({ onBack, onRegisterBackHandler }: InjuriesConf
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#64748b" />
+      <View className="flex-1 items-center justify-center bg-zinc-950">
+        <ActivityIndicator size="large" color="#a1a1aa" />
       </View>
     );
   }
@@ -270,10 +270,10 @@ export function ConditionsConfig({ onBack, onRegisterBackHandler }: InjuriesConf
           onPress={handleSave}
           disabled={isSaving}
           activeOpacity={0.85}
-          className="w-full py-4 rounded-full items-center bg-slate-950 dark:bg-slate-100"
+          className="w-full py-4 rounded-full items-center bg-zinc-50"
           style={{ opacity: isSaving ? 0.7 : 1 }}
         >
-          <Text className="text-base font-semibold text-white dark:text-slate-950">
+          <Text className="text-base font-semibold text-zinc-950">
             {isSaving ? 'Guardando...' : 'Guardar'}
           </Text>
         </TouchableOpacity>

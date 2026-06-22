@@ -44,25 +44,14 @@ export function TrainingHistoryCardSkeleton({ variant }: TrainingHistoryCardSkel
   return (
     <Animated.View
       style={animStyle}
-      className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800"
+      className="flex-row items-center bg-zinc-900 rounded-2xl p-4 border border-zinc-800"
     >
-      {/* Nombre + chip */}
-      <View className="flex-row items-start justify-between mb-3">
-        <View className="flex-1 mr-2">
-          <View className="w-3/4 h-4 bg-slate-200 dark:bg-slate-800 rounded mb-2" />
-          <View className="w-1/2 h-4 bg-slate-200 dark:bg-slate-800 rounded" />
-        </View>
-        <View className="w-16 h-6 bg-slate-200 dark:bg-slate-800 rounded-full" />
-      </View>
-      {/* Chips de metadata */}
-      <View className="flex-row gap-2 mb-3">
-        <View className="w-20 h-5 bg-slate-200 dark:bg-slate-800 rounded-full" />
-        <View className="w-16 h-5 bg-slate-200 dark:bg-slate-800 rounded-full" />
-      </View>
-      {/* Fecha / duración */}
-      <View className="flex-row justify-between">
-        <View className="w-28 h-3 bg-slate-200 dark:bg-slate-800 rounded" />
-        <View className="w-20 h-3 bg-slate-200 dark:bg-slate-800 rounded" />
+      {/* Icon-tile */}
+      <View className="w-12 h-12 rounded-2xl bg-zinc-800 mr-3" />
+      {/* Nombre + meta */}
+      <View className="flex-1">
+        <View className="w-3/4 h-4 bg-zinc-800 rounded mb-2" />
+        <View className="w-1/2 h-3 bg-zinc-800 rounded" />
       </View>
     </Animated.View>
   );

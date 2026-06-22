@@ -1,10 +1,13 @@
+import { IconTile } from '@/src/components/common/IconTile';
 import { TrainingHistorySession } from '@/src/types/training-history';
-import { formatDurationLong, formatSessionDate } from '@/src/utils/training-history.utils';
+import { formatDurationLong, formatRelativeDay } from '@/src/utils/training-history.utils';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useRef } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+
+const LIME = '#a3e635';
 
 interface SwipeableTrainingHistoryCardProps {
   session: TrainingHistorySession;
@@ -13,8 +16,10 @@ interface SwipeableTrainingHistoryCardProps {
 }
 
 /**
- * Card con swipe-to-delete para el historial de entrenamiento.
- * Al deslizar hacia la izquierda aparece la opción de eliminar.
+ * Card del listado de historial (dark-only `zinc`/`lime`, rediseñada desde la
+ * maqueta de "Mis rutinas"): fila compacta con `IconTile` + nombre de la rutina +
+ * meta `N ejercicios • duración • fecha relativa` + chevron. Conserva el
+ * swipe-to-delete (desliza a la izquierda → "Eliminar").
  */
 export function SwipeableTrainingHistoryCard({
   session,
@@ -29,10 +34,10 @@ export function SwipeableTrainingHistoryCard({
   }, [onDelete, session]);
 
   const renderRightActions = useCallback(
-    (progress: unknown, dragX: unknown) => (
+    () => (
       <TouchableOpacity
         onPress={handleDelete}
-        className="bg-red-500 justify-center items-center px-6 rounded-xl ml-3"
+        className="bg-red-500 justify-center items-center px-6 rounded-2xl ml-3"
         activeOpacity={0.8}
       >
         <View className="items-center">
@@ -43,6 +48,13 @@ export function SwipeableTrainingHistoryCard({
     ),
     [handleDelete],
   );
+
+  const exerciseCount = session.exercises.length;
+  const meta = [
+    `${exerciseCount} ${exerciseCount === 1 ? 'ejercicio' : 'ejercicios'}`,
+    formatDurationLong(session.totalSeconds),
+    formatRelativeDay(session.trainedAt),
+  ].join('  •  ');
 
   return (
     <Swipeable
@@ -56,42 +68,18 @@ export function SwipeableTrainingHistoryCard({
         <TouchableOpacity
           onPress={() => onPress(session)}
           activeOpacity={0.8}
-          className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800"
+          className="flex-row items-center rounded-2xl bg-zinc-900 border border-zinc-800 p-4"
         >
-          {/* Nombre + flecha */}
-          <View className="flex-row items-start justify-between mb-2">
-            <Text
-              className="text-slate-900 dark:text-slate-50 font-semibold text-base flex-1 mr-2"
-              numberOfLines={2}
-            >
+          <IconTile name="barbell" color={LIME} size={48} iconSize={24} />
+          <View className="flex-1 ml-3 pr-2">
+            <Text className="text-white font-semibold text-base" numberOfLines={2}>
               {session.routineName}
             </Text>
-            <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
-          </View>
-
-          {/* Chips de metadata */}
-          <View className="flex-row items-center flex-wrap gap-2 mb-3">
-            <View className="bg-lime-400/20 px-2 py-1 rounded-full flex-row items-center">
-              <Ionicons name="barbell-outline" size={11} color="#65a30d" />
-              <Text className="text-lime-700 dark:text-lime-400 text-xs font-medium ml-1">
-                {session.exercises.length} {session.exercises.length === 1 ? 'ejercicio' : 'ejercicios'}
-              </Text>
-            </View>
-            <View className="flex-row items-center px-2 py-1">
-              <Ionicons name="time-outline" size={11} color="#94a3b8" />
-              <Text className="text-slate-500 dark:text-slate-400 text-xs ml-1">
-                {formatDurationLong(session.totalSeconds)}
-              </Text>
-            </View>
-          </View>
-
-          {/* Fecha */}
-          <View className="flex-row items-center">
-            <Ionicons name="calendar-outline" size={11} color="#94a3b8" />
-            <Text className="text-slate-500 dark:text-slate-400 text-xs ml-1">
-              {formatSessionDate(session.trainedAt)}
+            <Text className="text-zinc-500 text-sm mt-0.5" numberOfLines={1}>
+              {meta}
             </Text>
           </View>
+          <Ionicons name="chevron-forward" size={20} color="#52525b" />
         </TouchableOpacity>
       </Animated.View>
     </Swipeable>

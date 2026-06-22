@@ -1,6 +1,7 @@
 import React from 'react';
-import { ScrollView, Text, TouchableOpacity } from 'react-native';
+import { ScrollView } from 'react-native';
 
+import { SelectablePill } from '@/src/components/common/SelectablePill';
 import { RoutineDayName } from '@/src/types/nutritionRoutine';
 import { ROUTINE_DAY_LABELS, ROUTINE_DAY_ORDER } from '@/src/utils/nutritionRoutine.utils';
 
@@ -27,29 +28,15 @@ export function NutritionDaySelector({
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, gap: 8 }}
     >
-      {orderedDays.map((day) => {
-        const isActive = day === activeDayName;
-        return (
-          <TouchableOpacity
-            key={day}
-            onPress={() => onSelectDay(day)}
-            activeOpacity={0.75}
-            className={`px-4 py-2 rounded-full border ${
-              isActive
-                ? 'bg-amber-400 border-amber-400'
-                : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900'
-            }`}
-          >
-            <Text
-              className={`text-sm font-semibold ${
-                isActive ? 'text-black' : 'text-slate-600 dark:text-slate-300'
-              }`}
-            >
-              {ROUTINE_DAY_LABELS[day]}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+      {orderedDays.map((day) => (
+        <SelectablePill
+          key={day}
+          label={ROUTINE_DAY_LABELS[day]}
+          selected={day === activeDayName}
+          onPress={() => onSelectDay(day)}
+          accent="amber"
+        />
+      ))}
     </ScrollView>
   );
 }

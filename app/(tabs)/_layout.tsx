@@ -1,11 +1,12 @@
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
-import { NutritionRegisterProvider } from '@/src/store/nutrition-register-context';
 import { NutritionRoutineProvider } from '@/src/store/nutrition-routine-context';
 import { RoutineDetailProvider } from '@/src/store/routine-detail-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/clerk-expo';
+import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { Platform, StyleSheet } from 'react-native';
 
 export default function TabLayout() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -16,23 +17,35 @@ export default function TabLayout() {
 
   const activeTint = isDark ? '#f8fafc' : '#09090b';
   const inactiveTint = isDark ? '#64748b' : '#94a3b8';
-  const tabBarBg = isDark ? '#020617' : '#ffffff';
-  const tabBarBorder = isDark ? '#1e293b' : '#e2e8f0';
 
   return (
     <RoutineDetailProvider>
       <NutritionRoutineProvider>
-        <NutritionRegisterProvider>
-          <Tabs
+        <Tabs
             screenOptions={{
               headerShown: false,
               tabBarActiveTintColor: activeTint,
               tabBarInactiveTintColor: inactiveTint,
+              // Fondo transparente + posición absoluta: el contenido pasa por
+              // detrás y el blur tiene algo que difuminar. Sin borde ni color
+              // sólido para que no aparezca la "barra" opaca encima.
               tabBarStyle: {
-                backgroundColor: tabBarBg,
-                borderTopColor: tabBarBorder,
-                borderTopWidth: 1,
+                position: 'absolute',
+                borderTopWidth: 0,
+                backgroundColor: 'transparent',
+                elevation: 0,
               },
+              // Blur nativo del tab bar: iOS (nativo) y Android (dimezisBlurView).
+              tabBarBackground: () => (
+                <BlurView
+                  intensity={isDark ? 40 : 60}
+                  tint={isDark ? 'dark' : 'light'}
+                  experimentalBlurMethod={
+                    Platform.OS === 'android' ? 'dimezisBlurView' : undefined
+                  }
+                  style={StyleSheet.absoluteFill}
+                />
+              ),
               tabBarLabelStyle: {
                 fontSize: 10,
                 fontWeight: '600',
@@ -99,8 +112,7 @@ export default function TabLayout() {
               name="explore"
               options={{ href: null }}
             />
-          </Tabs>
-        </NutritionRegisterProvider>
+        </Tabs>
       </NutritionRoutineProvider>
     </RoutineDetailProvider>
   );

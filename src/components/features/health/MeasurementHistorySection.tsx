@@ -37,7 +37,7 @@ export function MeasurementHistorySection({
 
   return (
     <View className="gap-3">
-      <Text className="text-slate-900 dark:text-slate-50 text-xl font-bold px-4">
+      <Text className="text-white text-xl font-bold px-4">
         Historial
       </Text>
 
@@ -54,19 +54,19 @@ export function MeasurementHistorySection({
           <TouchableOpacity
             onPress={onViewMore}
             activeOpacity={0.8}
-            className="bg-rose-600 dark:bg-rose-400 rounded-2xl p-4 flex-row items-center justify-between"
+            className="bg-rose-400 rounded-2xl p-4 flex-row items-center justify-between"
           >
-            <Text className="text-white dark:text-slate-900 font-semibold text-base">
+            <Text className="text-zinc-900 font-semibold text-base">
               Ver historial completo
             </Text>
             <View className="flex-row items-center gap-2">
-              <Text className="text-white dark:text-slate-900 text-sm opacity-80">
+              <Text className="text-zinc-900 text-sm opacity-80">
                 {totalCount} registros
               </Text>
               <Ionicons
                 name="chevron-forward"
                 size={16}
-                className="text-white dark:text-slate-900"
+                className="text-zinc-900"
               />
             </View>
           </TouchableOpacity>

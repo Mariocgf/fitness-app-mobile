@@ -16,6 +16,8 @@ interface UseTrainingHistoryListReturn {
   setDateRange: (from: Date | null, to: Date | null) => void;
   setRoutineId: (id: string | null) => void;
   applyFilters: () => void;
+  /** Setea el rango de fechas y refetchea en una sola acción (evita stale closure) */
+  applyDateRange: (from: Date | null, to: Date | null) => void;
   loadMore: () => void;
   refresh: () => void;
   deleteSession: (id: string) => Promise<boolean>;
@@ -105,6 +107,19 @@ export function useTrainingHistoryList(
     loadFirstPage(filters);
   }, [loadFirstPage, filters]);
 
+  /**
+   * Setea el rango de fechas y refetchea de inmediato con ese valor.
+   * Evita el stale closure de hacer `setDateRange` + `applyFilters` por separado.
+   */
+  const applyDateRange = useCallback(
+    (from: Date | null, to: Date | null) => {
+      const next: TrainingHistoryFilters = { ...filters, fromDate: from, toDate: to };
+      setFilters(next);
+      loadFirstPage(next);
+    },
+    [filters, loadFirstPage],
+  );
+
   /** Limpia filtros y recarga */
   const refresh = useCallback(() => {
     const clean: TrainingHistoryFilters = {
@@ -160,6 +175,7 @@ export function useTrainingHistoryList(
     setDateRange,
     setRoutineId,
     applyFilters,
+    applyDateRange,
     loadMore,
     refresh,
     deleteSession,

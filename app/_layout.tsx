@@ -6,7 +6,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { Platform } from 'react-native';
+import { Appearance, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -24,6 +24,10 @@ const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 if (!publishableKey) {
   throw new Error('EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is not defined');
 }
+
+// App dark-only: forzamos el esquema oscuro en runtime (cubre Expo Go y los
+// useColorScheme directos de RN). El app.json lo fija además en builds nativos.
+Appearance.setColorScheme('dark');
 
 // Previene que se oculte el splash screen antes de que tengamos la info del usuario
 SplashScreen.preventAutoHideAsync();

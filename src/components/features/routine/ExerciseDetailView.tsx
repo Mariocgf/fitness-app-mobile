@@ -1,28 +1,41 @@
-import { DarkSheetLayout } from '@/src/components/common/DarkSheetLayout';
+import { TAB_BAR_HEIGHT } from '@/src/components/features/routine/routine-detail-shared';
 import { translateBodyPart, translateEquipment, translateMuscle, translateSecondaryMuscle } from '@/src/i18n';
 import { getExerciseInfo } from '@/src/services/exercise.service';
 import { RoutineExercise } from '@/src/types/routine';
 import { cleanStepPrefix } from '@/src/utils/format.utils';
 import { useAuth } from '@clerk/clerk-expo';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { SlideInRight, SlideOutRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
+/** Acento lime del módulo fitness. */
+const LIME = '#a3e635';
 
-/* ── InfoCell ───────────────────────────────────────────────────────────── */
-
-const InfoCell = ({ label, value }: { label: string; value?: string }) => (
-  <View className="flex-1">
-    <Text className="text-slate-900 dark:text-white font-bold text-sm">{label}</Text>
-    <Text className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">{value || '—'}</Text>
+/* ── InfoRow ────────────────────────────────────────────────────────────── */
+/** Fila de dato: ícono lime + etiqueta a la izquierda, valor a la derecha. */
+const InfoRow = ({
+  icon,
+  label,
+  value,
+  isLast,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value?: string;
+  isLast?: boolean;
+}) => (
+  <View
+    className={`flex-row items-center py-3.5 ${isLast ? '' : 'border-b border-zinc-800'}`}
+  >
+    <View className="w-9 items-center">{icon}</View>
+    <Text className="text-zinc-400 text-base ml-2 flex-1">{label}</Text>
+    <Text className="text-white text-base font-semibold text-right" numberOfLines={2}>
+      {value || '—'}
+    </Text>
   </View>
 );
 
@@ -32,10 +45,16 @@ interface ExerciseDetailViewProps {
   exercise: RoutineExercise;
   onBack: () => void;
   onClose: () => void;
+  /**
+   * `true` cuando se monta como overlay dentro de un bottom-sheet (que ya está
+   * debajo de la barra de estado): usa padding superior chico y no agrega el
+   * inset inferior del dispositivo. Default `false` = uso a pantalla completa.
+   */
+  embedded?: boolean;
 }
 
-/** Vista de detalle de ejercicio con DarkSheetLayout, swipe-back y transición SlideInRight */
-export const ExerciseDetailView: React.FC<ExerciseDetailViewProps> = ({ exercise, onBack, onClose }) => {
+/** Vista de detalle de ejercicio (dark zinc), con swipe-back y transición SlideInRight */
+export const ExerciseDetailView: React.FC<ExerciseDetailViewProps> = ({ exercise, onBack, embedded = false }) => {
   const { getToken } = useAuth();
   const insets = useSafeAreaInsets();
 
@@ -58,88 +77,109 @@ export const ExerciseDetailView: React.FC<ExerciseDetailViewProps> = ({ exercise
       <Animated.View
         entering={SlideInRight.duration(280)}
         exiting={SlideOutRight.duration(220)}
-        className="absolute inset-0 z-20"
+        className="absolute inset-0 z-20 bg-zinc-950"
       >
-        <DarkSheetLayout
-          header={
-            <View style={{ paddingTop: insets.top + 12 }} className="px-4 pb-4">
-              <View className="w-full flex-row items-center h-11 mb-4">
-                <TouchableOpacity
-                  onPress={onBack}
-                  className="bg-slate-300 dark:bg-slate-700 flex items-center justify-center w-10 h-10 rounded-full mt-1 "
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="chevron-back" size={24} className='dark:text-slate-100' />
-                </TouchableOpacity>
-              <Text className="flex-1 text-center text-lg font-semibold text-slate-900 dark:text-slate-50">
-                {exercise.name}
-              </Text>
-              <View className="w-10" />
-              </View>
+        {/* Header: back + título */}
+        <View style={{ paddingTop: embedded ? 12 : insets.top + 12 }} className="px-4 pb-3">
+          <View className="flex-row items-center h-11">
+            <TouchableOpacity
+              onPress={onBack}
+              className="bg-zinc-800 w-10 h-10 rounded-full items-center justify-center"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="chevron-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text
+              className="flex-1 text-center text-lg font-bold text-white"
+              numberOfLines={1}
+            >
+              {exercise.name}
+            </Text>
+            <View className="w-10" />
+          </View>
+        </View>
 
-            </View>
-          }
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: embedded ? 24 : insets.bottom + TAB_BAR_HEIGHT + 24 }}
         >
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
-          >
-            <View className="px-4 pt-4 gap-4">
-              {/* GIF — mismo ancho que las cards */}
-              <View className="aspect-square rounded-2xl overflow-hidden bg-white items-center justify-center">
-                {exercise.gifUrl ? (
-                  <Image
-                    source={{ uri: exercise.gifUrl }}
-                    className="w-full h-full"
-                    resizeMode="contain"
-                  />
-                ) : (
-                  <Ionicons name="image-outline" size={64} className="text-slate-400" />
-                )}
+          <View className="px-4 pt-2 gap-4">
+            {/* GIF / imagen hero con badge */}
+            <View className="aspect-square rounded-3xl overflow-hidden bg-white items-center justify-center">
+              {exercise.gifUrl ? (
+                <Image
+                  source={{ uri: exercise.gifUrl }}
+                  className="w-full h-full"
+                  resizeMode="contain"
+                />
+              ) : (
+                <Ionicons name="image-outline" size={64} color="#a1a1aa" />
+              )}
+              <View className="absolute bottom-3 left-3 flex-row items-center bg-zinc-950/80 rounded-xl px-3 py-1.5 gap-1.5">
+                <Ionicons name="scan-outline" size={16} color="#fff" />
+                <Text className="text-white text-sm font-semibold">GIF</Text>
               </View>
-
-              {isLoading ? (
-                <View className="py-12 items-center">
-                  <ActivityIndicator size="large" color="#a3e635" />
-                </View>
-              ) : isError ? (
-                <Text className="text-red-500 text-center py-8">Error al cargar la información.</Text>
-              ) : info ? (
-                <>
-                  {/* Tarjeta info 2x2 */}
-                  <View className="bg-slate-100 dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-white/10">
-                    <View className="flex-row gap-4 pb-3 border-b border-slate-200 dark:border-white/10">
-                      <InfoCell label="Parte del cuerpo" value={info.bodyPart?.map(translateBodyPart).join(', ')} />
-                      <InfoCell label="Músculos a trabajar" value={info.targetMuscles?.map(translateMuscle).join(', ')} />
-                    </View>
-                    <View className="flex-row gap-4 pt-3">
-                      <InfoCell label="Músculos secundarios" value={info.secundaryMuscles?.map(translateSecondaryMuscle).join(', ')} />
-                      <InfoCell label="Equipamiento" value={info.equipments?.map(translateEquipment).join(', ')} />
-                    </View>
-                  </View>
-
-                  {/* Instrucciones */}
-                  {info.instructions?.length > 0 && (
-                    <View className="mt-4 bg-slate-100 dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-white/10">
-                      <Text className="text-slate-900 dark:text-white font-bold text-xl text-center mb-4">
-                        Instrucciones
-                      </Text>
-                      {info.instructions.map((step, i) => {
-                        const cleanStep = cleanStepPrefix(step);
-                        return (
-                          <Text key={i} className="text-slate-700 dark:text-slate-300 text-sm leading-5 mb-3">
-                            <Text className="font-bold text-slate-900 dark:text-white">Step:{i + 1} </Text>
-                            {cleanStep}
-                          </Text>
-                        );
-                      })}
-                    </View>
-                  )}
-                </>
-              ) : null}
             </View>
-          </ScrollView>
-        </DarkSheetLayout>
+
+            {isLoading ? (
+              <View className="py-12 items-center">
+                <ActivityIndicator size="large" color={LIME} />
+              </View>
+            ) : isError ? (
+              <Text className="text-red-400 text-center py-8">Error al cargar la información.</Text>
+            ) : info ? (
+              <>
+                {/* Card de datos */}
+                <View className="bg-zinc-900 rounded-3xl px-4 py-1">
+                  <InfoRow
+                    icon={<Ionicons name="body-outline" size={26} color={LIME} />}
+                    label="Parte del cuerpo"
+                    value={info.bodyPart?.map(translateBodyPart).join(', ')}
+                  />
+                  <InfoRow
+                    icon={<MaterialCommunityIcons name="arm-flex" size={26} color={LIME} />}
+                    label="Músculo principal"
+                    value={info.targetMuscles?.map(translateMuscle).join(', ')}
+                  />
+                  <InfoRow
+                    icon={<MaterialCommunityIcons name="arm-flex-outline" size={26} color={LIME} />}
+                    label="Secundarios"
+                    value={info.secundaryMuscles?.map(translateSecondaryMuscle).join(', ')}
+                  />
+                  <InfoRow
+                    icon={<MaterialCommunityIcons name="dumbbell" size={24} color={LIME} />}
+                    label="Equipamiento"
+                    value={info.equipments?.map(translateEquipment).join(', ')}
+                    isLast
+                  />
+                </View>
+
+                {/* Card de instrucciones */}
+                {info.instructions?.length > 0 && (
+                  <View className="bg-zinc-900 rounded-3xl p-5">
+                    <View className="flex-row items-center mb-4 gap-3">
+                      <View className="w-11 h-11 rounded-full border border-lime-400/60 items-center justify-center">
+                        <Ionicons name="list-outline" size={22} color={LIME} />
+                      </View>
+                      <Text className="text-white font-bold text-xl">Instrucciones</Text>
+                    </View>
+
+                    {info.instructions.map((step, i) => (
+                      <View key={i} className="flex-row items-start mb-4">
+                        <View className="w-7 h-7 rounded-full border border-lime-400/60 items-center justify-center mr-3 mt-0.5">
+                          <Text className="text-lime-400 text-xs font-bold">{i + 1}</Text>
+                        </View>
+                        <Text className="text-zinc-300 text-base leading-6 flex-1">
+                          {cleanStepPrefix(step)}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </>
+            ) : null}
+          </View>
+        </ScrollView>
       </Animated.View>
     </GestureDetector>
   );

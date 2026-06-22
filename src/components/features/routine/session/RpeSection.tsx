@@ -1,5 +1,4 @@
 import { SessionSlider } from '@/src/components/common/SessionSlider';
-import { useColorScheme } from '@/src/hooks/use-color-scheme';
 import React from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 
@@ -12,6 +11,12 @@ interface RpeSectionProps {
   canUpdate: boolean;
 }
 
+/**
+ * Sección de esfuerzo percibido (RPE) de la fase de descanso (dark-only `zinc`).
+ * Mantiene el slider y el botón "Actualizar" existentes (no se cambia el flujo de
+ * ajuste de carga); solo se migró el estilo de `slate` a `zinc` y el título a la
+ * etiqueta uppercase de la maqueta.
+ */
 export const RpeSection: React.FC<RpeSectionProps> = ({
   rpe,
   onRpeChange,
@@ -20,31 +25,26 @@ export const RpeSection: React.FC<RpeSectionProps> = ({
   isLoading = false,
   canUpdate,
 }) => {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
   return (
     <View>
-      <Text className="text-slate-900 dark:text-slate-50 font-bold text-xl mb-2">
+      <Text className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-3">
         Esfuerzo percibido
       </Text>
       <SessionSlider value={rpe} onValueChange={onRpeChange} min={0} max={10} disabled={disabled || isLoading} />
       <TouchableOpacity
-        className={`w-full h-12 rounded-full items-center justify-center mb-6 border ${
+        className={`w-full h-12 rounded-full items-center justify-center border ${
           canUpdate
-            ? 'bg-slate-900 dark:bg-slate-50 border-slate-900 dark:border-slate-50'
-            : 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700'
+            ? 'bg-zinc-50 border-zinc-50'
+            : 'bg-zinc-800 border-zinc-700'
         }`}
         disabled={!canUpdate}
         onPress={onSave}
       >
         {isLoading ? (
-          <ActivityIndicator color={isDark ? '#020617' : '#ffffff'} size="small" />
+          <ActivityIndicator color="#18181b" size="small" />
         ) : (
           <Text
-            className={`font-medium text-base ${
-              canUpdate ? 'text-white dark:text-slate-900' : 'text-slate-900 dark:text-slate-50'
-            }`}
+            className={`font-medium text-base ${canUpdate ? 'text-zinc-900' : 'text-zinc-400'}`}
           >
             Actualizar
           </Text>

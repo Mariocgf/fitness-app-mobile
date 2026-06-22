@@ -1,18 +1,17 @@
-import { DarkSheetLayout } from '@/src/components/common/DarkSheetLayout';
+import { SegmentedControl } from '@/src/components/common/SegmentedControl';
+import { SelectablePill } from '@/src/components/common/SelectablePill';
 import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
-import { CreateRoutineView } from '@/src/components/features/routine/CreateRoutineView';
 import { RoutineDetailView } from '@/src/components/features/routine/RoutineDetailView';
-import { RoutineFilters } from '@/src/components/features/routine/RoutineFilters';
 import { RoutineListCard } from '@/src/components/features/routine/RoutineListCard';
+import { TAB_BAR_HEIGHT } from '@/src/components/features/routine/routine-detail-shared';
 import { useMyRoutines } from '@/src/hooks/useMyRoutines';
 import { activateRoutine, deleteRoutine, getRoutineById } from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
-import { CreateRoutineDay, CreateRoutineExercise } from '@/src/types/create-routine';
-import { Routine, RoutineDay, RoutineSummary } from '@/src/types/routine';
+import { Routine, RoutineSource, RoutineSummary } from '@/src/types/routine';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -27,11 +26,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
+const LIME = '#a3e635';
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+type DatePreset = 'all' | 'week' | 'month';
 
 /**
- * Vista de listado paginado de todas las rutinas del usuario.
- * Incluye filtros por fecha y source, y paginación con "cargar más".
- * Diseño con header de color slate y cuerpo blanco/dark con esquinas redondeadas.
+ * Vista "Mis rutinas": biblioteca completa de rutinas del usuario (dark-only `zinc`,
+ * acento `lime-400`). Rediseñada desde la maqueta. Filtro de source con
+ * `SegmentedControl` (Todas/IA/Manual) y filtro de fecha desplegable con
+ * `SelectablePill`. La rutina activa se ordena primero como card destacada.
  */
 export default function RoutinesScreen() {
   const router = useRouter();
@@ -59,19 +64,7 @@ export default function RoutinesScreen() {
   } = useMyRoutines(token);
 
   const [refreshing, setRefreshing] = useState(false);
-
-  /* ── Estado para filtros desplegables ─────────────────────────────────── */
-  const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
-
-  const handleToggleFilters = useCallback(() => {
-    setIsFiltersExpanded(prev => !prev);
-  }, []);
-
-  const handleScrollBegin = useCallback(() => {
-    if (isFiltersExpanded) {
-      setIsFiltersExpanded(false);
-    }
-  }, [isFiltersExpanded]);
+  const [showDateFilter, setShowDateFilter] = useState(false);
 
   /* ── Contexto para comunicar estado al tab bar ─────────────────────────── */
   const { setDetailVisible, activeRoutine, setViewingActiveRoutine } = useRoutineDetailContext();
@@ -80,16 +73,42 @@ export default function RoutinesScreen() {
   const [selectedRoutine, setSelectedRoutine] = useState<Routine | null>(null);
   const [selectedRoutineSummary, setSelectedRoutineSummary] = useState<RoutineSummary | null>(null);
   const [isLoadingRoutine, setIsLoadingRoutine] = useState(false);
-  const [showDetail, setShowDetail] = useState(false);
-  const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
-  const [showEditView, setShowEditView] = useState(false);
+
+  /* ── Rutina activa primero, luego el resto ────────────────────────────── */
+  const sortedRoutines = useMemo(
+    () => [...routines].sort((a, b) => Number(b.isActive) - Number(a.isActive)),
+    [routines],
+  );
+
+  /* ── Filtro de fecha (preset derivado del rango) ──────────────────────── */
+  const activeDatePreset: DatePreset = useMemo(() => {
+    const fromMs = dateRange.from?.getTime();
+    if (!fromMs) return 'all';
+    const now = Date.now();
+    if (Math.abs(fromMs - (now - WEEK_MS)) < 60_000) return 'week';
+    if (Math.abs(fromMs - (now - MONTH_MS)) < 60_000) return 'month';
+    return 'all';
+  }, [dateRange]);
+
+  const hasDateFilter = activeDatePreset !== 'all';
+
+  const setDatePreset = useCallback((preset: DatePreset) => {
+    const now = Date.now();
+    if (preset === 'week') setDateRange({ from: new Date(now - WEEK_MS), to: new Date() });
+    else if (preset === 'month') setDateRange({ from: new Date(now - MONTH_MS), to: new Date() });
+    else setDateRange({ from: null, to: null });
+  }, [setDateRange]);
 
   const handleBack = useCallback(() => {
     router.push('/fitness');
   }, [router]);
 
+  const handleCreate = useCallback(() => {
+    // El overlay de creación vive en fitness/index.tsx → navegamos con param
+    router.push({ pathname: '/fitness', params: { openCreate: '1' } });
+  }, [router]);
+
   const handleCloseDetail = useCallback(() => {
-    setShowDetail(false);
     setSelectedRoutine(null);
     setSelectedRoutineSummary(null);
     setDetailVisible(false);
@@ -115,11 +134,8 @@ export default function RoutinesScreen() {
                 return;
               }
               await deleteRoutine(selectedRoutine.id, token);
-              // Cerrar el detalle
               handleCloseDetail();
-              // Mostrar mensaje de éxito
               Alert.alert('Éxito', 'La rutina fue eliminada correctamente');
-              // Refrescar la lista para quitar la rutina eliminada
               refresh();
             } catch (error: any) {
               Alert.alert('Error', error.message || 'No se pudo eliminar la rutina');
@@ -146,50 +162,8 @@ export default function RoutinesScreen() {
     console.log('[RoutinesScreen] Regenerate not implemented');
   }, []);
 
-  /** Convierte una Routine del backend al formato RoutineDraft del editor */
-  const routineToDraft = useCallback((r: Routine) => {
-    const DAYS_VALUE_MAP: Record<string, string> = {
-      'Lunes': 'monday', 'Martes': 'tuesday', 'Mi\u00e9rcoles': 'wednesday',
-      'Jueves': 'thursday', 'Viernes': 'friday', 'S\u00e1bado': 'saturday', 'Domingo': 'sunday',
-    };
-    return {
-      name: r.name,
-      days: r.days.map((day: RoutineDay): CreateRoutineDay => ({
-        id: day.id,
-        value: DAYS_VALUE_MAP[day.day] ?? day.day.toLowerCase(),
-        label: day.day,
-        exercises: day.exercises.map((ex): CreateRoutineExercise => ({
-          id: ex.id,
-          exerciseId: ex.exerciseId,
-          name: ex.name,
-          gifUrl: ex.gifUrl,
-          equipments: [],
-          sets: parseInt(ex.sets, 10) || 3,
-          reps: ex.repType === 'Timed'
-            ? parseInt(ex.durationSeconds ?? '30', 10)
-            : parseInt(ex.currentRep ?? '12', 10),
-          repMode: ex.repType === 'Timed' ? 'secs' : 'reps',
-          restSeconds: parseInt(ex.rest, 10) || 60,
-          loadType: ex.loadType ?? 'BodyWeight',
-          plannedWeightKg: ex.loadType === 'ExternalWeight' ? ex.plannedWeightKg : null,
-        })),
-      })),
-    };
-  }, []);
-
-  const handleOpenEdit = useCallback((r: Routine) => {
-    setEditingRoutine(r);
-    setSelectedRoutine(null);
-    setSelectedRoutineSummary(null);
-    setShowDetail(false);
-    setDetailVisible(false);
-    setViewingActiveRoutine(false);
-    setShowEditView(true);
-  }, [setDetailVisible, setViewingActiveRoutine]);
-
   const handleRoutineUpdated = useCallback(async (updated: Routine) => {
     setSelectedRoutine(updated);
-    // Refrescar la lista para mostrar cambios
     await refresh();
   }, [refresh]);
 
@@ -197,29 +171,25 @@ export default function RoutinesScreen() {
     setSelectedRoutineSummary(routineSummary);
     setDetailVisible(true);
 
-    // Si es la rutina activa y ya está en memoria, usarla directamente
     const isActiveRoutine = routineSummary.id === activeRoutine?.id;
     if (isActiveRoutine && activeRoutine) {
       setViewingActiveRoutine(true);
       setSelectedRoutine(activeRoutine);
-      setShowDetail(true);
       return;
     }
 
-    // Si no es la activa o no está en memoria, hacer fetch
     setIsLoadingRoutine(true);
     try {
       const token = await getToken();
       const fullRoutine = await getRoutineById(routineSummary.id, token);
       setSelectedRoutine(fullRoutine);
-      setShowDetail(true);
     } catch (error) {
       console.error('[RoutinesScreen] Error fetching routine:', error);
       Alert.alert('Error', 'No se pudo cargar la rutina. Intentá de nuevo.');
     } finally {
       setIsLoadingRoutine(false);
     }
-  }, [getToken, activeRoutine, setViewingActiveRoutine]);
+  }, [getToken, activeRoutine, setDetailVisible, setViewingActiveRoutine]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -237,135 +207,133 @@ export default function RoutinesScreen() {
     ({ item }: { item: RoutineSummary }) => (
       <RoutineListCard routine={item} onPress={handleRoutinePress} />
     ),
-    [handleRoutinePress]
+    [handleRoutinePress],
   );
 
-  const renderSeparator = useCallback(
-    () => <View className="h-3" />,
-    []
-  );
+  const renderSeparator = useCallback(() => <View className="h-3" />, []);
 
   const renderFooter = useCallback(() => {
     if (routines.length === 0) return null;
 
     if (isLoadingMore) {
       return (
-        <View className="py-4 items-center">
-          <ActivityIndicator size="small" color="#a3e635" />
-          <Text className="text-slate-400 dark:text-slate-500 text-sm mt-2">
-            Cargando más rutinas...
-          </Text>
+        <View className="py-6 items-center">
+          <ActivityIndicator size="small" color={LIME} />
         </View>
       );
     }
 
     if (hasMore) {
       return (
-        <View className="py-4 px-4">
-          <TouchableOpacity
-            onPress={loadMore}
-            className="bg-lime-400 py-3 rounded-xl items-center"
-            activeOpacity={0.8}
-          >
-            <Text className="text-slate-900 font-semibold text-sm">
-              Cargar más rutinas
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={loadMore}
+          activeOpacity={0.7}
+          className="flex-row items-center justify-center mt-4 py-2"
+        >
+          <Text className="text-lime-400 text-sm font-semibold mr-1.5">Ver más rutinas</Text>
+          <Ionicons name="arrow-down" size={16} color={LIME} />
+        </TouchableOpacity>
       );
     }
 
-    return (
-      <View className="py-6 items-center">
-        <Text className="text-slate-400 dark:text-slate-500 text-sm">
-          No hay más rutinas
-        </Text>
-      </View>
-    );
+    return null;
   }, [hasMore, isLoadingMore, routines.length, loadMore]);
 
   const renderEmptyState = useCallback(() => {
     if (isLoading) {
       return (
-        <View className="flex-1 items-center justify-center py-20">
-          <ActivityIndicator size="large" color="#a3e635" />
-          <Text className="text-slate-500 dark:text-slate-400 text-sm mt-4">
-            Cargando rutinas...
-          </Text>
+        <View className="items-center justify-center py-20">
+          <ActivityIndicator size="large" color={LIME} />
+          <Text className="text-zinc-400 text-sm mt-4">Cargando rutinas...</Text>
         </View>
       );
     }
 
     if (error) {
       return (
-        <View className="flex-1 items-center justify-center py-20 px-6">
+        <View className="items-center justify-center py-20 px-6">
           <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
-          <Text className="text-slate-900 dark:text-slate-50 text-base font-medium mt-4 text-center">
-            {error}
-          </Text>
+          <Text className="text-white text-base font-medium mt-4 text-center">{error}</Text>
           <TouchableOpacity
             onPress={refresh}
             className="mt-4 bg-lime-400 px-6 py-3 rounded-xl"
             activeOpacity={0.8}
           >
-            <Text className="text-slate-900 font-semibold">Reintentar</Text>
+            <Text className="text-zinc-900 font-semibold">Reintentar</Text>
           </TouchableOpacity>
         </View>
       );
     }
 
+    const filtersActive = sourceFilter !== 'all' || hasDateFilter;
     return (
-      <View className="flex-1 items-center justify-center py-20 px-6">
-        <Ionicons name="fitness-outline" size={48} color="#94a3b8" />
-        <Text className="text-slate-900 dark:text-slate-50 text-base font-medium mt-4 text-center">
+      <View className="items-center justify-center py-20 px-6">
+        <Ionicons name="barbell-outline" size={48} color="#52525b" />
+        <Text className="text-white text-base font-medium mt-4 text-center">
           No se encontraron rutinas
         </Text>
-        <Text className="text-slate-500 dark:text-slate-400 text-sm mt-2 text-center">
-          {sourceFilter !== 'all' || dateRange.from || dateRange.to
-            ? 'Probá ajustando los filtros'
-            : 'Creá tu primera rutina desde la pestaña Fitness'}
+        <Text className="text-zinc-500 text-sm mt-2 text-center">
+          {filtersActive ? 'Probá ajustando los filtros' : 'Creá tu primera rutina'}
         </Text>
-        {(sourceFilter !== 'all' || dateRange.from || dateRange.to) && (
+        {filtersActive && (
           <TouchableOpacity
             onPress={handleClearFilters}
-            className="mt-4 bg-slate-200 dark:bg-slate-800 px-6 py-3 rounded-xl"
+            className="mt-4 bg-zinc-800 px-6 py-3 rounded-xl"
             activeOpacity={0.8}
           >
-            <Text className="text-slate-900 dark:text-slate-50 font-semibold">
-              Limpiar filtros
-            </Text>
+            <Text className="text-white font-semibold">Limpiar filtros</Text>
           </TouchableOpacity>
         )}
       </View>
     );
-  }, [isLoading, error, refresh, sourceFilter, dateRange, handleClearFilters]);
+  }, [isLoading, error, refresh, sourceFilter, hasDateFilter, handleClearFilters]);
 
-  const header = (
-    <View style={{ paddingTop: insets.top }} className="px-4 pb-4">
-      {/* Barra de navegación con título centrado */}
-      <View className="flex-row items-center justify-between py-3">
-        <TouchableOpacity
-          onPress={handleBack}
-          className="p-2 -ml-2 rounded-full"
-          activeOpacity={0.7}
-        >
-          <Ionicons name="chevron-back" size={28} color="#64748b" />
+  const listHeader = (
+    <View className="pb-1">
+      {/* Back */}
+      <View className="flex-row items-center py-2">
+        <TouchableOpacity onPress={handleBack} className="-ml-2 p-2" hitSlop={8} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={26} color="#a1a1aa" />
         </TouchableOpacity>
-
-        <Text className="flex-1 text-center text-base font-semibold text-slate-900 dark:text-slate-50">
-          Rutinas
-        </Text>
-
-        {/* Placeholder para balancear el layout */}
-        <View className="w-10" />
       </View>
 
-      {/* Contador de resultados en el header */}
-      {!isLoading && !error && routines.length > 0 && (
-        <View className="items-center mt-1">
-          <Text className="text-slate-500 dark:text-slate-400 text-sm">
-            {routines.length} {routines.length === 1 ? 'rutina' : 'rutinas'}
-          </Text>
+      {/* Título + conteo */}
+      <Text className="text-3xl font-bold text-white">Mis rutinas</Text>
+      <Text className="text-zinc-500 text-sm mt-1 mb-5">
+        {routines.length} {routines.length === 1 ? 'rutina' : 'rutinas'}
+      </Text>
+
+      {/* Filtro de source + botón de fecha */}
+      <View className="flex-row items-center gap-2 mb-3">
+        <View className="flex-1">
+          <SegmentedControl
+            options={[
+              { label: 'Todas', value: 'all' },
+              { label: 'IA', value: 'AI' },
+              { label: 'Manual', value: 'Manual' },
+            ]}
+            value={sourceFilter}
+            onChange={(v) => setSourceFilter(v as 'all' | RoutineSource)}
+            accent="lime"
+          />
+        </View>
+        <TouchableOpacity
+          onPress={() => setShowDateFilter((v) => !v)}
+          activeOpacity={0.7}
+          className={`w-12 h-12 rounded-xl items-center justify-center border ${
+            hasDateFilter ? 'bg-lime-400/15 border-lime-400' : 'bg-zinc-900 border-zinc-800'
+          }`}
+        >
+          <Ionicons name="calendar-outline" size={20} color={hasDateFilter ? LIME : '#a1a1aa'} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Pills de fecha desplegables */}
+      {showDateFilter && (
+        <View className="flex-row flex-wrap gap-2 mb-4">
+          <SelectablePill label="Cualquier fecha" selected={activeDatePreset === 'all'} onPress={() => setDatePreset('all')} accent="lime" />
+          <SelectablePill label="Última semana" selected={activeDatePreset === 'week'} onPress={() => setDatePreset('week')} accent="lime" />
+          <SelectablePill label="Último mes" selected={activeDatePreset === 'month'} onPress={() => setDatePreset('month')} accent="lime" />
         </View>
       )}
     </View>
@@ -373,43 +341,45 @@ export default function RoutinesScreen() {
 
   return (
     <SwipeBackWrapper onSwipeBack={handleBack}>
-      <DarkSheetLayout header={header}>
-        {/* Filtros */}
-        <View className="px-4 pt-4 pb-2">
-          <RoutineFilters
-            dateRange={dateRange}
-            sourceFilter={sourceFilter}
-            isExpanded={isFiltersExpanded}
-            onToggle={handleToggleFilters}
-            onDateRangeChange={setDateRange}
-            onSourceFilterChange={setSourceFilter}
-            onApplyFilters={applyFilters}
-            onClearFilters={handleClearFilters}
-          />
-        </View>
-
-        {/* Lista de rutinas */}
+      <View className="flex-1 bg-zinc-950">
         <FlatList
-          data={routines}
+          data={sortedRoutines}
           renderItem={renderRoutineCard}
           keyExtractor={(item) => item.id}
+          ListHeaderComponent={listHeader}
           ItemSeparatorComponent={renderSeparator}
           ListFooterComponent={renderFooter}
           ListEmptyComponent={renderEmptyState}
-          contentContainerClassName="px-4 pb-32"
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: insets.top,
+            paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 88,
+          }}
           showsVerticalScrollIndicator={false}
-          onScrollBeginDrag={handleScrollBegin}
-          scrollEventThrottle={16}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor="#a3e635"
-              colors={['#a3e635']}
+              tintColor={LIME}
+              colors={[LIME]}
             />
           }
         />
-      </DarkSheetLayout>
+
+        {/* CTA flotante "Crear rutina" (sobre el tab bar nativo) */}
+        <View
+          style={{ position: 'absolute', left: 16, right: 16, bottom: insets.bottom + TAB_BAR_HEIGHT + 8 }}
+        >
+          <TouchableOpacity
+            onPress={handleCreate}
+            activeOpacity={0.85}
+            className="flex-row items-center justify-center bg-lime-400 rounded-2xl py-4"
+          >
+            <Ionicons name="add-circle-outline" size={22} color="#18181b" />
+            <Text className="text-zinc-900 font-bold text-base ml-2">Crear rutina</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       {/* Detalle de rutina */}
       {selectedRoutine && (
@@ -425,34 +395,17 @@ export default function RoutinesScreen() {
           readOnly={!selectedRoutine.isActive}
           onRegenerate={handleRegenerate}
           onRoutineUpdated={handleRoutineUpdated}
-          onEdit={selectedRoutine.source === 'Manual' ? () => handleOpenEdit(selectedRoutine) : undefined}
           onActivate={!selectedRoutine.isActive ? () => handleActivateRoutine(selectedRoutine) : undefined}
           onDelete={handleDeleteRoutine}
-        />
-      )}
-
-      {/* Editor de rutina en modo edición */}
-      {showEditView && editingRoutine && (
-        <CreateRoutineView
-          initialDraft={routineToDraft(editingRoutine)}
-          editingRoutineId={editingRoutine.id}
-          onClose={() => { setShowEditView(false); setEditingRoutine(null); }}
-          onRoutineCreated={(_updated: Routine) => {
-            setShowEditView(false);
-            setEditingRoutine(null);
-            refresh();
-          }}
         />
       )}
 
       {/* Loading mientras se carga la rutina */}
       {isLoadingRoutine && selectedRoutineSummary && (
         <View className="absolute inset-0 bg-black/50 items-center justify-center z-50">
-          <View className="bg-white dark:bg-slate-900 rounded-2xl p-6 items-center">
-            <ActivityIndicator size="large" color="#a3e635" />
-            <Text className="text-slate-900 dark:text-slate-50 mt-4 font-medium">
-              Cargando rutina...
-            </Text>
+          <View className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 items-center">
+            <ActivityIndicator size="large" color={LIME} />
+            <Text className="text-white mt-4 font-medium">Cargando rutina...</Text>
           </View>
         </View>
       )}

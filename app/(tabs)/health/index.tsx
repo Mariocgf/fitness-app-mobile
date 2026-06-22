@@ -63,7 +63,7 @@ export default function HealthScreen() {
   }, [router]);
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-950">
+    <SafeAreaView className="flex-1 bg-zinc-950">
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerClassName="flex-grow"

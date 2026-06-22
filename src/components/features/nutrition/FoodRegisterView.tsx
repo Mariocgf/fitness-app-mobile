@@ -7,20 +7,25 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SegmentedControl } from '@/src/components/common/SegmentedControl';
+import { TAB_BAR_HEIGHT } from '@/src/components/features/routine/routine-detail-shared';
 import {
   ConsumedFoodItemDto,
   FoodCatalogItemDto,
   MealType,
 } from '@/src/types/nutrition';
-import {
-  formatKcal,
-  MEAL_LABELS,
-  MEAL_ORDER,
-} from '@/src/utils/nutrition.utils';
+import { MEAL_LABELS, MEAL_ORDER } from '@/src/utils/nutrition.utils';
 
 import { ConsumedFoodCard } from './ConsumedFoodCard';
 import { FoodSearchSheet } from './FoodSearchSheet';
+
+/** Opciones del selector de comida (orden fijo del backend). */
+const MEAL_OPTIONS = MEAL_ORDER.map((mealType) => ({
+  label: MEAL_LABELS[mealType],
+  value: mealType,
+}));
 
 interface FoodRegisterViewProps {
   selectedMealType: MealType;
@@ -30,15 +35,20 @@ interface FoodRegisterViewProps {
   error: string | null;
   addError: string | null;
   isAdding: boolean;
+  isSaving: boolean;
+  canSave: boolean;
   onBack: () => void;
   onMealChange: (mealType: MealType) => void;
   onRefresh: () => void;
   onAddFood: (food: FoodCatalogItemDto, gramsConsumed: number) => Promise<boolean>;
   onFoodGramsChange: (itemId: string, gramsConsumed: number) => void;
+  onSave: () => void;
 }
 
 /**
- * Vista de registro de alimentos para una comida.
+ * Vista de registro de alimentos para una comida (dark `zinc`/`amber`).
+ * Rediseñada desde la maqueta: header con kcal total, selector de comida,
+ * cards de alimento y CTA "Guardar comida" propio (ya no vive en el FAB).
  */
 export function FoodRegisterView({
   selectedMealType,
@@ -48,26 +58,26 @@ export function FoodRegisterView({
   error,
   addError,
   isAdding,
+  isSaving,
+  canSave,
   onBack,
   onMealChange,
   onRefresh,
   onAddFood,
   onFoodGramsChange,
+  onSave,
 }: FoodRegisterViewProps) {
+  const insets = useSafeAreaInsets();
   const [isSearchVisible, setIsSearchVisible] = useState(false);
-  const [editingGramsItemId, setEditingGramsItemId] = useState<string | null>(null);
 
-  const closeGramsPicker = () => {
-    setEditingGramsItemId(null);
-  };
+  /** El CTA flota sobre el tab bar nativo; el scroll debe dejarle ese hueco. */
+  const bottomOffset = insets.bottom + TAB_BAR_HEIGHT + 8;
 
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color="#fbbf24" />
-        <Text className="text-slate-500 dark:text-slate-400 mt-4">
-          Cargando alimentos...
-        </Text>
+        <Text className="text-zinc-400 mt-4">Cargando alimentos...</Text>
       </View>
     );
   }
@@ -75,112 +85,104 @@ export function FoodRegisterView({
   if (error) {
     return (
       <View className="flex-1 items-center justify-center px-6">
-        <Text className="text-slate-900 dark:text-slate-50 text-xl font-bold">
+        <Text className="text-white text-xl font-bold">
           No pudimos cargar la comida
         </Text>
-        <Text className="text-slate-500 dark:text-slate-400 text-center mt-2">
-          {error}
-        </Text>
+        <Text className="text-zinc-400 text-center mt-2">{error}</Text>
         <TouchableOpacity
           onPress={onRefresh}
           className="bg-amber-400 rounded-full px-6 py-3 mt-5"
         >
-          <Text className="text-slate-900 font-bold">Reintentar</Text>
+          <Text className="text-zinc-900 font-bold">Reintentar</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View
-      className="flex-1"
-      onTouchStart={closeGramsPicker}
-    >
-      <View className="px-4 pt-8">
+    <View className="flex-1">
+      <View className="px-4 pt-2">
         <View className="flex-row items-center justify-between">
           <TouchableOpacity
             onPress={onBack}
-            className="w-11 h-11 rounded-full bg-slate-700 items-center justify-center"
+            className="w-11 h-11 rounded-full bg-zinc-800 items-center justify-center"
           >
-            <Ionicons name="chevron-back" size={26} color="#ffffff" />
+            <Ionicons name="chevron-back" size={24} color="#ffffff" />
           </TouchableOpacity>
-          <View className="items-center">
-            <Text className="text-slate-900 dark:text-slate-50 text-xl font-semibold">
-              Registrar alimentos
-            </Text>
-            <Text className="text-slate-900 dark:text-slate-50 text-2xl font-bold mt-2">
-              {formatKcal(selectedMealCalories)}
-            </Text>
-          </View>
+          <Text className="text-white text-xl font-bold">
+            Registrar alimentos
+          </Text>
           <View className="w-11" />
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerClassName="gap-3 py-4"
-        >
-          {MEAL_ORDER.map((mealType) => {
-            const isSelected = selectedMealType === mealType;
-            return (
-              <TouchableOpacity
-                key={mealType}
-                onPress={() => {
-                  closeGramsPicker();
-                  onMealChange(mealType);
-                }}
-                className={`px-5 py-2 rounded-full border ${
-                  isSelected
-                    ? 'bg-amber-500 border-amber-500'
-                    : 'bg-transparent border-slate-400 dark:border-slate-600'
-                }`}
-              >
-                <Text
-                  className={`font-semibold ${
-                    isSelected
-                      ? 'text-white'
-                      : 'text-slate-900 dark:text-slate-50'
-                  }`}
-                >
-                  {MEAL_LABELS[mealType]}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <View className="flex-row items-baseline justify-center mt-3">
+          <Text className="text-white text-4xl font-bold">
+            {Math.round(selectedMealCalories)}
+          </Text>
+          <Text className="text-zinc-400 text-base font-medium ml-1">kcal</Text>
+        </View>
+
+        <View className="mt-5">
+          <SegmentedControl
+            options={MEAL_OPTIONS}
+            value={selectedMealType}
+            onChange={onMealChange}
+            accent="amber"
+          />
+        </View>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerClassName="px-4 pb-32 gap-3"
+        contentContainerClassName="px-4 pt-5 gap-4"
+        contentContainerStyle={{ paddingBottom: bottomOffset + 76 }}
       >
         {selectedMealItems.map((item) => (
           <ConsumedFoodCard
             key={item.id}
             item={item}
-            isGramsPickerVisible={editingGramsItemId === item.id}
-            onOpenGramsPicker={() => setEditingGramsItemId(item.id)}
-            onGramsChange={(gramsConsumed) => onFoodGramsChange(item.id, gramsConsumed)}
+            onGramsChange={(grams) => onFoodGramsChange(item.id, grams)}
           />
         ))}
 
         <TouchableOpacity
-          onPress={() => {
-            closeGramsPicker();
-            setIsSearchVisible(true);
-          }}
-          className="bg-slate-100 dark:bg-slate-900 rounded-2xl py-5 items-center"
+          onPress={() => setIsSearchVisible(true)}
+          className="bg-zinc-900 border border-dashed border-amber-400/50 rounded-2xl py-6 items-center"
         >
-          <Ionicons name="add" size={30} color="#0f172a" />
-          <Text className="text-slate-900 dark:text-slate-50 text-base mt-2">
+          <Ionicons name="add-circle-outline" size={30} color="#fbbf24" />
+          <Text className="text-amber-400 text-base font-semibold mt-2">
             Agregar alimento
           </Text>
         </TouchableOpacity>
 
         {addError && (
-          <Text className="text-red-500 text-center mt-2">{addError}</Text>
+          <Text className="text-rose-400 text-center">{addError}</Text>
         )}
       </ScrollView>
+
+      <View
+        className="absolute w-full px-4"
+        style={{ bottom: bottomOffset }}
+      >
+        <TouchableOpacity
+          onPress={onSave}
+          disabled={!canSave}
+          activeOpacity={0.85}
+          style={{ opacity: canSave ? 1 : 0.5 }}
+          className="w-full bg-amber-400 rounded-full py-4 flex-row items-center justify-center"
+        >
+          {isSaving ? (
+            <ActivityIndicator color="#18181b" />
+          ) : (
+            <>
+              <Ionicons name="restaurant" size={20} color="#18181b" />
+              <Text className="text-zinc-900 text-base font-bold ml-2">
+                Guardar comida
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
 
       {isSearchVisible && (
         <FoodSearchSheet

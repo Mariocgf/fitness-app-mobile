@@ -3,7 +3,7 @@ import { CardLayout } from '@/src/components/features/routine/RoutineDetailView'
 import { useWeightInventory } from '@/src/hooks/use-weight-inventory';
 import { WeightInventoryResponse } from '@/src/services/equipment.service';
 import { ExerciseSearchItem } from '@/src/services/exercise.service';
-import { CreateRoutinePayload, createRoutine, updateRoutine } from '@/src/services/routine.service';
+import { CreateRoutinePayload, createRoutine } from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { CreateRoutineDay, CreateRoutineExercise, RoutineDraft } from '@/src/types/create-routine';
 import { Routine } from '@/src/types/routine';
@@ -14,7 +14,6 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
-    Image,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -39,6 +38,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AddExerciseSheet } from './AddExerciseSheet';
+import { ExerciseThumbnail } from './ExerciseThumbnail';
 
 /* ──────────────────────────────────────────────────────────────────────────── */
 /*                              Constantes                                      */
@@ -69,15 +69,13 @@ interface CreateRoutineViewProps {
   onSaveDraft?: (name: string, days: CreateRoutineDay[]) => void;
   onClearDraft?: () => void;
   onRoutineCreated?: (routine: Routine) => void;
-  /** Si se pasa, la vista funciona en modo edición y llama PUT en vez de POST */
-  editingRoutineId?: string;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────── */
 /*                         CreateRoutineView                                     */
 /* ──────────────────────────────────────────────────────────────────────────── */
 
-export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, cardLayout, initialDraft, onSaveDraft, onClearDraft, onRoutineCreated, editingRoutineId }) => {
+export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, cardLayout, initialDraft, onSaveDraft, onClearDraft, onRoutineCreated }) => {
   const insets = useSafeAreaInsets();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const { getToken } = useAuth();
@@ -98,7 +96,7 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
 
   /* ── Registro en contexto para FAB del MyTabBar ────────────────────────── */
 
-  const { setIsEditingRoutine, saveRoutineRef, isFormValidRef } = useRoutineDetailContext();
+  const { saveRoutineRef, isFormValidRef } = useRoutineDetailContext();
 
   /* ── Animación de entrada/salida ───────────────────────────────────────── */
 
@@ -419,27 +417,17 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
           })),
         })),
       };
-      console.log('[CreateRoutineView] doSave →', {
-        mode: editingRoutineId ? 'UPDATE' : 'CREATE',
-        editingRoutineId,
-        activate,
-        payloadName: payload.name,
-        daysCount: payload.days.length,
-      });
-      const routine = editingRoutineId
-        ? await updateRoutine(editingRoutineId, payload, token)
-        : await createRoutine(payload, token);
-      console.log('[CreateRoutineView] doSave response →', { returnedId: routine.id, returnedName: routine.name });
+      const routine = await createRoutine(payload, token);
       onClearDraft?.();
       onRoutineCreated?.(routine);
     } catch {
       Alert.alert(
-        editingRoutineId ? 'Error al actualizar' : 'Error al guardar',
+        'Error al guardar',
         'No se pudo guardar la rutina. Revisá tu conexión e intentá nuevamente.',
       );
       setIsSaving(false);
     }
-  }, [isValid, name, days, editingRoutineId, onClearDraft, onRoutineCreated, getToken]);
+  }, [isValid, name, days, onClearDraft, onRoutineCreated, getToken]);
 
   const handleSave = useCallback(() => {
     if (!isValid) return;
@@ -448,11 +436,11 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
 
     const confirmAlert = () =>
       Alert.alert(
-        editingRoutineId ? '¿Cómo querés guardar los cambios?' : '¿Cómo querés guardar?',
+        '¿Cómo querés guardar?',
         `"${name.trim()}" — ${daysToSave.length} ${daysToSave.length === 1 ? 'día' : 'días'} con ejercicios.`,
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: editingRoutineId ? 'Guardar cambios' : 'Solo guardar', onPress: () => doSave(false) },
+          { text: 'Solo guardar', onPress: () => doSave(false) },
           { text: 'Guardar y activar', onPress: () => doSave(true) },
         ],
       );
@@ -470,18 +458,10 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({ onClose, c
     } else {
       confirmAlert();
     }
-  }, [isValid, name, days, editingRoutineId, doSave]);
+  }, [isValid, name, days, doSave]);
 
   saveRoutineRef.current = doSave;
   isFormValidRef.current = isValid;
-
-  React.useEffect(() => {
-    if (editingRoutineId) setIsEditingRoutine(true);
-    return () => {
-      if (editingRoutineId) setIsEditingRoutine(false);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingRoutineId]);
 
   /* ── Render ────────────────────────────────────────────────────────────── */
 
@@ -780,17 +760,12 @@ const ExerciseFormCard: React.FC<ExerciseFormCardProps> = ({
           </View>
 
           {/* Imagen/GIF del ejercicio */}
-          {exercise.gifUrl ? (
-            <Image
-              source={{ uri: exercise.gifUrl }}
-              className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-xl mr-3"
-              resizeMode="cover"
-            />
-          ) : (
-            <View className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-xl items-center justify-center mr-3">
-              <Ionicons name="image-outline" size={22} color="#94a3b8" />
-            </View>
-          )}
+          <ExerciseThumbnail
+            uri={exercise.gifUrl}
+            size={64}
+            className="bg-slate-100 dark:bg-slate-700 mr-3"
+            iconColor="#94a3b8"
+          />
 
           {/* Nombre */}
           <View className="flex-1">

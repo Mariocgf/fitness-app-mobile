@@ -9,8 +9,8 @@ interface DarkSheetLayoutProps {
 }
 
 /**
- * Layout de pantalla con zona header (slate-100 / slate-950 en dark) y hoja inferior
- * redondeada (slate-100 / slate-800 en dark). 
+ * Layout de pantalla con zona header (slate-950) y hoja inferior redondeada
+ * (slate-800). App dark-only.
  *
  * Uso:
  *   <DarkSheetLayout header={<MiHeader />}>
@@ -18,17 +18,15 @@ interface DarkSheetLayoutProps {
  *   </DarkSheetLayout>
  */
 export const DarkSheetLayout: React.FC<DarkSheetLayoutProps> = ({ header, children }) => (
-  <View className="flex-1 bg-slate-100 dark:bg-slate-950">
+  <View className="flex-1 bg-slate-950">
 
     {/* Zona header */}
-    <View className="">
+    <View>
       {header}
     </View>
 
     {/* Hoja con radio top */}
-    <View
-      className="flex-1 overflow-hidden bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-t-3xl"
-    >
+    <View className="flex-1 overflow-hidden bg-slate-800 border border-slate-700 rounded-t-3xl">
       {children}
     </View>
   </View>

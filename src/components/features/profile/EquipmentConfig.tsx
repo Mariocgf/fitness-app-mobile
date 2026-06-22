@@ -167,8 +167,8 @@ export default function EquipmentConfig({ onBack, onRegisterBackHandler }: Equip
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#64748b" />
+      <View className="flex-1 items-center justify-center bg-zinc-950">
+        <ActivityIndicator size="large" color="#a1a1aa" />
       </View>
     );
   }
@@ -183,7 +183,7 @@ export default function EquipmentConfig({ onBack, onRegisterBackHandler }: Equip
       {/* Header fijo: título + buscador */}
       <View style={{ paddingHorizontal: 16, paddingTop: 20, gap: 16 }}>
         <View
-          className="bg-white dark:bg-slate-800 rounded-2xl p-4"
+          className="bg-zinc-900 rounded-2xl p-4"
           style={{ gap: 12 }}
         >
           {/* Título descriptivo */}
@@ -191,14 +191,14 @@ export default function EquipmentConfig({ onBack, onRegisterBackHandler }: Equip
             className="flex-row items-center gap-3"
             onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
           >
-            <View className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 items-center justify-center">
-              <Ionicons name="barbell-outline" size={20} className="text-slate-500 dark:text-slate-400" />
+            <View className="w-10 h-10 rounded-full bg-zinc-800 items-center justify-center">
+              <Ionicons name="barbell-outline" size={20} className="text-zinc-400" />
             </View>
             <View>
-              <Text className="text-base font-bold text-slate-900 dark:text-slate-50">
+              <Text className="text-base font-bold text-white">
                 Equipamiento
               </Text>
-              <Text className="text-sm text-slate-500 dark:text-slate-400">
+              <Text className="text-sm text-zinc-400">
                 ¿Con qué materiales cuentas?
               </Text>
             </View>
@@ -220,7 +220,7 @@ export default function EquipmentConfig({ onBack, onRegisterBackHandler }: Equip
         <View style={{ flex: 1, marginTop: 16 }}>
           {/* Encabezado con contador y "Borrar todas" */}
           <View className="flex-row items-center justify-between px-5 mb-2">
-            <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+            <Text className="text-sm font-semibold text-zinc-300">
               Seleccionadas ({selectedWithDetails.length})
             </Text>
             <TouchableOpacity onPress={() => setSelectedEquipment([])}>
@@ -242,23 +242,23 @@ export default function EquipmentConfig({ onBack, onRegisterBackHandler }: Equip
             {selectedWithDetails.map((item) => (
               <View
                 key={item.id}
-                className="flex-row items-center h-[60px] bg-white dark:bg-slate-800 rounded-2xl px-4 border border-slate-200 dark:border-slate-700"
+                className="flex-row items-center h-[60px] bg-zinc-900 rounded-2xl px-4 border border-zinc-800"
               >
-                <Text className="flex-1 text-base text-slate-900 dark:text-slate-50">
+                <Text className="flex-1 text-base text-white">
                   {item.name}
                 </Text>
 
                 {/* Controles qty con borde */}
-                <View className="flex-row items-center border border-slate-200 dark:border-slate-600 rounded-2xl overflow-hidden mr-4">
+                <View className="flex-row items-center border border-zinc-700 rounded-2xl overflow-hidden mr-4">
                   <TouchableOpacity
                     onPress={() => handleDecrement(item.id)}
                     activeOpacity={0.6}
                     className="w-9 h-9 items-center justify-center"
                   >
-                    <Text className="text-xl font-semibold text-slate-500 dark:text-slate-400">-</Text>
+                    <Text className="text-xl font-semibold text-zinc-400">-</Text>
                   </TouchableOpacity>
 
-                  <Text className="text-base font-semibold text-slate-900 dark:text-slate-50 w-8 text-center">
+                  <Text className="text-base font-semibold text-white w-8 text-center">
                     {item.qty}
                   </Text>
 
@@ -267,7 +267,7 @@ export default function EquipmentConfig({ onBack, onRegisterBackHandler }: Equip
                     activeOpacity={0.6}
                     className="w-9 h-9 items-center justify-center"
                   >
-                    <Text className="text-xl font-semibold text-slate-500 dark:text-slate-400">+</Text>
+                    <Text className="text-xl font-semibold text-zinc-400">+</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -277,7 +277,7 @@ export default function EquipmentConfig({ onBack, onRegisterBackHandler }: Equip
                   activeOpacity={0.6}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Ionicons name="trash-outline" size={18} className="text-slate-400 dark:text-slate-500" />
+                  <Ionicons name="trash-outline" size={18} className="text-zinc-500" />
                 </TouchableOpacity>
               </View>
             ))}
@@ -288,16 +288,16 @@ export default function EquipmentConfig({ onBack, onRegisterBackHandler }: Equip
       {/* Botón Guardar fijo abajo */}
       <View
         style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: insets.bottom + 8 }}
-        className="px-4 pt-3 bg-white dark:bg-slate-950"
+        className="px-4 pt-3 bg-zinc-950"
       >
         <TouchableOpacity
           onPress={handleSave}
           disabled={isSaving}
           activeOpacity={0.85}
-          className="w-full py-4 rounded-full items-center bg-slate-950 dark:bg-slate-100"
+          className="w-full py-4 rounded-full items-center bg-zinc-50"
           style={{ opacity: isSaving ? 0.7 : 1 }}
         >
-          <Text className="text-base font-semibold text-white dark:text-slate-950">
+          <Text className="text-base font-semibold text-zinc-950">
             {isSaving ? 'Guardando...' : 'Guardar'}
           </Text>
         </TouchableOpacity>

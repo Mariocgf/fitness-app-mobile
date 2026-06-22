@@ -128,8 +128,8 @@ export default function FitnessSubGoalConfig({
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#64748b" />
+      <View className="flex-1 items-center justify-center bg-zinc-950">
+        <ActivityIndicator size="large" color="#a1a1aa" />
       </View>
     );
   }
@@ -146,13 +146,13 @@ export default function FitnessSubGoalConfig({
         }}
       >
         <SectionCard
-          icon={<Ionicons name="ribbon-outline" size={20} className="text-slate-500" />}
+          icon={<Ionicons name="ribbon-outline" size={20} className="text-zinc-400" />}
           title="Sub objetivo"
           subtitle="Elegí tu enfoque principal"
         >
           {subGoals.length === 0 ? (
             <View className="py-6 items-center">
-              <Text className="text-sm text-slate-500 dark:text-slate-400 text-center">
+              <Text className="text-sm text-zinc-400 text-center">
                 No hay subobjetivos disponibles para Fitness.
               </Text>
             </View>
@@ -174,16 +174,16 @@ export default function FitnessSubGoalConfig({
 
       <View
         style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: insets.bottom + 8 }}
-        className="px-4 pt-3 bg-white dark:bg-slate-950"
+        className="px-4 pt-3 bg-zinc-950"
       >
         <TouchableOpacity
           onPress={handleSave}
           disabled={isSaving || subGoals.length === 0}
           activeOpacity={0.85}
-          className="w-full py-4 rounded-full items-center bg-slate-950 dark:bg-slate-100"
+          className="w-full py-4 rounded-full items-center bg-zinc-50"
           style={{ opacity: isSaving || subGoals.length === 0 ? 0.7 : 1 }}
         >
-          <Text className="text-base font-semibold text-white dark:text-slate-950">
+          <Text className="text-base font-semibold text-zinc-950">
             {isSaving ? 'Guardando...' : 'Guardar'}
           </Text>
         </TouchableOpacity>

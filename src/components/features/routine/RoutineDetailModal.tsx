@@ -230,9 +230,11 @@ export const RoutineDetailModal: React.FC<RoutineDetailModalProps> = ({ visible,
                   handleClose();
                   router.push({
                     pathname: '/session',
-                    params: { 
+                    params: {
                       routineId: routine.id,
-                      dayData: JSON.stringify(activeDay)
+                      dayData: JSON.stringify(activeDay),
+                      routineName: routine.name,
+                      nextSessionDay: sortedDays[(activeDayIndex + 1) % sortedDays.length]?.day ?? '',
                     }
                   });
                 }}
@@ -255,6 +257,7 @@ export const RoutineDetailModal: React.FC<RoutineDetailModalProps> = ({ visible,
                 exercise={selectedExercise}
                 onBack={() => setSelectedExercise(null)}
                 onClose={handleClose}
+                embedded
               />
             )}
 

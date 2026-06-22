@@ -1,5 +1,5 @@
 import { useAuth } from '@clerk/clerk-expo';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -10,9 +10,6 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import BackButton from '@/src/components/common/BackButton';
 import TagSelect from '@/src/components/common/TagSelect';
 import {
     getDietaryPreferences,
@@ -30,22 +27,24 @@ import { NutritionItem } from '@/src/types/nutrition';
 interface DietaryConfigProps {
   /** Callback para volver a la pantalla principal del perfil */
   onBack: () => void;
+  /** Registra el handler de back del componente en el padre (nav bar compartido) */
+  onRegisterBackHandler?: (fn: (() => void) | null) => void;
 }
 
 /**
  * Sub-pantalla de configuración de restricciones alimenticias.
- * Reutiliza TagSelect del onboarding de Nutrition.
+ * Reutiliza TagSelect del onboarding de Nutrition. Dark-only `zinc`.
+ * El back lo provee el nav bar compartido del perfil (sin BackButton propio).
  */
-export default function DietaryConfig({ onBack }: DietaryConfigProps) {
+export default function DietaryConfig({ onBack, onRegisterBackHandler }: DietaryConfigProps) {
   const { getToken } = useAuth();
-  const insets = useSafeAreaInsets();
 
   const [allergiesList, setAllergiesList] = useState<NutritionItem[]>([]);
   const [dietaryPreferencesList, setDietaryPreferencesList] = useState<NutritionItem[]>([]);
-  
+
   const [selectedAllergyIds, setSelectedAllergyIds] = useState<string[]>([]);
   const [selectedDietIds, setSelectedDietIds] = useState<string[]>([]);
-  
+
   const [initialAllergyIds, setInitialAllergyIds] = useState<string[]>([]);
   const [initialDietIds, setInitialDietIds] = useState<string[]>([]);
 
@@ -74,7 +73,7 @@ export default function DietaryConfig({ onBack }: DietaryConfigProps) {
 
         setSelectedAllergyIds(uAllergyIds);
         setInitialAllergyIds(uAllergyIds);
-        
+
         setSelectedDietIds(uDietIds);
         setInitialDietIds(uDietIds);
       } catch (e) {
@@ -91,18 +90,20 @@ export default function DietaryConfig({ onBack }: DietaryConfigProps) {
    * Detecta si hay cambios reales comparando arrays de IDs (ignora orden)
    */
   const hasChanges = () => {
-    const allergiesChanged = 
+    const allergiesChanged =
       selectedAllergyIds.length !== initialAllergyIds.length ||
       selectedAllergyIds.some(id => !initialAllergyIds.includes(id));
-    
-    const dietsChanged = 
+
+    const dietsChanged =
       selectedDietIds.length !== initialDietIds.length ||
       selectedDietIds.some(id => !initialDietIds.includes(id));
 
     return allergiesChanged || dietsChanged;
   };
 
-  const handleBack = () => {
+  // Back con guard de cambios sin guardar, expuesto al nav bar compartido
+  const backHandlerRef = useRef<() => void>(() => {});
+  backHandlerRef.current = () => {
     if (hasChanges()) {
       Alert.alert(
         'Cambios sin guardar',
@@ -116,6 +117,11 @@ export default function DietaryConfig({ onBack }: DietaryConfigProps) {
       onBack();
     }
   };
+
+  useEffect(() => {
+    onRegisterBackHandler?.(() => backHandlerRef.current());
+    return () => onRegisterBackHandler?.(null);
+  }, []);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -145,24 +151,18 @@ export default function DietaryConfig({ onBack }: DietaryConfigProps) {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-zinc-950">
-        <ActivityIndicator size="large" color="#06b6d4" />
-        <Text className="text-slate-500 dark:text-zinc-400 mt-4">
-          Cargando datos de nutrición...
-        </Text>
+      <View className="flex-1 items-center justify-center bg-zinc-950">
+        <ActivityIndicator size="large" color="#f4f4f5" />
+        <Text className="text-zinc-400 mt-4">Cargando datos de nutrición...</Text>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, paddingTop: insets.top }} className="bg-white dark:bg-zinc-950">
-      <BackButton onPress={handleBack} color="#06b6d4" label="Volver" />
-
+    <View style={{ flex: 1 }} className="bg-zinc-950">
       {/* Título */}
-      <View className="px-8 pt-2 pb-4">
-        <Text className="text-2xl font-bold text-slate-900 dark:text-white">
-          Restricciones alimenticias
-        </Text>
+      <View className="px-8 pt-4 pb-4">
+        <Text className="text-2xl font-bold text-white">Restricciones alimenticias</Text>
       </View>
 
       <ScrollView
@@ -176,7 +176,7 @@ export default function DietaryConfig({ onBack }: DietaryConfigProps) {
         >
           {/* Alergias alimentarias */}
           <View style={{ zIndex: 20 }}>
-            <Text className="text-lg font-semibold text-slate-800 dark:text-zinc-200 mb-2">
+            <Text className="text-lg font-semibold text-zinc-200 mb-2">
               Alergias alimentarias
             </Text>
             <TagSelect
@@ -189,7 +189,7 @@ export default function DietaryConfig({ onBack }: DietaryConfigProps) {
 
           {/* Estilo de dieta */}
           <View style={{ zIndex: 10, marginTop: 24 }}>
-            <Text className="text-lg font-semibold text-slate-800 dark:text-zinc-200 mb-2">
+            <Text className="text-lg font-semibold text-zinc-200 mb-2">
               Tipo de dieta
             </Text>
             <TagSelect
@@ -206,12 +206,12 @@ export default function DietaryConfig({ onBack }: DietaryConfigProps) {
       <View className="px-8 pb-32 pt-4">
         <TouchableOpacity
           style={isSaving ? { opacity: 0.7 } : undefined}
-          className="bg-cyan-500 w-full py-4 rounded-2xl items-center shadow-md"
+          className="bg-zinc-50 w-full py-4 rounded-full items-center"
           onPress={handleSave}
           disabled={isSaving}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
         >
-          <Text className="text-white text-lg font-bold">
+          <Text className="text-zinc-950 text-base font-semibold">
             {isSaving ? 'Guardando...' : 'Guardar'}
           </Text>
         </TouchableOpacity>
