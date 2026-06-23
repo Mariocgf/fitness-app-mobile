@@ -1,13 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 import { QuantityStepper } from '@/src/components/common/QuantityStepper';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 interface EquipmentRow {
   id: string;

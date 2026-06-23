@@ -1,14 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React, { forwardRef, useEffect } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
 import { Routine } from '@/src/types/routine';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 const LIME = '#a3e635';
 

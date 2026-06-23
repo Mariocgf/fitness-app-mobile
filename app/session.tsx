@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import React, { useState } from 'react';
 import { View, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -32,7 +33,7 @@ export default function SessionScreen() {
       ]);
     },
     onError: (error) => {
-      console.error(error);
+      logger.error(error);
       Alert.alert("Error", "No se pudo guardar la sesión.");
       setIsSaving(false);
     }

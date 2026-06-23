@@ -1,6 +1,6 @@
+import { logger } from '@/src/utils/logger';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,10 +14,6 @@ import {
   updateTrainingPreferences,
 } from '@/src/services/fitness.service';
 import { FitnessDay, WEEKDAY_OPTIONS } from '@/src/types/fitness';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 interface FitnessTrainingPreferencesConfigProps {
   /** Vuelve a la lista del módulo tras guardar (la ruta lo cablea a `router.back()`) */
@@ -96,7 +92,7 @@ export default function FitnessTrainingPreferencesConfig({
         setSessionDuration(duration);
         setInitialSessionDuration(duration);
       } catch (error) {
-        console.error('Error cargando preferencias de entrenamiento:', error);
+        logger.error('Error cargando preferencias de entrenamiento:', error);
         Alert.alert('Error', 'No se pudieron cargar tus preferencias de entrenamiento.');
       } finally {
         setIsLoading(false);
@@ -148,7 +144,7 @@ export default function FitnessTrainingPreferencesConfig({
         { text: 'OK', onPress: onBack },
       ]);
     } catch (error) {
-      console.error('Error guardando preferencias de entrenamiento:', error);
+      logger.error('Error guardando preferencias de entrenamiento:', error);
       Alert.alert('Error', 'No se pudieron actualizar tus preferencias de entrenamiento.');
     } finally {
       setIsSaving(false);

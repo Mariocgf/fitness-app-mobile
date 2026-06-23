@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
 import { useEffect, useRef } from 'react';
@@ -51,7 +52,7 @@ async function playBeep(
     });
   } catch (error) {
     /* Silenciar errores de audio para no interrumpir la sesión */
-    console.warn('[useSessionAudio] Error reproduciendo beep:', error);
+    logger.warn('[useSessionAudio] Error reproduciendo beep:', error);
   }
 }
 

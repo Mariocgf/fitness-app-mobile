@@ -3,28 +3,9 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Image, Modal, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { cssInterop } from 'nativewind';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { formatExerciseLoad, formatReps } from '@/src/utils/format.utils';
 import { ExerciseDetailView } from '@/src/components/features/routine/ExerciseDetailView';
-
-cssInterop(Ionicons, {
-  className: {
-    target: 'style',
-    nativeStyleToProp: {
-      color: true,
-    },
-  },
-});
-
-cssInterop(MaterialCommunityIcons, {
-  className: {
-    target: 'style',
-    nativeStyleToProp: {
-      color: true,
-    },
-  },
-});
 
 /* ──────────────────────────────────────────────────────────────────────────── */
 /*                              RoutineDetailModal                              */

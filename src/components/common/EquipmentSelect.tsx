@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     DeviceEventEmitter,
@@ -12,10 +11,6 @@ import {
 } from 'react-native';
 
 import { Equipment, EquipmentSelection } from '@/src/types/fitness';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 interface EquipmentSelectProps {
   /** Lista completa de equipamientos del backend */

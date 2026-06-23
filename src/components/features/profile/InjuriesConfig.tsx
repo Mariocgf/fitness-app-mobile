@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { useAuth } from '@clerk/clerk-expo';
 import React, { useEffect, useState } from 'react';
 import {
@@ -55,7 +56,7 @@ export default function InjuriesConfig({ onBack }: InjuriesConfigProps) {
         setSelectedInjuryIds(uInjIds);
         setInitialInjuryIds(uInjIds);
       } catch (e) {
-        console.error('Error cargando lesiones:', e);
+        logger.error('Error cargando lesiones:', e);
         Alert.alert('Error', 'No se pudieron cargar los datos de salud.');
       } finally {
         setIsLoading(false);
@@ -83,7 +84,7 @@ export default function InjuriesConfig({ onBack }: InjuriesConfigProps) {
         { text: 'OK', onPress: onBack },
       ]);
     } catch (error) {
-      console.error('Error guardando lesiones:', error);
+      logger.error('Error guardando lesiones:', error);
       Alert.alert('Error', 'No se pudieron actualizar las lesiones.');
     } finally {
       setIsSaving(false);
@@ -164,7 +165,7 @@ export function ConditionsConfig({ onBack }: InjuriesConfigProps) {
         setSelectedConditionIds(uCondIds);
         setInitialConditionIds(uCondIds);
       } catch (e) {
-        console.error('Error cargando afecciones:', e);
+        logger.error('Error cargando afecciones:', e);
         Alert.alert('Error', 'No se pudieron cargar los datos de salud.');
       } finally {
         setIsLoading(false);
@@ -192,7 +193,7 @@ export function ConditionsConfig({ onBack }: InjuriesConfigProps) {
         { text: 'OK', onPress: onBack },
       ]);
     } catch (error) {
-      console.error('Error guardando afecciones:', error);
+      logger.error('Error guardando afecciones:', error);
       Alert.alert('Error', 'No se pudieron actualizar las afecciones médicas.');
     } finally {
       setIsSaving(false);

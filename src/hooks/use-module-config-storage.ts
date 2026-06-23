@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback } from 'react';
 import { Module } from '../types/user';
@@ -24,7 +25,7 @@ export function useModuleConfigStorage() {
     try {
       await AsyncStorage.setItem(SELECTED_MODULES_KEY, JSON.stringify(modules));
     } catch (error) {
-      console.error('Error guardando módulos seleccionados:', error);
+      logger.error('Error guardando módulos seleccionados:', error);
     }
   }, []);
 
@@ -33,7 +34,7 @@ export function useModuleConfigStorage() {
       const raw = await AsyncStorage.getItem(SELECTED_MODULES_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch (error) {
-      console.error('Error cargando módulos seleccionados:', error);
+      logger.error('Error cargando módulos seleccionados:', error);
       return null;
     }
   }, []);
@@ -45,7 +46,7 @@ export function useModuleConfigStorage() {
       try {
         await AsyncStorage.setItem(HEALTH_CONFIG_KEY, JSON.stringify(config));
       } catch (error) {
-        console.error('Error guardando config de Health:', error);
+        logger.error('Error guardando config de Health:', error);
       }
     },
     []
@@ -57,7 +58,7 @@ export function useModuleConfigStorage() {
         const raw = await AsyncStorage.getItem(HEALTH_CONFIG_KEY);
         return raw ? JSON.parse(raw) : null;
       } catch (error) {
-        console.error('Error cargando config de Health:', error);
+        logger.error('Error cargando config de Health:', error);
         return null;
       }
     }, []);
@@ -69,7 +70,7 @@ export function useModuleConfigStorage() {
       try {
         await AsyncStorage.setItem(FITNESS_CONFIG_KEY, JSON.stringify(config));
       } catch (error) {
-        console.error('Error guardando config de Fitness:', error);
+        logger.error('Error guardando config de Fitness:', error);
       }
     },
     []
@@ -81,7 +82,7 @@ export function useModuleConfigStorage() {
         const raw = await AsyncStorage.getItem(FITNESS_CONFIG_KEY);
         return raw ? JSON.parse(raw) : null;
       } catch (error) {
-        console.error('Error cargando config de Fitness:', error);
+        logger.error('Error cargando config de Fitness:', error);
         return null;
       }
     }, []);
@@ -96,7 +97,7 @@ export function useModuleConfigStorage() {
           JSON.stringify(config)
         );
       } catch (error) {
-        console.error('Error guardando config de Nutrition:', error);
+        logger.error('Error guardando config de Nutrition:', error);
       }
     },
     []
@@ -108,7 +109,7 @@ export function useModuleConfigStorage() {
         const raw = await AsyncStorage.getItem(NUTRITION_CONFIG_KEY);
         return raw ? JSON.parse(raw) : null;
       } catch (error) {
-        console.error('Error cargando config de Nutrition:', error);
+        logger.error('Error cargando config de Nutrition:', error);
         return null;
       }
     }, []);
@@ -119,7 +120,7 @@ export function useModuleConfigStorage() {
     try {
       await AsyncStorage.setItem(MODULE_CONFIG_STEP_KEY, String(step));
     } catch (error) {
-      console.error('Error guardando config step:', error);
+      logger.error('Error guardando config step:', error);
     }
   }, []);
 
@@ -128,7 +129,7 @@ export function useModuleConfigStorage() {
       const raw = await AsyncStorage.getItem(MODULE_CONFIG_STEP_KEY);
       return raw !== null ? parseInt(raw, 10) : null;
     } catch (error) {
-      console.error('Error cargando config step:', error);
+      logger.error('Error cargando config step:', error);
       return null;
     }
   }, []);
@@ -145,7 +146,7 @@ export function useModuleConfigStorage() {
         MODULE_CONFIG_STEP_KEY,
       ]);
     } catch (error) {
-      console.error('Error limpiando config de módulos:', error);
+      logger.error('Error limpiando config de módulos:', error);
     }
   }, []);
 
@@ -155,7 +156,7 @@ export function useModuleConfigStorage() {
     try {
       await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
     } catch (error) {
-      console.error('Error seteando flag de onboarding completado:', error);
+      logger.error('Error seteando flag de onboarding completado:', error);
     }
   }, []);
 
@@ -164,7 +165,7 @@ export function useModuleConfigStorage() {
       const val = await AsyncStorage.getItem(ONBOARDING_COMPLETED_KEY);
       return val === 'true';
     } catch (error) {
-      console.error('Error leyendo flag de onboarding completado:', error);
+      logger.error('Error leyendo flag de onboarding completado:', error);
       return false;
     }
   }, []);
@@ -173,7 +174,7 @@ export function useModuleConfigStorage() {
     try {
       await AsyncStorage.removeItem(ONBOARDING_COMPLETED_KEY);
     } catch (error) {
-      console.error('Error limpiando flag de onboarding completado:', error);
+      logger.error('Error limpiando flag de onboarding completado:', error);
     }
   }, []);
 

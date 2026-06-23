@@ -1,11 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 interface ConfigMenuItemProps {
   /** Nombre del ícono de Ionicons */

@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { useCallback, useEffect, useState } from 'react';
 import { RoutineSummary } from '../types/routine';
 import { fetchRoutinePreview } from '../services/routine.service';
@@ -35,7 +36,7 @@ export function useRoutinePreview(token: string | null): UseRoutinePreviewReturn
       setManualRoutines(data.manual);
     } catch (err) {
       setError('No se pudieron cargar las rutinas. Intentá de nuevo.');
-      console.error('[useRoutinePreview] Error:', err);
+      logger.error('[useRoutinePreview] Error:', err);
     } finally {
       setIsLoading(false);
     }

@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { ModuleCard } from '@/src/components/features/home/ModuleCard';
 import { GreetingHeader } from '@/src/components/features/home/GreetingHeader';
 import { getActiveModules } from '@/src/services/module.service';
@@ -67,7 +68,7 @@ export default function HomeScreen() {
           }
         }
       } catch (error) {
-        console.error('Error cargando datos en Home:', error);
+        logger.error('Error cargando datos en Home:', error);
       } finally {
         setIsFetchingRoutine(false);
       }
@@ -86,7 +87,7 @@ export default function HomeScreen() {
       setActiveRoutine(newRoutine);
       await AsyncStorage.setItem('@user_routine', JSON.stringify(newRoutine));
     } catch (error) {
-      console.error('Error generando rutina desde Home:', error);
+      logger.error('Error generando rutina desde Home:', error);
     } finally {
       setIsGeneratingRoutine(false);
     }

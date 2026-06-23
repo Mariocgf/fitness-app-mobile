@@ -1,6 +1,6 @@
+import { logger } from '@/src/utils/logger';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
@@ -13,10 +13,6 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 import EquipmentSelect from '@/src/components/common/EquipmentSelect';
 import EquipmentSelectedList from '@/src/components/common/EquipmentSelectedList';
@@ -69,7 +65,7 @@ export default function EquipmentConfig({ onBack }: EquipmentConfigProps) {
           setInitialEquipment(mapped);
         }
       } catch (e) {
-        console.error('Error cargando equipamiento:', e);
+        logger.error('Error cargando equipamiento:', e);
         Alert.alert('Error', 'No se pudo cargar el equipamiento.');
       } finally {
         setIsLoading(false);
@@ -121,7 +117,7 @@ export default function EquipmentConfig({ onBack }: EquipmentConfigProps) {
         { text: 'OK', onPress: onBack },
       ]);
     } catch (error) {
-      console.error('Error guardando equipamiento:', error);
+      logger.error('Error guardando equipamiento:', error);
       Alert.alert('Error', 'No se pudo actualizar el equipamiento.');
     } finally {
       setIsSaving(false);

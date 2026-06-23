@@ -5,13 +5,8 @@ import OnboardingHeader from '@/src/components/common/OnboardingHeader';
 import ProgressBar from '@/src/components/common/ProgressBar';
 import { SubGoal } from '@/src/types/nutrition';
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import { ScrollView, View } from 'react-native';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 interface NutritionSubGoalStepProps {
   /** Lista de sub-objetivos disponibles */

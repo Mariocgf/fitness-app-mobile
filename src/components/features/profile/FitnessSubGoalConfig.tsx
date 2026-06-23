@@ -1,6 +1,6 @@
+import { logger } from '@/src/utils/logger';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,10 +15,6 @@ import {
 } from '@/src/services/fitness.service';
 import { getModules } from '@/src/services/onboarding.service';
 import { SubGoal } from '@/src/types/fitness';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 interface FitnessSubGoalConfigProps {
   /** Vuelve a la lista del módulo tras guardar (la ruta lo cablea a `router.back()`) */
@@ -63,7 +59,7 @@ export default function FitnessSubGoalConfig({ onBack }: FitnessSubGoalConfigPro
         setInitialSubGoalId(currentId);
         setSubGoals(Array.isArray(availableSubGoals) ? availableSubGoals : []);
       } catch (error) {
-        console.error('Error cargando subobjetivo de fitness:', error);
+        logger.error('Error cargando subobjetivo de fitness:', error);
         Alert.alert('Error', 'No se pudo cargar el subobjetivo de Fitness.');
       } finally {
         setIsLoading(false);
@@ -98,7 +94,7 @@ export default function FitnessSubGoalConfig({ onBack }: FitnessSubGoalConfigPro
         { text: 'OK', onPress: onBack },
       ]);
     } catch (error) {
-      console.error('Error guardando subobjetivo de fitness:', error);
+      logger.error('Error guardando subobjetivo de fitness:', error);
       Alert.alert('Error', 'No se pudo actualizar el subobjetivo de Fitness.');
     } finally {
       setIsSaving(false);

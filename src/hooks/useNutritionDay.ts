@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -75,17 +76,17 @@ export function useNutritionDay(requestedDate?: string): UseNutritionDayReturn {
         createTargetFromProfile(date, profileData);
 
       if (targetsResult.status === 'rejected') {
-        console.warn('[useNutritionDay] Targets no disponibles, usando profile como fallback:', targetsResult.reason);
+        logger.warn('[useNutritionDay] Targets no disponibles, usando profile como fallback:', targetsResult.reason);
       }
       if (dayResult.status === 'rejected') {
-        console.warn('[useNutritionDay] Día nutricional no disponible, usando día vacío:', dayResult.reason);
+        logger.warn('[useNutritionDay] Día nutricional no disponible, usando día vacío:', dayResult.reason);
       }
 
       setProfile(profileData);
       setTarget(targetData);
       setDay(dayData);
     } catch (err) {
-      console.error('[useNutritionDay] Error:', err);
+      logger.error('[useNutritionDay] Error:', err);
       if (mountedRef.current) {
         setError('No pudimos cargar tu nutrición. Intentá de nuevo.');
       }

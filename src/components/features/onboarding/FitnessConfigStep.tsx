@@ -1,7 +1,4 @@
-import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
-import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     DeviceEventEmitter,
@@ -10,10 +7,6 @@ import {
     Text,
     View
 } from 'react-native';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 import CheckableCard from '@/src/components/common/CheckableCard';
 import EquipmentSelect from '@/src/components/common/EquipmentSelect';
@@ -27,17 +20,9 @@ import SelectableCard from '@/src/components/common/SelectableCard';
 import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
 import WeekDayPicker from '@/src/components/common/WeekDayPicker';
 import WheelPicker from '@/src/components/common/WheelPicker';
-import { useModuleConfigStorage } from '@/src/hooks/use-module-config-storage';
+import { useFitnessConfigStep } from '@/src/hooks/useFitnessConfigStep';
 import {
-    getEquipments,
-    getSubGoals,
-    submitFitnessProfile,
-} from '@/src/services/fitness.service';
-import {
-    Equipment,
-    EquipmentSelection,
     EXPERIENCE_LEVEL_OPTIONS,
-    SubGoal,
     TRAINING_HISTORY_OPTIONS,
     WEEKDAY_OPTIONS,
 } from '@/src/types/fitness';
@@ -59,10 +44,11 @@ interface FitnessConfigStepProps {
 
 /**
  * Configuración del módulo Fitness durante el onboarding.
- * Se compone de 3 pantallas internas:
+ * Se compone de 4 pantallas internas (la lógica vive en `useFitnessConfigStep`):
  *   - SubStep 0: Nivel de experiencia + Nivel de actividad
- *   - SubStep 1: Disponibilidad (días) + Duración de sesión
- *   - SubStep 2: Entorno (Home/Gym) + Equipamiento → envía POST
+ *   - SubStep 1: Sub-objetivos
+ *   - SubStep 2: Disponibilidad (días) + Duración de sesión
+ *   - SubStep 3: Entorno + Equipamiento → envía POST
  */
 export default function FitnessConfigStep({
   brandColor,
@@ -72,186 +58,33 @@ export default function FitnessConfigStep({
   isSubmitting,
   setIsSubmitting,
 }: FitnessConfigStepProps) {
-  const { getToken } = useAuth();
-  const { saveFitnessConfig, loadFitnessConfig } = useModuleConfigStorage();
-
-  // Sub-paso interno
-  const [subStep, setSubStep] = useState(0);
-
-  // ── Estado pantalla 0 ──
-  const [experienceLevel, setExperienceLevel] = useState<string>('');
-  const [trainingHistory, setTrainingHistory] = useState<string>('');
-
-  // ── Estado pantalla 1 ──
-  const [subGoals, setSubGoals] = useState<SubGoal[]>([]);
-  const [selectedSubGoalIds, setSelectedSubGoalIds] = useState<string[]>([]);
-  const [isLoadingSubGoals, setIsLoadingSubGoals] = useState(false);
-
-  // ── Estado pantalla 2 ──
-  const [selectedDays, setSelectedDays] = useState<number[]>([]);
-  const [hasFlexibleTime, setHasFlexibleTime] = useState(true);
-  const [sessionDuration, setSessionDuration] = useState(60);
-
-  // ── Estado pantalla 3 ──
-  const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
-  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentSelection[]>([]);
-  const [isLoadingEquipment, setIsLoadingEquipment] = useState(false);
-
-  /**
-   * Carga inicial: restaurar draft local.
-   */
-  useEffect(() => {
-    const restoreDraft = async () => {
-      const draft = await loadFitnessConfig();
-      if (draft) {
-        if (draft.experienceLevel) setExperienceLevel(draft.experienceLevel);
-        if (draft.trainingHistory) setTrainingHistory(draft.trainingHistory);
-        if (draft.selectedSubGoalIds) setSelectedSubGoalIds(draft.selectedSubGoalIds);
-        if (draft.preferredWorkoutDays)
-          setSelectedDays(draft.preferredWorkoutDays);
-        if (draft.hasFlexibleTime !== undefined)
-          setHasFlexibleTime(draft.hasFlexibleTime);
-        if (draft.sessionDurationPreference)
-          setSessionDuration(draft.sessionDurationPreference);
-        if (draft.availableEquipment)
-          setSelectedEquipment(Array.isArray(draft.availableEquipment) ? draft.availableEquipment : []);
-      }
-    };
-    restoreDraft();
-  }, []);
-
-  /**
-   * Carga sub-objetivos cuando se llega a la pantalla 1.
-   */
-  useEffect(() => {
-    if (subStep === 1 && subGoals.length === 0) {
-      const fetchSubGoals = async () => {
-        setIsLoadingSubGoals(true);
-        try {
-          const token = await getToken();
-          const data = await getSubGoals(moduleId, token);
-          setSubGoals(Array.isArray(data) ? data : []);
-        } catch (e) {
-          console.error('Error cargando sub-objetivos:', e);
-          alert('No se pudieron cargar los sub-objetivos.');
-        } finally {
-          setIsLoadingSubGoals(false);
-        }
-      };
-      fetchSubGoals();
-    }
-  }, [subStep]);
-
-  /**
-   * Carga equipamiento cuando se llega a la pantalla 3.
-   */
-  useEffect(() => {
-    if (subStep === 3 && equipmentList.length === 0) {
-      const fetchEquipments = async () => {
-        setIsLoadingEquipment(true);
-        try {
-          const token = await getToken();
-          const data = await getEquipments(token);
-          setEquipmentList(Array.isArray(data) ? data : []);
-        } catch (e) {
-          console.error('Error cargando equipamiento:', e);
-          alert('No se pudo cargar el equipamiento.');
-        } finally {
-          setIsLoadingEquipment(false);
-        }
-      };
-      fetchEquipments();
-    }
-  }, [subStep]);
-
-  /**
-   * Auto-guarda el draft en local al cambiar cualquier valor.
-   */
-  useEffect(() => {
-    saveFitnessConfig({
-      experienceLevel,
-      trainingHistory,
-      selectedSubGoalIds,
-      preferredWorkoutDays: selectedDays,
-      hasFlexibleTime,
-      sessionDurationPreference: hasFlexibleTime ? 0 : sessionDuration,
-      availableEquipment: selectedEquipment,
-    });
-  }, [
+  const {
+    subStep,
+    setSubStep,
     experienceLevel,
+    setExperienceLevel,
     trainingHistory,
+    setTrainingHistory,
+    handleContinueStep0,
+    subGoals,
     selectedSubGoalIds,
+    isLoadingSubGoals,
+    toggleSubGoal,
     selectedDays,
+    setSelectedDays,
     hasFlexibleTime,
+    setHasFlexibleTime,
     sessionDuration,
+    setSessionDuration,
+    equipmentList,
     selectedEquipment,
-  ]);
-
-  // ── Handlers de navegación ──
-
-  const handleContinueStep0 = () => {
-    if (!experienceLevel) {
-      alert('Por favor selecciona tu nivel de experiencia.');
-      return;
-    }
-    if (!trainingHistory) {
-      alert('Por favor selecciona tu nivel de actividad.');
-      return;
-    }
-    setSubStep(1);
-  };
-
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-    try {
-      const token = await getToken();
-
-      await submitFitnessProfile(
-        {
-          experienceLevel: String(experienceLevel),
-          trainingHistory: String(trainingHistory),
-          preferredWorkoutDays: selectedDays,
-          availableEquipment: selectedEquipment.map((e) => ({
-            id: String(e.id),
-            qty: Number(e.qty),
-          })),
-          sessionDurationPreference: hasFlexibleTime ? 0 : sessionDuration,
-          subGoals: selectedSubGoalIds,
-        },
-        token
-      );
-
-      onComplete();
-    } catch (error) {
-      console.error('Error enviando perfil de fitness:', error);
-      alert('Hubo un error al guardar los datos de entrenamiento.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // ── Helpers de selección ──
-
-  const toggleSubGoal = (id: string) => {
-    setSelectedSubGoalIds((prev) =>
-      prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]
-    );
-  };
-
-  const setEquipmentQty = (id: string, qty: number) => {
-    setSelectedEquipment((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, qty } : e))
-    );
-  };
-
-  const removeEquipment = (id: string) => {
-    setSelectedEquipment((prev) => prev.filter((e) => e.id !== id));
-  };
-
-  const selectedWithDetails = selectedEquipment.map((sel) => ({
-    ...sel,
-    name: equipmentList.find((eq) => eq.id === sel.id)?.name ?? '',
-  }));
+    setSelectedEquipment,
+    isLoadingEquipment,
+    selectedWithDetails,
+    setEquipmentQty,
+    removeEquipment,
+    handleSubmit,
+  } = useFitnessConfigStep({ moduleId, onComplete, setIsSubmitting });
 
   // ═══════════════════════════════════════════════════════════════════
   // PANTALLA 1: Experiencia + Actividad

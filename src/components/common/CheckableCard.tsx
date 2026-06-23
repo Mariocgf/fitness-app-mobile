@@ -1,11 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 /** Acento del estado seleccionado en la variante `radio`. */
 export type CheckableAccent = 'lime' | 'amber' | 'mono';

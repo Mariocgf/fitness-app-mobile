@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { useOAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
@@ -52,7 +53,7 @@ export default function LoginScreen() {
         await setOAuthActive({ session: createdSessionId });
       }
     } catch (err: any) {
-      console.error('Error de OAuth', err);
+      logger.error('Error de OAuth', err);
       if (err?.e?.toUpperCase() === "You're already signed in".toUpperCase()) {
         Linking.createURL('/(tabs)');
       }
@@ -114,7 +115,7 @@ export default function LoginScreen() {
             <SocialAuthButton
               label="Continuar con Apple"
               icon={<AppleLightIcon width={20} height={20} />}
-              variant="dark"
+              variant="light"
               onPress={() => onSocialLoginPress('oauth_apple')}
             />
           )}

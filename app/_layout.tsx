@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-expo';
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
@@ -11,6 +12,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import './global.css';
+import '@/src/utils/icon-interop';
 
 import { FullPageLoader } from '@/src/components/common/FullPageLoader';
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
@@ -74,7 +76,7 @@ const tokenCache = {
       const item = await SecureStore.getItemAsync(key);
       return item;
     } catch (error) {
-      console.error('SecureStore get item error: ', error);
+      logger.error('SecureStore get item error: ', error);
       await SecureStore.deleteItemAsync(key);
       return null;
     }
@@ -167,7 +169,7 @@ function RootNavigator() {
           await user.reload().catch(() => {});
         }
       } catch (error) {
-        console.error('Error resolviendo onboarding contra backend:', error);
+        logger.error('Error resolviendo onboarding contra backend:', error);
         if (isMounted) {
           setBackendOnboardingStatus(null);
         }
@@ -266,7 +268,6 @@ function RootNavigator() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false, presentation: 'modal' }} />
-      <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       <Stack.Screen name="session" options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="profile" options={{ headerShown: false, animation: 'slide_from_right' }} />
     </Stack>

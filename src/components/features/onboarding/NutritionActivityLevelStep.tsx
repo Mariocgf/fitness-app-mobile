@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import { ScrollView, View } from 'react-native';
 
@@ -13,10 +12,6 @@ import {
   ActivityLevel,
   NUTRITION_ACTIVITY_LEVEL_OPTIONS,
 } from '@/src/types/nutrition';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 interface NutritionActivityLevelStepProps {
   /** Nivel de actividad seleccionado */

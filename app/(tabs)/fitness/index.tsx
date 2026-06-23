@@ -1,8 +1,10 @@
+import { logger } from '@/src/utils/logger';
 import { SegmentedControl } from '@/src/components/common/SegmentedControl';
 import { ActionCard, CardState } from '@/src/components/features/home/ActionCard';
 import { CreateRoutineView } from '@/src/components/features/routine/CreateRoutineView';
 import { CardLayout, RoutineDetailView } from '@/src/components/features/routine/RoutineDetailView';
 import { RoutineLibraryCard } from '@/src/components/features/routine/RoutineLibraryCard';
+import { DraftCard } from '@/src/components/features/routine/DraftCard';
 import { RecentActivityCard } from '@/src/components/features/training-history/RecentActivityCard';
 import { useRoutineDraft } from '@/src/hooks/useRoutineDraft';
 import { useRoutinePreview } from '@/src/hooks/useRoutinePreview';
@@ -17,7 +19,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -118,7 +119,7 @@ export default function FitnessScreen() {
             setCardState('initial');
           }
         } catch (error) {
-          console.error('Error inicializando datos en Fitness:', error);
+          logger.error('Error inicializando datos en Fitness:', error);
         } finally {
           setIsFetchingData(false);
         }
@@ -168,7 +169,7 @@ export default function FitnessScreen() {
       await AsyncStorage.setItem('@user_routine', JSON.stringify(newRoutine));
       setCardState('success');
     } catch (error) {
-      console.error(error);
+      logger.error(error);
       setCardState('initial');
     }
   };
@@ -183,7 +184,7 @@ export default function FitnessScreen() {
       await AsyncStorage.setItem('@user_routine', JSON.stringify(newRoutine));
       setCardState('success');
     } catch (error) {
-      console.error(error);
+      logger.error(error);
       setCardState('success');
     }
   }, [getToken]);
@@ -212,7 +213,7 @@ export default function FitnessScreen() {
     try {
       await AsyncStorage.setItem('@user_routine', JSON.stringify(updated));
     } catch (error) {
-      console.error('No se pudo cachear la rutina actualizada:', error);
+      logger.error('No se pudo cachear la rutina actualizada:', error);
     }
   }, [refreshPreview, setActiveRoutine]);
 
@@ -289,7 +290,7 @@ export default function FitnessScreen() {
       setDetailVisible(false);
       setViewingActiveRoutine(false);
     } catch (err) {
-      console.error('[handleActivateRoutine] ERROR', err);
+      logger.error('[handleActivateRoutine] ERROR', err);
       Alert.alert('Error', 'No se pudo activar la rutina. Intentá de nuevo.');
     }
   }, [getToken, setActiveRoutine, refreshPreview, setDetailVisible, setViewingActiveRoutine]);
@@ -345,7 +346,7 @@ export default function FitnessScreen() {
       try {
         await AsyncStorage.setItem('@user_routine', JSON.stringify(routine));
       } catch (error) {
-        console.error('Error cacheando rutina creada:', error);
+        logger.error('Error cacheando rutina creada:', error);
       }
     }
     setShowCreateRoutine(false);
@@ -370,22 +371,11 @@ export default function FitnessScreen() {
     try {
       const token = await getToken();
       const fullRoutine = await getRoutineById(routineSummary.id, token);
-      console.log('[FitnessScreen] Routine loaded:', {
-        id: fullRoutine.id,
-        name: fullRoutine.name,
-        daysCount: fullRoutine.days?.length,
-        firstDayExercises: fullRoutine.days?.[0]?.exercises?.map(e => ({
-          id: e.id,
-          name: e.name,
-          gifUrl: e.gifUrl,
-          exerciseId: e.exerciseId,
-        })),
-      });
       setSelectedFullRoutine(fullRoutine);
       setShowPreviewDetail(true);
       if (fullRoutine.isActive) setViewingActiveRoutine(true);
     } catch (error) {
-      console.error('[FitnessScreen] Error fetching routine:', error);
+      logger.error('[FitnessScreen] Error fetching routine:', error);
       Alert.alert('Error', 'No se pudo cargar la rutina. Intentá de nuevo.');
       setDetailVisible(false);
     } finally {
@@ -624,58 +614,3 @@ export default function FitnessScreen() {
   );
 }
 
-/* ── DraftCard ────────────────────────────────────────────────────────────── */
-
-interface DraftCardProps {
-  draft: { name: string; days: { id: string }[] };
-  onContinue: () => void;
-  onDiscard: () => void;
-}
-
-function DraftCard({ draft, onContinue, onDiscard }: DraftCardProps) {
-  const pulseOpacity = useSharedValue(1);
-
-  useEffect(() => {
-    pulseOpacity.value = withRepeat(withTiming(0.4, { duration: 900 }), -1, true);
-  }, []);
-
-  const iconStyle = useAnimatedStyle(() => ({ opacity: pulseOpacity.value }));
-
-  const subtitle = draft.name.trim()
-    ? `"${draft.name}" · ${draft.days.length} ${draft.days.length === 1 ? 'día' : 'días'}`
-    : `${draft.days.length} ${draft.days.length === 1 ? 'día cargado' : 'días cargados'}`;
-
-  return (
-    <View className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 mx-4">
-      <View className="flex-row items-start mb-4">
-        <View className="flex-1 pr-4">
-          <Text className="text-white text-xl font-bold mb-1">
-            Rutina en creación
-          </Text>
-          <Text className="text-zinc-400 leading-5">
-            {subtitle}
-          </Text>
-        </View>
-        <Animated.View style={iconStyle}>
-          <Ionicons name="create-outline" size={36} color="#a3e635" />
-        </Animated.View>
-      </View>
-      <View className="flex-row gap-3">
-        <TouchableOpacity
-          onPress={onContinue}
-          activeOpacity={0.85}
-          className="flex-1 py-4 rounded-xl items-center bg-lime-400"
-        >
-          <Text className="text-zinc-900 font-bold text-base">Seguir creando</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={onDiscard}
-          activeOpacity={0.85}
-          className="px-4 rounded-xl items-center justify-center bg-zinc-800"
-        >
-          <Ionicons name="trash-outline" size={20} color="#a1a1aa" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}

@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { AxiosError } from 'axios';
 import apiClient from '../api/client';
 import {
@@ -82,7 +83,7 @@ export const fetchTrainingHistory = async (
     };
   } catch (error) {
     if (error instanceof AxiosError) {
-      console.error('[training-history.service]', url, 'FAIL', {
+      logger.error('[training-history.service]', url, 'FAIL', {
         status: error.response?.status,
         data: error.response?.data,
       });
@@ -110,7 +111,7 @@ export const getTrainingSessionById = async (
     return response.items.find((s) => s.id === id) ?? null;
   } catch (error) {
     if (error instanceof AxiosError) {
-      console.error('[training-history.service] getTrainingSessionById FAIL', {
+      logger.error('[training-history.service] getTrainingSessionById FAIL', {
         id,
         status: error.response?.status,
       });
@@ -148,7 +149,7 @@ export const deleteTrainingSession = async (
       const status = error.response?.status;
       const message = error.response?.data?.message || error.message;
 
-      console.error('[training-history.service] deleteTrainingSession FAIL', {
+      logger.error('[training-history.service] deleteTrainingSession FAIL', {
         id,
         status,
         message,

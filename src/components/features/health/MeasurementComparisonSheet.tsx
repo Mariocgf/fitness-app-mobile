@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
@@ -9,10 +8,6 @@ import {
   MeasurementComparison,
   MeasurementMetricDelta,
 } from '@/src/types/health';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 const ROSE = '#fb7185'; // rose-400 — acento del módulo Salud
 

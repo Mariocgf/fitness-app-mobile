@@ -1,7 +1,7 @@
+import { logger } from '@/src/utils/logger';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { cssInterop } from 'nativewind';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -11,10 +11,6 @@ import {
     Text,
     View,
 } from 'react-native';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 import BackButton from '@/src/components/common/BackButton';
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
@@ -73,7 +69,7 @@ export default function HealthConfigStep({
             setSelectedConditionIds(draft.medicalConditionIds);
         }
       } catch (e) {
-        console.error('Error inicializando Health config:', e);
+        logger.error('Error inicializando Health config:', e);
         alert('No se pudieron cargar los datos de salud.');
       } finally {
         setIsLoading(false);
@@ -92,7 +88,7 @@ export default function HealthConfigStep({
       );
       onComplete();
     } catch (error) {
-      console.error('Error enviando perfil de salud:', error);
+      logger.error('Error enviando perfil de salud:', error);
       alert('Hubo un error al guardar los datos de salud.');
     } finally {
       setIsSubmitting(false);

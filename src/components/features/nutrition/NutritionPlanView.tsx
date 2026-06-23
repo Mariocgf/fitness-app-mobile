@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { cssInterop } from 'nativewind';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -21,10 +20,6 @@ import {
 } from '@/src/utils/nutritionRoutine.utils';
 import { NutritionDaySelector } from './NutritionDaySelector';
 import { RoutineMealCard } from './RoutineMealCard';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 /** Skeleton animado para los estados de carga */
 function SkeletonItem({ className }: { className?: string }) {

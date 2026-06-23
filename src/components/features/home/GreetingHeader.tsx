@@ -1,14 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 
 import { getGreetingByTime } from '@/src/utils/time';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 interface GreetingHeaderProps {
   userName: string;

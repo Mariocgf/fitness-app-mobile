@@ -4,7 +4,6 @@
  * sin imports circulares.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import { Platform, Text, View } from 'react-native';
 import Animated, {
@@ -14,9 +13,6 @@ import Animated, {
 } from 'react-native-reanimated';
 
 // Permite usar `className` (con color) en Ionicons vía NativeWind.
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 /* ── Constantes de layout ─────────────────────────────────────────────────── */
 

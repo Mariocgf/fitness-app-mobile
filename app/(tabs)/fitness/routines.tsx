@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { SegmentedControl } from '@/src/components/common/SegmentedControl';
 import { SelectablePill } from '@/src/components/common/SelectablePill';
 import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
@@ -159,7 +160,6 @@ export default function RoutinesScreen() {
 
   const handleRegenerate = useCallback(async () => {
     // TODO: Implementar regeneración si es necesario
-    console.log('[RoutinesScreen] Regenerate not implemented');
   }, []);
 
   const handleRoutineUpdated = useCallback(async (updated: Routine) => {
@@ -184,7 +184,7 @@ export default function RoutinesScreen() {
       const fullRoutine = await getRoutineById(routineSummary.id, token);
       setSelectedRoutine(fullRoutine);
     } catch (error) {
-      console.error('[RoutinesScreen] Error fetching routine:', error);
+      logger.error('[RoutinesScreen] Error fetching routine:', error);
       Alert.alert('Error', 'No se pudo cargar la rutina. Intentá de nuevo.');
     } finally {
       setIsLoadingRoutine(false);

@@ -1,15 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 
 import { BodyEvolutionDashboardDto, BodyMetricTrend } from '@/src/types/health';
 
 import { BodyMetricTrendCard } from './BodyMetricTrendCard';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 interface BodyEvolutionDashboardSectionProps {
   dashboard: BodyEvolutionDashboardDto | null;

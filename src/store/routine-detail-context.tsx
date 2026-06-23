@@ -4,6 +4,7 @@
  * opciones contextuales cuando la rutina está expandida y cuando
  * está activo el modo de cambio de ejercicios.
  */
+import { logger } from '@/src/utils/logger';
 import { Routine } from '@/src/types/routine';
 import React, { createContext, useContext, useMemo, useRef, useState } from 'react';
 
@@ -85,7 +86,7 @@ export function RoutineDetailProvider({ children }: { children: React.ReactNode 
   const [viewingActiveRoutine, setViewingActiveRoutine] = useState(false);
   const [isCreatingRoutine, setIsCreatingRoutine] = useState(false);
   const saveRoutineRef = useRef<(activate: boolean) => void>(() => {
-    console.warn('[RoutineDetailContext] saveRoutineRef called but no handler registered');
+    logger.warn('[RoutineDetailContext] saveRoutineRef called but no handler registered');
   });
   const isFormValidRef = useRef<boolean>(false);
 

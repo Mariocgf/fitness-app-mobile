@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { getGlobalGoals } from '@/src/services/goal.service';
 import { getActiveModules } from '@/src/services/module.service';
 import {
@@ -149,7 +150,7 @@ export default function OnboardingScreen() {
                 await saveSelectedModules(reconstructed);
               }
             } catch (err) {
-              console.error('Error reconstruyendo módulos activos desde backend:', err);
+              logger.error('Error reconstruyendo módulos activos desde backend:', err);
             }
           }
 
@@ -186,7 +187,7 @@ export default function OnboardingScreen() {
           return;
         }
       } catch (e) {
-        console.error('Error obteniendo estado de onboarding:', e);
+        logger.error('Error obteniendo estado de onboarding:', e);
         // Si falla, asumimos que empieza desde el principio
       }
 
@@ -225,7 +226,7 @@ export default function OnboardingScreen() {
           const data = await getGlobalGoals(token);
           setGlobalGoals(data);
         } catch (e) {
-          console.error('Error cargando objetivos:', e);
+          logger.error('Error cargando objetivos:', e);
           alert('No se pudieron cargar los objetivos.');
         } finally {
           setIsLoadingGoals(false);
@@ -247,7 +248,7 @@ export default function OnboardingScreen() {
           const data = await getModules(token);
           setModules(data);
         } catch (e) {
-          console.error('Error cargando módulos:', e);
+          logger.error('Error cargando módulos:', e);
           alert('No se pudieron cargar los módulos.');
         } finally {
           setIsLoadingModules(false);
@@ -295,7 +296,7 @@ export default function OnboardingScreen() {
         alert('Hubo un problema al aceptar los términos.');
       }
     } catch (error) {
-      console.error('Error al aceptar términos:', error);
+      logger.error('Error al aceptar términos:', error);
       alert('Ocurrió un error inesperado al aceptar los términos.');
     } finally {
       setIsTransitioning(false);
@@ -351,7 +352,7 @@ export default function OnboardingScreen() {
 
       setStep(3);
     } catch (error) {
-      console.error('Error guardando datos básicos:', error);
+      logger.error('Error guardando datos básicos:', error);
       alert('Hubo un error al guardar los datos.');
     } finally {
       setIsTransitioning(false);
@@ -382,7 +383,7 @@ export default function OnboardingScreen() {
 
       setStep(4);
     } catch (error) {
-      console.error('Error guardando módulos:', error);
+      logger.error('Error guardando módulos:', error);
       alert('Hubo un error al guardar los módulos.');
     } finally {
       setIsTransitioning(false);

@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { useAuth } from '@clerk/clerk-expo';
 import React, { useEffect, useState } from 'react';
 import {
@@ -75,7 +76,7 @@ export default function DietaryConfig({ onBack }: DietaryConfigProps) {
         setSelectedDietIds(uDietIds);
         setInitialDietIds(uDietIds);
       } catch (e) {
-        console.error('Error cargando datos de nutrición:', e);
+        logger.error('Error cargando datos de nutrición:', e);
         Alert.alert('Error', 'No se pudieron cargar los datos de nutrición.');
       } finally {
         setIsLoading(false);
@@ -123,7 +124,7 @@ export default function DietaryConfig({ onBack }: DietaryConfigProps) {
         { text: 'OK', onPress: onBack },
       ]);
     } catch (error) {
-      console.error('Error guardando restricciones:', error);
+      logger.error('Error guardando restricciones:', error);
       Alert.alert('Error', 'No se pudieron actualizar las restricciones.');
     } finally {
       setIsSaving(false);

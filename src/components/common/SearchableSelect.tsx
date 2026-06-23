@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     DeviceEventEmitter,
@@ -10,10 +9,6 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 /**
  * Forma mínima de un ítem seleccionable. `severity` es OPCIONAL: las lesiones
