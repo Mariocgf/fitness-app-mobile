@@ -5,7 +5,9 @@
  * vía updateRoutine. Drag nativo con react-native-draggable-flatlist (Expo Go OK).
  */
 import { AddExerciseSheet } from '@/src/components/features/routine/AddExerciseSheet';
-import { ExerciseThumbnail } from '@/src/components/features/routine/ExerciseThumbnail';
+import { EditDayPickerModal } from '@/src/components/features/routine/EditDayPickerModal';
+import { EditExerciseCard } from '@/src/components/features/routine/EditExerciseCard';
+import { StatPickerSheet } from '@/src/components/features/routine/StatPickerSheet';
 import {
   BOTTOM_BUTTON_HEIGHT,
   DaySlot,
@@ -18,16 +20,14 @@ import { ExerciseSearchItem } from '@/src/services/exercise.service';
 import { CreateRoutinePayload, updateRoutine } from '@/src/services/routine.service';
 import { CreateRoutineDay, CreateRoutineExercise } from '@/src/types/create-routine';
 import { Routine, RoutineDay } from '@/src/types/routine';
-import { WeightOption, getWeightOptions } from '@/src/utils/weight.utils';
+import { getWeightOptions } from '@/src/utils/weight.utils';
 import { useAuth } from '@clerk/clerk-expo';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -35,7 +35,7 @@ import {
   View,
 } from 'react-native';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
-import { Gesture, GestureDetector, Swipeable } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
   runOnJS,
@@ -539,287 +539,3 @@ export const RoutineEditMode: React.FC<RoutineEditModeProps> = ({ routine, onExi
     </View>
   );
 };
-
-/* ──────────────────────────────────────────────────────────────────────────── */
-/*                       Card de ejercicio en modo edición                      */
-/* ──────────────────────────────────────────────────────────────────────────── */
-
-interface EditExerciseCardProps {
-  exercise: CreateRoutineExercise;
-  index: number;
-  weightLabel: string;
-  onOpenPicker: (field: 'sets' | 'reps' | 'restSeconds' | 'weight') => void;
-  onRemove: (exId: string) => void;
-  onReplace: (exId: string) => void;
-  onToggleRepMode: (exId: string) => void;
-  onDrag: () => void;
-  isActive: boolean;
-}
-
-/** Stat inline (label gris arriba, valor blanco abajo) — al tocar abre el wheel picker */
-const EditStat = ({
-  label, value, onPress, onLabelPress,
-}: {
-  label: string;
-  value: string;
-  onPress: () => void;
-  onLabelPress?: () => void;
-}) => (
-  <View className="items-center" style={{ minWidth: 40 }}>
-    {onLabelPress ? (
-      <TouchableOpacity onPress={onLabelPress} hitSlop={6} className="flex-row items-center mb-0.5">
-        <Text className="text-zinc-500 text-[10px]">{label}</Text>
-        <Ionicons name="swap-horizontal" size={9} color="#52525b" style={{ marginLeft: 2 }} />
-      </TouchableOpacity>
-    ) : (
-      <Text className="text-zinc-500 text-[10px] mb-0.5">{label}</Text>
-    )}
-    <TouchableOpacity onPress={onPress} hitSlop={8} className="px-1">
-      <Text className="text-white font-bold text-sm text-center">{value}</Text>
-    </TouchableOpacity>
-  </View>
-);
-
-const EditExerciseCard: React.FC<EditExerciseCardProps> = ({
-  exercise, index, weightLabel, onOpenPicker, onRemove, onReplace, onToggleRepMode, onDrag, isActive,
-}) => {
-  const swipeableRef = useRef<Swipeable>(null);
-
-  const openMenu = () => {
-    Alert.alert(exercise.name, undefined, [
-      { text: 'Cambiar ejercicio', onPress: () => onReplace(exercise.id) },
-      { text: `Peso: ${weightLabel}`, onPress: () => onOpenPicker('weight') },
-      { text: 'Eliminar', style: 'destructive', onPress: () => onRemove(exercise.id) },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
-  };
-
-  const renderRightActions = () => (
-    <View className="flex-row ml-3 mb-3 gap-2">
-      <TouchableOpacity
-        onPress={() => { swipeableRef.current?.close(); onReplace(exercise.id); }}
-        className="bg-blue-500 rounded-2xl items-center justify-center px-4"
-      >
-        <Ionicons name="swap-horizontal" size={22} color="#fff" />
-      </TouchableOpacity>
-      <TouchableOpacity
-        onPress={() => onRemove(exercise.id)}
-        className="bg-red-500 rounded-2xl items-center justify-center px-4"
-      >
-        <Ionicons name="trash-outline" size={22} color="#fff" />
-      </TouchableOpacity>
-    </View>
-  );
-
-  return (
-    <Swipeable ref={swipeableRef} renderRightActions={renderRightActions} overshootRight={false} enabled={!isActive}>
-      <View
-        className="flex-row items-center gap-2 bg-zinc-900 rounded-2xl border border-white/10 p-3 mb-3"
-        style={isActive ? { shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8 } : undefined}
-      >
-        {/* Handle de 6 puntos (izquierda) — long-press para arrastrar */}
-        <TouchableOpacity onLongPress={onDrag} delayLongPress={150} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
-          <MaterialCommunityIcons name="drag-vertical" size={22} color="#52525b" />
-        </TouchableOpacity>
-
-        {/* Número de orden */}
-        <Text className="text-zinc-600 font-bold text-sm w-4 text-center">{index + 1}</Text>
-
-        {/* GIF / imagen */}
-        <ExerciseThumbnail uri={exercise.gifUrl} size={56} />
-
-        {/* Nombre */}
-        <Text className="flex-1 text-white font-bold text-sm" numberOfLines={2}>{exercise.name}</Text>
-
-        {/* Stats — al tocar abren el wheel picker */}
-        <EditStat label="Sets" value={String(exercise.sets)} onPress={() => onOpenPicker('sets')} />
-        <EditStat
-          label={exercise.repMode === 'secs' ? 'Seg' : 'Reps'}
-          value={String(exercise.reps)}
-          onPress={() => onOpenPicker('reps')}
-          onLabelPress={() => onToggleRepMode(exercise.id)}
-        />
-        <EditStat label="Rest" value={String(exercise.restSeconds)} onPress={() => onOpenPicker('restSeconds')} />
-
-        {/* Menú de 3 puntos (derecha) */}
-        <TouchableOpacity
-          onPress={openMenu}
-          className="w-8 h-8 rounded-full bg-white/10 items-center justify-center ml-1"
-          hitSlop={6}
-        >
-          <Ionicons name="ellipsis-vertical" size={16} className="text-zinc-300" />
-        </TouchableOpacity>
-      </View>
-    </Swipeable>
-  );
-};
-
-/* ── Wheel picker (scroll vertical estilo iOS) — puro JS, Expo Go OK ───────── */
-
-const WHEEL_ITEM_H = 44;
-const WHEEL_VISIBLE = 5; // 2 arriba + centro + 2 abajo
-
-const WheelPicker = ({ items, value, onChange }: {
-  items: { value: number | null; label: string }[];
-  value: number | null;
-  onChange: (value: number | null) => void;
-}) => {
-  const ref = useRef<ScrollView>(null);
-  const didInit = useRef(false);
-  const initialIndex = Math.max(0, items.findIndex(i => i.value === value));
-
-  const handleMomentumEnd = (e: { nativeEvent: { contentOffset: { y: number } } }) => {
-    const idx = Math.min(items.length - 1, Math.max(0, Math.round(e.nativeEvent.contentOffset.y / WHEEL_ITEM_H)));
-    const picked = items[idx];
-    if (picked && picked.value !== value) onChange(picked.value);
-  };
-
-  return (
-    <View style={{ height: WHEEL_ITEM_H * WHEEL_VISIBLE }}>
-      {/* Banda central que resalta el valor seleccionado */}
-      <View
-        pointerEvents="none"
-        style={{ position: 'absolute', left: 0, right: 0, top: WHEEL_ITEM_H * 2, height: WHEEL_ITEM_H }}
-        className="border-y border-white/10 bg-white/5 rounded-xl"
-      />
-      <ScrollView
-        ref={ref}
-        style={{ flex: 1 }}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={WHEEL_ITEM_H}
-        decelerationRate="fast"
-        contentContainerStyle={{ paddingVertical: WHEEL_ITEM_H * 2 }}
-        onMomentumScrollEnd={handleMomentumEnd}
-        onLayout={() => {
-          if (didInit.current) return;
-          didInit.current = true;
-          ref.current?.scrollTo({ y: initialIndex * WHEEL_ITEM_H, animated: false });
-        }}
-      >
-        {items.map((it, i) => {
-          const selected = it.value === value;
-          return (
-            <View key={i} style={{ height: WHEEL_ITEM_H }} className="items-center justify-center">
-              <Text className={selected ? 'text-white font-bold text-xl' : 'text-zinc-500 text-lg'}>{it.label}</Text>
-            </View>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-};
-
-/* ── Bottom sheet con wheel picker para Sets / Reps / Rest / Peso ──────────── */
-
-const buildRange = (from: number, to: number, step = 1): { value: number | null; label: string }[] => {
-  const arr: { value: number | null; label: string }[] = [];
-  for (let n = from; n <= to; n += step) arr.push({ value: n, label: String(n) });
-  return arr;
-};
-
-interface StatPickerSheetProps {
-  picker: { exId: string; field: 'sets' | 'reps' | 'restSeconds' | 'weight' } | null;
-  days: CreateRoutineDay[];
-  weightOptions: WeightOption[];
-  onChangeField: (exId: string, field: 'sets' | 'reps' | 'restSeconds', value: string) => void;
-  onChangeWeight: (exId: string, value: number | null) => void;
-  onClose: () => void;
-}
-
-const StatPickerSheet: React.FC<StatPickerSheetProps> = ({
-  picker, days, weightOptions, onChangeField, onChangeWeight, onClose,
-}) => {
-  const exercise = useMemo(() => {
-    if (!picker) return null;
-    for (const d of days) {
-      const ex = d.exercises.find(e => e.id === picker.exId);
-      if (ex) return ex;
-    }
-    return null;
-  }, [picker, days]);
-
-  const config = useMemo(() => {
-    if (!picker || !exercise) return null;
-    switch (picker.field) {
-      case 'sets':
-        return { title: 'Series', items: buildRange(1, 12), value: exercise.sets as number | null };
-      case 'reps':
-        return exercise.repMode === 'secs'
-          ? { title: 'Segundos', items: buildRange(5, 240, 5), value: exercise.reps as number | null }
-          : { title: 'Repeticiones', items: buildRange(1, 50), value: exercise.reps as number | null };
-      case 'restSeconds':
-        return { title: 'Descanso (seg)', items: buildRange(0, 300, 5), value: exercise.restSeconds as number | null };
-      case 'weight':
-        return { title: 'Peso', items: weightOptions as { value: number | null; label: string }[], value: exercise.plannedWeightKg };
-      default:
-        return null;
-    }
-  }, [picker, exercise, weightOptions]);
-
-  const handlePick = (val: number | null) => {
-    if (!picker) return;
-    if (picker.field === 'weight') onChangeWeight(picker.exId, val);
-    else onChangeField(picker.exId, picker.field, String(val ?? 0));
-  };
-
-  return (
-    <Modal visible={!!picker && !!config} transparent animationType="slide" onRequestClose={onClose}>
-      {/* Backdrop y sheet como hermanos: el ScrollView de la rueda scrollea libre */}
-      <View className="flex-1 justify-end">
-        <Pressable className="absolute inset-0 bg-black/60" onPress={onClose} />
-        <View className="bg-zinc-900 rounded-t-3xl px-6 pt-5 pb-10">
-          <View className="flex-row items-center justify-between mb-2">
-            <Text className="text-lg font-bold text-white">{config?.title}</Text>
-            <TouchableOpacity onPress={onClose} className="px-3 py-1.5 rounded-full bg-white/10">
-              <Text className="text-white font-semibold text-sm">Listo</Text>
-            </TouchableOpacity>
-          </View>
-          {config && (
-            <WheelPicker
-              key={`${picker?.exId}-${picker?.field}`}
-              items={config.items}
-              value={config.value}
-              onChange={handlePick}
-            />
-          )}
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-/* ── Modal selector de día (oscuro) ───────────────────────────────────────── */
-
-interface EditDayPickerModalProps {
-  visible: boolean;
-  availableDays: { value: string; label: string }[];
-  onSelect: (value: string, label: string) => void;
-  onClose: () => void;
-}
-
-const EditDayPickerModal: React.FC<EditDayPickerModalProps> = ({ visible, availableDays, onSelect, onClose }) => (
-  <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-    <Pressable className="flex-1 bg-black/60 justify-end" onPress={onClose}>
-      <Pressable className="bg-zinc-900 rounded-t-3xl px-6 pt-6 pb-10">
-        <View className="flex-row items-center justify-between mb-5">
-          <Text className="text-xl font-bold text-white">Seleccionar día</Text>
-          <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} className="text-zinc-400" />
-          </TouchableOpacity>
-        </View>
-        {availableDays.map(day => (
-          <Pressable
-            key={day.value}
-            onPress={() => onSelect(day.value, day.label)}
-            className="py-4 border-b border-white/5"
-          >
-            <Text className="text-base font-medium text-zinc-200">{day.label}</Text>
-          </Pressable>
-        ))}
-        {availableDays.length === 0 && (
-          <Text className="text-zinc-500 text-center py-4">Ya agregaste todos los días.</Text>
-        )}
-      </Pressable>
-    </Pressable>
-  </Modal>
-);

@@ -172,11 +172,27 @@ Medido sobre `app/` + `src/` al inicio del plan:
 > - 🟢 `routine/AddExerciseSheet.tsx` (498 → **325**): extraída toda la lógica de búsqueda/filtros/paginación (~200 líneas: estado + 3 efectos debounce/filtros/búsqueda + handlers + `reset`) al hook `src/hooks/useExerciseSearch.ts` (216 líneas). Descomposición limpia (sin contexto ni mediciones de layout). `tsc` 0, `lint` 67. Verificado por el usuario ✅.
 > - 🟢 `nutrition/FoodSearchSheet.tsx` (451 → **296**): su lógica ya estaba en hooks (`useFoodSearch`, `useFoodBarcodeScanner`), así que se extrajeron las dos sub-vistas presentacionales: `FoodDetailPanel.tsx` (126, detalle del alimento + helper `NutritionFact`) y `FoodScannerView.tsx` (108, scanner de barras + `FOOD_BARCODE_TYPES`). El sheet quedó como orquestador + lista de resultados. `tsc` 0, `lint` 67. Verificado por el usuario ✅.
 > - 🗑️ `common/MyTabBar.tsx` (763) + `features/home/RoutineFabMenu.tsx` (52) = **815 líneas BORRADAS**. Al ir a descomponer `MyTabBar` se descubrió que es **código muerto**: ningún `import`, ningún `tabBar={...}` en los layouts (la app usa el tab bar nativo de los 4 tabs sin FAB central). El FAB viejo fue reemplazado en el rediseño y los archivos quedaron huérfanos. Confirmado por el usuario. `tsc` 0, `lint` 67, `jest` sin regresión. **Lección: verificar uso real ANTES de refactorizar.** Quedan 2 comentarios (en `routine-detail-context.tsx` y `CreateRoutineView.tsx`) + plomería del contexto FAB (`saveRoutineRef`, `setActions`, etc.) escrita pero ya no leída → el usuario la normalizará en una pasada futura del rediseño (no se toca ahora).
-> - 🟢 `onboarding/FitnessConfigStep.tsx` (545 → **378**): wizard de 4 subpasos. Toda la lógica (8 estados + 4 efectos restaurar/cargar-subgoals/cargar-equipo/autosave + handlers + envío) → hook `src/hooks/useFitnessConfigStep.ts` (245). El componente quedó render-only (las 4 pantallas, view-heavy). `tsc` 0, `lint` 67, `jest` 10 fallan (sin regresión). **Hallazgo:** `FitnessConfigStep.test.tsx` está desactualizado (espera texto "Tu objetivo" que el rediseño cambió a "Sub objetivo") → es uno de los 10 tests rotos de base, NO lo rompió este cambio. Pendiente arreglo en Fase 8. Pendiente verificación visual del usuario.
+> - 🟢 `onboarding/FitnessConfigStep.tsx` (545 → **378**): wizard de 4 subpasos. Toda la lógica (8 estados + 4 efectos restaurar/cargar-subgoals/cargar-equipo/autosave + handlers + envío) → hook `src/hooks/useFitnessConfigStep.ts` (245). El componente quedó render-only (las 4 pantallas, view-heavy). `tsc` 0, `lint` 67, `jest` 10 fallan (sin regresión). **Hallazgo:** `FitnessConfigStep.test.tsx` está desactualizado (espera texto "Tu objetivo" que el rediseño cambió a "Sub objetivo") → es uno de los 10 tests rotos de base, NO lo rompió este cambio. Pendiente arreglo en Fase 8. Verificado por el usuario ✅.
+> - 🟢 `routine/RoutineDetailView.tsx` (1059 → **781**): se extrajeron las 3 piezas presentacionales autocontenidas, **SIN tocar el core de animación/gestos/swap** (decisión del usuario): `SwapAwareExerciseItem.tsx` (180, card de ejercicio con pulso propio + `StatCol` + `getExerciseReps`), `ConfirmSuggestionsModal.tsx` (74) y `BlockingWarningModal.tsx` (43). `SkeletonItem` (8 líneas) se dejó inline (no vale un archivo). Limpiados imports colgados (`formatReps`, `ExerciseThumbnail`). `tsc` 0, `lint` 67, `jest` 10 fallan (sin regresión). Verificado por el usuario ✅. **La lógica de swap (~10 estados + handlers + `setActions` + menú contextual) se dejó EN el componente: está muy entretejida con el render/contexto → extracción diferida (caso "complejo" a saltear).**
+> - 🟢 `app/onboarding.tsx` (501 → **122**): máquina de estados completa (16 estados + 3 efectos init/goals/módulos + 5 handlers + `sortModules` + `globalGoalName`) → hook `src/hooks/useOnboardingFlow.ts` (456). La pantalla quedó render-only (llama al hook + renderiza el paso). Extracción limpia (sin refs/layout/contexto, a diferencia de fitness/index). El hook es grande pero es UNA máquina de estados cohesiva. `tsc` 0, `lint` 67, `jest` 10 fallan (sin regresión). Verificado por el usuario ✅.
+> - 🟢 `routine/RoutineEditMode.tsx` (825 → **543**): YA estaba rediseñado (zinc dark, 0 slate) → se procedió. Extraídas las piezas presentacionales autocontenidas SIN tocar el core de drag&drop/animación: `EditExerciseCard.tsx` (121, card + `EditStat`), `StatPickerSheet.tsx` (142, sheet con `WheelPicker` JS + `buildRange`) y `EditDayPickerModal.tsx` (41). Limpiados imports colgados (`MaterialCommunityIcons`, `Swipeable`, `ExerciseThumbnail`, `WeightOption`, `Modal`, `ScrollView`). `tsc` 0, `lint` 67, `jest` 10 fallan (sin regresión). Pendiente verificación visual del usuario (editar rutina manual).
+> - ⏸️ `routine/CreateRoutineView.tsx` (975): DIFERIDO por decisión del usuario (va a rediseñar el estilo primero). Ver nota detallada arriba ("DIFERIDO hasta el rediseño de estilo").
+> - 🟢 `app/(tabs)/fitness/routines.tsx` (414 → **275**): lógica de la pantalla "Mis rutinas" (token + `useMyRoutines` + 6 estados + contexto + 2 useMemo + 11 handlers) → hook `src/hooks/useRoutinesScreen.ts` (218). La pantalla quedó con los render-helpers + `listHeader` + JSX. Menos acoplada que fitness/index (sin refs/measureInWindow). `tsc` 0, `lint` 67, `jest` 10 fallan (sin regresión). Pendiente verificación visual del usuario (lista, filtros, abrir/activar/eliminar rutina).
+> - ⏸️ `hooks/useActiveSession.ts` (513): DIFERIDO/SALTADO por riesgo. Es la máquina de estados de la **sesión activa en vivo** (~18 estados interdependientes + 7 useEffect que son los timers countdown/global/descanso/ejercicio + handlers). Responsabilidad ÚNICA y cohesiva (ya delega audio a `useSessionAudio`). Las deps de los timers ya son delicadas (varios `exhaustive-deps` de base). Partirlo = altísimo riesgo de timers rotos / stale closures para ganancia mínima, con superficie de verificación enorme (correr una sesión completa). **Decisión: NO tocar.**
+>
+> **Cierre de Fase 5:** todos los archivos grandes están resueltos o diferidos a propósito. Pendientes intencionales: `CreateRoutineView` (espera restyle del usuario), `useActiveSession` (muy riesgoso), `routine.service` 464 (cohesivo, 16 funcs API → partir sería artificial), `useOnboardingFlow` 456 (hook cohesivo recién creado).
 
 
 
 **Por qué:** 12 archivos concentran ~7.701 líneas (≈26% del código). Son difíciles de leer, testear y mantener. Se parten en sub-componentes presentacionales + custom hooks (lógica/estado), siguiendo el patrón container/presentational ya usado en el proyecto.
+
+> ### ⏸️ `routine/CreateRoutineView.tsx` (975) — DIFERIDO hasta el rediseño de estilo
+>
+> El usuario va a **rediseñar el estilo** de este archivo primero. Se deja de lado a propósito. **Cuando se llegue a ese momento, el refactor debe contemplar (además del restyle):**
+> 1. **Migración de estilo:** tiene **39 referencias `slate-` + prefijos `dark:`** (theming light/dark viejo). La app es dark-only → migrar a `zinc` directo, sin `dark:`.
+> 2. **Descomposición:** extraer la lógica del formulario a un hook `useCreateRoutineForm` (estado + validación + guardado) y partir el render en sub-componentes por sección (igual patrón que `RoutineEditMode`/`FitnessConfigStep`). Apunta a ≤ 300 líneas.
+> 3. **⚠️ Plomería FAB huérfana:** escribe `saveRoutineRef.current = doSave` e `isFormValidRef.current = isValid` (registro en `routine-detail-context` que el viejo `MyTabBar` leía para el botón "Guardar"). **`MyTabBar` ya se borró** → ese registro ya no lo lee nadie. Al rediseñar hay que **re-cablear el disparador de guardado** (botón propio en la vista, no el FAB del tab bar) y limpiar `saveRoutineRef`/`isFormValidRef`/`isCreatingRoutine` del contexto si ya no se usan. Verificar bien que crear+guardar+activar rutina siga funcionando.
+> 4. **Reutilizar** los átomos extraídos en `RoutineEditMode` (card de ejercicio, pickers) cuando apliquen, para no duplicar.
 
 **Orden sugerido (de más a menos crítico):**
 
@@ -247,14 +263,15 @@ Medido sobre `app/` + `src/` al inicio del plan:
 
 | Métrica | Antes | Después |
 |---------|------:|--------:|
-| Archivos totales | 249 | 236 *(tras Fase 1)* |
-| Líneas totales | ~29.734 | ~29.224 *(tras Fase 1)* |
-| Archivos eliminados (muertos) | — | 13 ✅ |
-| Líneas muertas eliminadas | — | 510 ✅ |
-| Archivos > 400 líneas | 12 | _ (objetivo: 0–2) |
-| Archivos con `console.*` | 38 | 0 ✅ *(solo `logger.ts`)* |
-| `any`/`as any` | 25 | _ |
-| Componentes/hooks nuevos reutilizables | — | _ |
+| Archivos totales | 249 | 248 *(tras Fase 5; −16 muertos, +15 hooks/componentes nuevos)* |
+| Líneas totales | ~29.734 | **~28.573** *(−1.161 netas, pese a sumar 15 archivos nuevos)* |
+| Archivos eliminados (muertos) | — | **16** (13 template + `MyTabBar` + `RoutineFabMenu` + `.bak`) ✅ |
+| Líneas muertas eliminadas | — | **~1.330** ✅ |
+| Archivos > 400 líneas | 12 | 7 (3 hechos con core intacto + 2 cohesivos + 2 diferidos a propósito) |
+| Archivos con `console.*` | 38 | **0** ✅ *(solo `logger.ts`)* |
+| `cssInterop` duplicado | 39 | **1** ✅ *(`icon-interop.ts`)* |
+| Componentes/hooks nuevos reutilizables | — | **15** |
+| `tsc` / `lint` / `jest` | 0 / 95 / 10❌ | **0 / 67 / 10❌** *(sin regresión; lint −28)* |
 
 ---
 

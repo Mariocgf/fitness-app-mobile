@@ -1,7 +1,9 @@
 import { AdaptRoutineModal } from '@/src/components/features/routine/AdaptRoutineModal';
 import { ExerciseDetailView } from '@/src/components/features/routine/ExerciseDetailView';
-import { ExerciseThumbnail } from '@/src/components/features/routine/ExerciseThumbnail';
+import { BlockingWarningModal } from '@/src/components/features/routine/BlockingWarningModal';
+import { ConfirmSuggestionsModal } from '@/src/components/features/routine/ConfirmSuggestionsModal';
 import { RoutineEditMode } from '@/src/components/features/routine/RoutineEditMode';
+import { SwapAwareExerciseItem } from '@/src/components/features/routine/SwapAwareExerciseItem';
 import { SwapCandidateModal } from '@/src/components/features/routine/SwapCandidateModal';
 import {
   BOTTOM_BUTTON_HEIGHT,
@@ -13,7 +15,6 @@ import { translateDay } from '@/src/i18n';
 import { confirmSwapExercises, getSwapSuggestions } from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { HealthWarning, Routine, RoutineDay, RoutineExercise, SwapSuggestionItem, WarningLevel } from '@/src/types/routine';
-import { formatReps } from '@/src/utils/format.utils';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -78,15 +79,6 @@ const getTodayIndex = (sorted: RoutineDay[]): number => {
   const todayKey = dayKeys[new Date().getDay()];
   const idx = sorted.findIndex(d => d.day.toLowerCase().includes(todayKey));
   return idx !== -1 ? idx : 0;
-};
-
-/** Formatea las repeticiones, incluyendo rango min–max cuando aplica */
-const getExerciseReps = (exercise: RoutineExercise): string => {
-  if (exercise.repType === 'Timed') return formatReps(exercise);
-  if (exercise.minRep && exercise.maxRep && exercise.minRep !== exercise.maxRep) {
-    return `${exercise.minRep}–${exercise.maxRep}`;
-  }
-  return exercise.currentRep ?? exercise.minRep ?? '-';
 };
 
 /* ── Tipos exportados ─────────────────────────────────────────────────────── */
@@ -383,20 +375,24 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
       label: string;
       onPress: () => void;
       destructive: boolean;
-    }[] = [
-      {
+    }[] = [];
+
+    // Acciones de entrenamiento: solo aplican sobre la rutina activa (no en la
+    // vista de preview/readOnly de una rutina no activa).
+    if (!readOnly) {
+      items.push({
         icon: 'refresh',
         label: 'Regenerar rutina',
         onPress: () => { close(); onRegenerate(); },
         destructive: false,
-      },
-      {
+      });
+      items.push({
         icon: 'swap-horizontal',
         label: 'Cambiar ejercicios',
         onPress: () => { close(); enterSwapMode(); },
         destructive: false,
-      },
-    ];
+      });
+    }
 
     if (routine.source === 'Manual') {
       items.push({
@@ -436,6 +432,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
     isSwapMode, selectedForSwap.size, loadingItems.size, suggestions,
     onRegenerate, enterSwapMode, requestSuggestions, exitSwapMode,
     routine.source, routine.isActive, onActivate, onDelete, openAdaptModal,
+    readOnly,
   ]);
 
   /* ── Estilos animados ─────────────────────────────────────────────────── */
@@ -498,7 +495,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
             {isGenerating ? '···' : routine.name}
           </Text>
 
-          {!readOnly ? (
+          {menuItems.length > 0 ? (
             <TouchableOpacity
               onPress={() => setIsOptionsOpen(true)}
               className="w-9 h-9 rounded-full bg-white/10 items-center justify-center"
@@ -787,273 +784,3 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
     </Animated.View>
   );
 };
-
-/* ──────────────────────────────────────────────────────────────────────────── */
-/*                          Card de ejercicio                                   */
-/* ──────────────────────────────────────────────────────────────────────────── */
-
-/** Columna de stat: label gris arriba, valor blanco en negrita abajo */
-const StatCol = ({ label, value }: { label: string; value: string }) => (
-  <View className="items-center" style={{ minWidth: 36 }}>
-    <Text className="text-zinc-500 text-[10px] mb-0.5">{label}</Text>
-    <Text className="text-white font-bold text-sm" numberOfLines={1}>{value}</Text>
-  </View>
-);
-
-interface SwapAwareExerciseItemProps {
-  exercise: RoutineExercise;
-  index: number;
-  isSwapMode: boolean;
-  isSelected: boolean;
-  isLoading: boolean;
-  suggestion?: SwapSuggestionItem;
-  pickExerciseId: string | null | undefined;
-  onPress: () => void;
-}
-
-/**
- * Card de ejercicio con awareness del modo swap.
- * Vista normal: número | imagen | nombre + stats (Sets/Reps/Rest).
- * Modo swap: checkbox / loading / sugerencia lista / reemplazo elegido.
- * Los puntos de drag & drop solo se muestran en el editor de rutinas.
- */
-const SwapAwareExerciseItem: React.FC<SwapAwareExerciseItemProps> = ({
-  exercise,
-  index,
-  isSwapMode,
-  isSelected,
-  isLoading,
-  suggestion,
-  pickExerciseId,
-  onPress,
-}) => {
-  const pulse = useSharedValue(0);
-  useEffect(() => {
-    if (isLoading) {
-      pulse.value = 0;
-      pulse.value = withRepeat(
-        withTiming(1, { duration: 900, easing: Easing.inOut(Easing.ease) }),
-        -1,
-        true,
-      );
-    } else {
-      pulse.value = withTiming(0, { duration: 200 });
-    }
-  }, [isLoading]);
-
-  const pulseStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(pulse.value, [0, 1], [0.35, 1]),
-  }));
-
-  const isReady = !!suggestion;
-  const hasPickedReplacement = isReady && pickExerciseId != null;
-  const pickedCandidate = hasPickedReplacement
-    ? suggestion!.candidates.find(c => c.exerciseId === pickExerciseId)
-    : null;
-
-  const gifUrl = (pickedCandidate?.gifUrl ?? exercise.gifUrl) as string | null;
-
-  const borderClass =
-    isLoading || isReady || isSelected ? 'border-lime-400' : 'border-white/10';
-
-  return (
-    <View className="relative mb-3">
-      {/* Borde pulsante mientras carga */}
-      {isLoading && (
-        <Animated.View
-          pointerEvents="none"
-          style={pulseStyle}
-          className="absolute inset-0 rounded-2xl border-2 border-lime-400 z-10"
-        />
-      )}
-
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={onPress}
-        className={`flex-row bg-zinc-900 rounded-2xl border items-center gap-3 p-3 ${borderClass}`}
-      >
-        {/* Número de orden */}
-        <Text className="text-zinc-600 font-bold text-sm w-5 text-center">
-          {index + 1}
-        </Text>
-
-        {/* GIF / imagen */}
-        <ExerciseThumbnail uri={gifUrl} size={64} />
-
-        {/* Nombre + sub-línea de estado en swap */}
-        <View className="flex-1">
-          <Text
-            className={`font-bold text-sm mb-0.5 ${
-              pickedCandidate ? 'text-zinc-500 line-through' : 'text-white'
-            }`}
-            numberOfLines={2}
-          >
-            {exercise.name}
-          </Text>
-
-          {/* Sub-líneas en modo swap */}
-          {isLoading && (
-            <View className="flex-row items-center gap-1.5">
-              <ActivityIndicator size="small" color="#a3e635" />
-              <Text className="text-lime-400 text-xs font-semibold">
-                Buscando sugerencia…
-              </Text>
-            </View>
-          )}
-
-          {!isLoading && isReady && pickedCandidate && (
-            <View className="flex-row items-center gap-1">
-              <Ionicons name="arrow-forward" size={12} className="text-lime-400" />
-              <Text className="text-lime-400 text-xs font-semibold" numberOfLines={1}>
-                {pickedCandidate.name}
-              </Text>
-            </View>
-          )}
-
-          {!isLoading && isReady && !pickedCandidate && (
-            <View className="flex-row items-center gap-1">
-              <Ionicons name="sparkles" size={12} className="text-lime-400" />
-              <Text className="text-lime-400 text-xs font-semibold">
-                Sugerencia lista — tocá para elegir
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Lado derecho: stats (modo normal) o indicador swap */}
-        {isSwapMode ? (
-          isLoading ? null : isReady ? (
-            <Ionicons
-              name={hasPickedReplacement ? 'checkmark-circle' : 'sparkles'}
-              size={22}
-              className="text-lime-500"
-            />
-          ) : (
-            <View
-              className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
-                isSelected ? 'bg-lime-400 border-lime-400' : 'border-zinc-600'
-              }`}
-            >
-              {isSelected && <Ionicons name="checkmark" size={14} className="text-black" />}
-            </View>
-          )
-        ) : (
-          <View className="flex-row gap-4">
-            <StatCol label="Sets" value={exercise.sets} />
-            <StatCol label="Reps" value={getExerciseReps(exercise)} />
-            <StatCol label="Rest" value={exercise.rest} />
-          </View>
-        )}
-      </TouchableOpacity>
-    </View>
-  );
-};
-
-/* ──────────────────────────────────────────────────────────────────────────── */
-/*                     Modal de confirmación previa al swap                     */
-/* ──────────────────────────────────────────────────────────────────────────── */
-
-interface ConfirmSuggestionsModalProps {
-  mode: 'standard' | 'ai' | null;
-  count: number;
-  onCancel: () => void;
-  onConfirm: () => void;
-}
-
-const ConfirmSuggestionsModal: React.FC<ConfirmSuggestionsModalProps> = ({
-  mode,
-  count,
-  onCancel,
-  onConfirm,
-}) => {
-  const isAi = mode === 'ai';
-  return (
-    <Modal visible={mode !== null} transparent animationType="fade" onRequestClose={onCancel}>
-      <View className="flex-1 bg-black/60 items-center justify-center p-6">
-        <View className="w-full max-w-md bg-zinc-900 rounded-3xl p-6">
-          <View className="items-center mb-4">
-            <View
-              className={`w-14 h-14 rounded-full items-center justify-center mb-3 ${
-                isAi ? 'bg-purple-500/15' : 'bg-lime-500/15'
-              }`}
-            >
-              <Ionicons
-                name={isAi ? 'sparkles' : 'swap-horizontal'}
-                size={28}
-                className={isAi ? 'text-purple-500' : 'text-lime-500'}
-              />
-            </View>
-            <Text className="text-white text-xl font-bold text-center">
-              {isAi ? 'Sugerencias con IA' : 'Sugerencias automáticas'}
-            </Text>
-          </View>
-
-          <Text className="text-zinc-400 text-sm leading-5 mb-6 text-center">
-            Vas a solicitar reemplazos para{' '}
-            <Text className="font-bold text-white">{count}</Text>{' '}
-            {count === 1 ? 'ejercicio' : 'ejercicios'}.
-            {isAi
-              ? ' La IA analizará tu perfil y elegirá los mejores candidatos. No se aplican cambios todavía: vas a poder elegir el reemplazo final.'
-              : ' Vamos a buscar reemplazos compatibles con tu equipamiento y condiciones de salud. No se aplican cambios todavía: vas a poder elegir el reemplazo final.'}
-          </Text>
-
-          <View className="flex-row gap-3">
-            <Pressable
-              onPress={onCancel}
-              className="flex-1 py-3 rounded-2xl bg-zinc-800 items-center"
-            >
-              <Text className="text-white font-semibold">Cancelar</Text>
-            </Pressable>
-            <Pressable
-              onPress={onConfirm}
-              className={`flex-1 py-3 rounded-2xl items-center ${isAi ? 'bg-purple-500' : 'bg-lime-400'}`}
-            >
-              <Text className={`font-semibold ${isAi ? 'text-white' : 'text-black'}`}>
-                Continuar
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-/* ──────────────────────────────────────────────────────────────────────────── */
-/*                   Modal bloqueante para warnings High                        */
-/* ──────────────────────────────────────────────────────────────────────────── */
-
-interface BlockingWarningModalProps {
-  payload: { warnings: HealthWarning[]; level: WarningLevel } | null;
-  onAcknowledge: () => void;
-}
-
-const BlockingWarningModal: React.FC<BlockingWarningModalProps> = ({ payload, onAcknowledge }) => (
-  <Modal visible={!!payload} transparent animationType="fade" onRequestClose={onAcknowledge}>
-    <View className="flex-1 bg-black/70 items-center justify-center p-6">
-      <View className="w-full max-w-md bg-zinc-900 rounded-3xl p-6">
-        <View className="items-center mb-4">
-          <View className="w-14 h-14 rounded-full bg-red-500/15 items-center justify-center mb-3">
-            <Ionicons name="warning" size={30} className="text-red-500" />
-          </View>
-          <Text className="text-white text-xl font-bold text-center">
-            Atención: condiciones de salud
-          </Text>
-        </View>
-
-        <ScrollView className="mb-6 max-h-60">
-          {payload?.warnings.map((w, i) => (
-            <View key={i} className="mb-3">
-              <Text className="text-white font-semibold text-sm mb-1">{w.condition}</Text>
-              <Text className="text-zinc-400 text-xs leading-5">{w.message}</Text>
-            </View>
-          ))}
-        </ScrollView>
-
-        <Pressable onPress={onAcknowledge} className="py-3 rounded-2xl bg-red-500 items-center">
-          <Text className="text-white font-semibold">Entendido, ver sugerencias</Text>
-        </Pressable>
-      </View>
-    </View>
-  </Modal>
-);

@@ -6,7 +6,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Alert, Platform, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import AppleLightIcon from '@/assets/svg/Apple_light.svg';
+import AppleIcon from '@/assets/svg/Apple_dark.svg';
 import GoogleIcon from '@/assets/svg/google.svg';
 import { GradientText } from '@/src/components/common/GradientText';
 import { SocialAuthButton } from '@/src/components/features/auth/SocialAuthButton';
@@ -114,8 +114,8 @@ export default function LoginScreen() {
           {Platform.OS === 'ios' && (
             <SocialAuthButton
               label="Continuar con Apple"
-              icon={<AppleLightIcon width={20} height={20} />}
-              variant="light"
+              icon={<AppleIcon width={20} height={20} />}
+              variant="dark"
               onPress={() => onSocialLoginPress('oauth_apple')}
             />
           )}
