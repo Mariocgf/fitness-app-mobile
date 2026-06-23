@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import CheckableCard from '@/src/components/common/CheckableCard';
 import SectionCard from '@/src/components/common/SectionCard';
+import { useUnsavedChangesGuard } from '@/src/hooks/useUnsavedChangesGuard';
 import {
   getFitnessSubGoal,
   getSubGoals,
@@ -20,22 +21,17 @@ cssInterop(Ionicons, {
 });
 
 interface FitnessSubGoalConfigProps {
+  /** Vuelve a la lista del módulo tras guardar (la ruta lo cablea a `router.back()`) */
   onBack: () => void;
-  onRegisterBackHandler?: (fn: (() => void) | null) => void;
 }
 
 /**
- * Sub-pantalla para editar el subobjetivo principal de Fitness.
+ * Sub-pantalla para editar el subobjetivo principal de Fitness (ruta `/profile/fitness-subgoal`).
  */
-export default function FitnessSubGoalConfig({
-  onBack,
-  onRegisterBackHandler,
-}: FitnessSubGoalConfigProps) {
+export default function FitnessSubGoalConfig({ onBack }: FitnessSubGoalConfigProps) {
   const { getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
-  const onRegisterBackHandlerRef = useRef(onRegisterBackHandler);
-  onRegisterBackHandlerRef.current = onRegisterBackHandler;
   const insets = useSafeAreaInsets();
 
   const [subGoals, setSubGoals] = useState<SubGoal[]>([]);
@@ -82,27 +78,10 @@ export default function FitnessSubGoalConfig({
     [selectedSubGoalId, initialSubGoalId]
   );
 
-  const backHandlerRef = useRef<() => void>(() => {});
-  backHandlerRef.current = () => {
-    if (!hasChanges) {
-      onBack();
-      return;
-    }
-
-    Alert.alert(
-      'Cambios sin guardar',
-      'Tu cambio de subobjetivo no se guardó. ¿Querés salir de todas formas?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Salir sin guardar', style: 'destructive', onPress: onBack },
-      ]
-    );
-  };
-
-  useEffect(() => {
-    onRegisterBackHandlerRef.current?.(() => backHandlerRef.current());
-    return () => onRegisterBackHandlerRef.current?.(null);
-  }, []);
+  useUnsavedChangesGuard(
+    hasChanges,
+    'Tu cambio de subobjetivo no se guardó. ¿Querés salir de todas formas?'
+  );
 
   const handleSave = async () => {
     if (!selectedSubGoalId) {

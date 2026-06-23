@@ -1,17 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React from 'react';
-import { Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, useWindowDimensions, View } from 'react-native';
 
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
-
-import InputCard from '@/src/components/common/InputCard';
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
 import OnboardingHeader from '@/src/components/common/OnboardingHeader';
 import ProgressBar from '@/src/components/common/ProgressBar';
-import RulerPicker from '@/src/components/common/RulerPicker';
+import WheelPicker from '@/src/components/common/WheelPicker';
 
 /** Total de pasos del onboarding básico */
 const TOTAL_ONBOARDING_STEPS = 3;
@@ -26,8 +20,11 @@ interface BasicInfoStep2Props {
 }
 
 /**
- * Paso 2 del onboarding: Peso y Altura usando RulerPicker.
- * Diseño según colores de colors.md.
+ * Paso 2 del onboarding: Peso y Altura con wheel nativo.
+ * Dark-only zinc neutro (onboarding no es módulo → "resto de la UI" en colors.md,
+ * mismo criterio que el paso 1 y login/Perfil). El azul de la maqueta no se
+ * traduce a un acento de módulo. El back se resuelve por swipe (SwipeBackWrapper
+ * en onboarding.tsx), como en la maqueta que no dibuja botón de retroceso.
  */
 export default function BasicInfoStep2({
   weight,
@@ -35,33 +32,20 @@ export default function BasicInfoStep2({
   height,
   onHeightChange,
   onContinue,
-  onBack,
 }: BasicInfoStep2Props) {
-  return (
-    <View className="flex-1 bg-slate-100 dark:bg-slate-950">
-      {/* Barra de progreso - paso 1 */}
-      <ProgressBar currentStep={1} totalSteps={TOTAL_ONBOARDING_STEPS} />
+  const { height: screenHeight } = useWindowDimensions();
+  /**
+   * Alto del wheel calculado para que las dos cards (Peso + Altura) entren en
+   * pantalla sin scroll: se descuenta el chrome aproximado (progress, header,
+   * footer, paddings) y se reparte el resto entre los dos wheels. Acotado para
+   * que no quede ni minúsculo ni gigante.
+   */
+  const wheelHeight = Math.max(96, Math.min(160, (screenHeight - 580) / 2));
 
-      {/* Botón Atrás */}
-      <View className="px-6">
-        <TouchableOpacity
-          onPress={onBack}
-          className="flex-row items-center py-2 -ml-1 self-start"
-          activeOpacity={0.6}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons
-            name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
-            size={Platform.OS === 'ios' ? 28 : 24}
-            className="text-slate-950 dark:text-slate-50"
-          />
-          {Platform.OS === 'ios' && (
-            <Text className="text-lg text-slate-900 dark:text-slate-50 -ml-1">
-              Atrás
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
+  return (
+    <View className="flex-1 bg-zinc-950">
+      {/* Indicador de progreso original (no los círculos numerados de la maqueta) */}
+      <ProgressBar currentStep={1} totalSteps={TOTAL_ONBOARDING_STEPS} />
 
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
@@ -69,45 +53,48 @@ export default function BasicInfoStep2({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="pt-2">
+        <View className="pt-3">
           <OnboardingHeader
-            title={"Datos\nbásicos"}
-            subtitle="Necesitamos algunos datos para personalizar tu experiencia Wellium."
+            title="Datos físicos"
+            subtitle="Necesitamos esta información para calcular tus necesidades energéticas y personalizar tus planes."
+            centered
           />
 
           {/* Card: Peso */}
-          <InputCard className="mb-4">
-            <RulerPicker
+          <View className="bg-zinc-900 rounded-3xl p-4 mb-3">
+            <WheelPicker
               label="Peso"
               min={30}
               max={200}
-              initial={weight}
+              value={weight}
               unit="kg"
-              onValueChange={onWeightChange}
+              onChange={onWeightChange}
+              wheelHeight={wheelHeight}
             />
-          </InputCard>
+          </View>
 
           {/* Card: Altura */}
-          <InputCard>
-            <RulerPicker
+          <View className="bg-zinc-900 rounded-3xl p-4">
+            <WheelPicker
               label="Altura"
               min={100}
               max={220}
-              initial={height}
+              value={height}
               unit="cm"
-              onValueChange={onHeightChange}
+              onChange={onHeightChange}
+              wheelHeight={wheelHeight}
             />
-          </InputCard>
+          </View>
         </View>
       </ScrollView>
 
       <OnboardingFooter
         onPress={onContinue}
         buttonLabel="Continuar"
-        helperText="Usaremos estos datos para darte planes más personalizados"
+        helperText="Podrás modificar estos datos más adelante."
         helperIcon={
-          <View className="w-10 h-10 rounded-lg bg-white dark:bg-slate-800 items-center justify-center border border-slate-200 dark:border-slate-800">
-            <Ionicons name="sparkles-outline" size={20} className="text-slate-500 dark:text-slate-400" />
+          <View className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 items-center justify-center">
+            <Ionicons name="information-circle-outline" size={20} color="#a1a1aa" />
           </View>
         }
       />

@@ -91,7 +91,25 @@ Card del plan nutricional. Conectado al `NutritionRoutineContext`. Tiene estados
 
 ### `SectionCard`
 
-Wrapper de card genérico con `bg-white dark:bg-slate-900 border rounded-2xl`. Usar para contenedores de sección sin lógica propia.
+Card de sección dark-only (`bg-zinc-900 rounded-2xl border-zinc-800`) con **círculo de ícono** (`zinc-800`) + título + subtítulo arriba y `children` debajo. Usar para envolver un control (buscador, lista de opciones) con encabezado en onboarding/perfil. Props: `icon` (ReactNode), `title`, `subtitle`, `children`, `className?`. Migrada de `slate` a `zinc` (la comparten onboarding Nutrición/Fitness y los configs de perfil).
+
+### `EquipmentSelectedList`
+
+**Átomo.** Lista los ítems elegidos CON CANTIDAD (dark-only `zinc`): encabezado `Etiqueta (N)` + "Borrar todas" opcional y una fila por ítem con nombre, `QuantityStepper` (−/+, mínimo 1) y botón de papelera para quitarlo. Si no hay ítems, no renderiza nada. **Reutilizar SIEMPRE** para mostrar equipamiento elegido con cantidad en vez de copiar el bloque fila + stepper + papelera (estaba duplicado en onboarding Fitness y perfil). El equivalente SIN cantidad (solo quitar) lo cubre la lista de seleccionados embebida en `SearchableSelect`.
+
+> **Nota:** existió un átomo `SelectedItemList` (lista de seleccionados SIN cantidad, botón circular para quitar) que usaban `NutritionAllergyStep` y `NutritionDietStyleStep`. Al migrar ambos a `SearchableSelect` (que ya trae su propia lista de seleccionados embebida) quedó huérfano → se borró.
+
+**Props:** `items: {id,name,qty}[]`, `onChangeQty: (id, qty) => void`, `onRemove: (id) => void`, `onClearAll?: () => void`, `accent?` (`lime`/`amber`/`mono`, default `mono`), `label?` (default `'Seleccionadas'`), `maxQty?` (default 99). El `onChangeQty` llega con la cantidad ya acotada a `[1, maxQty]`; quitar es responsabilidad de la papelera (el `−` se deshabilita en 1).
+
+**En uso:** `FitnessConfigStep` (onboarding subStep 3, `lime`), `EquipmentConfig` (perfil, `lime`).
+
+### `EquipmentSelect`
+
+**Buscador de equipamiento** (dark-only `zinc`): input con **lupa a la izquierda** + dropdown absoluto de resultados (excluye los ya seleccionados, filtra por query). **Solo busca y agrega**; la lista de seleccionados con cantidad la pone el consumidor con `EquipmentSelectedList`. Migrado de `slate` a `zinc`; se borró la lista interna de seleccionados (el viejo prop `showSelectedList`, que ambos consumidores pasaban en `false` → era código muerto).
+
+**Props:** `equipments: Equipment[]`, `selectedEquipment: EquipmentSelection[]`, `onSelectionChange: (items) => void`, `placeholder?`.
+
+**En uso:** `FitnessConfigStep` (onboarding subStep 3), `EquipmentConfig` (perfil).
 
 ### `InputCard`
 
@@ -99,11 +117,27 @@ Card con input interno. Usar para formularios dentro de cards (ej. registro de m
 
 ### `CheckableCard`
 
-Card seleccionable con checkbox. Usar para listas de opciones donde se puede marcar/desmarcar.
+Card de lista seleccionable con indicador a la derecha. Tiene dos `variant`:
+- **`fill`** (default): seleccionado = relleno invertido (`zinc-50`) + check oscuro. En uso: `FitnessSubGoalConfig` (perfil).
+- **`radio`**: card siempre `bg-zinc-900`; seleccionado = **borde + check del acento** (`checkmark-circle`), no seleccionado = círculo vacío (`zinc-600`), label blanco. Estilo de la maqueta de onboarding (eyebrow + pregunta + lista). Sirve para selección única o múltiple (el indicador es solo visual; la lógica la pone el padre). En uso: `FitnessConfigStep` (subStep 0 actividad y subStep 1 sub-objetivos, `lime`), `NutritionSubGoalStep` y `NutritionActivityLevelStep` (`amber`).
+
+**Props:** `isSelected`, `label`, `description?`, `onPress`, `variant?` (`fill`/`radio`), `accent?` (`lime`/`amber`/`mono`, default `mono`; solo aplica en `radio`).
+
+### `FieldSection`
+
+**Átomo.** Encabezado de sección de formulario **sin card** (dark-only `zinc`): etiqueta superior en mayúsculas (eyebrow `text-zinc-500 tracking-widest`) + pregunta (`text-lg text-white`) y, debajo, el control (`children`). Es la versión **sin chrome** de `SectionCard` (que sí envuelve en card con círculo de ícono). **Reutilizar SIEMPRE** en pasos de onboarding/perfil donde la maqueta muestra el campo "al aire" (eyebrow + pregunta + control) en vez de copiar el bloque `<Text uppercase/><Text/><control/>`.
+
+**Props:** `eyebrow: string`, `question: string`, `children`, `className?`.
+
+**En uso:** `FitnessConfigStep` (subStep 0 y subStep 1), `NutritionSubGoalStep`, `NutritionActivityLevelStep`.
 
 ### `SelectableCard`
 
-Card con selección única (radio). Usar en pasos de onboarding y configuración de módulos.
+Card con selección única (radio). Usar en pasos de onboarding y configuración de módulos. Tiene dos `variant`:
+- **`filled`** (default): opciones cortas en grid, seleccionado = relleno invertido (`zinc-50`), centrado. En uso: `FitnessConfigStep` (Duración — "Tengo tiempo"/"Elegir tiempo", `size="auto"`).
+- **`outline`**: lista de **items tipo maqueta** (card `zinc-900 rounded-2xl`, título uppercase + descripción opcional a la izquierda, selección por **borde** `zinc-100`). Dark-only zinc neutro. En uso: `BasicInfoStep3` (objetivos — solo título, `Goal` no trae descripción).
+
+**Props:** `isSelected`, `label`, `description?`, `onPress`, `size?` (`full`/`half`/`auto`), `textSize?` (`sm`/`base`), `variant?` (`filled`/`outline`), `align?` (`center`/`left`). `brandColor?` quedó legacy (sin uso en el render).
 
 ### `ProgressBar`
 
@@ -116,6 +150,14 @@ Barra de progreso horizontal. Props: `progress: number (0–1)`, `className?`.
 **Props:** `progress: number`, `accent?: 'amber' | 'lime' | 'mono'` (default `amber`), `heightClassName?` (default `'h-2'`), `className?` (clases extra del track, ej. `'w-full'`).
 
 **En uso:** `MacroProgressRow` (barra de macro del Resumen), `MacroBreakdownCard` (columnas del detalle de comida).
+
+### `GradientText`
+
+**Átomo.** Texto con relleno de gradiente, vía `MaskedView` (forma del texto) + `LinearGradient` (color). Un `Text` interno invisible le da las dimensiones al área del gradiente. Funciona en Expo Go (`@react-native-masked-view/masked-view` es parte del SDK de Expo, no requiere prebuild). El gradiente **default es plata neutro** (`zinc-50 → zinc-300 → zinc-500`): da profundidad sin salirse de la paleta zinc. **Reutilizar SIEMPRE** en vez de cablear MaskedView + LinearGradient inline.
+
+**Props:** `children: string`, `className?` (tipografía: tamaño/peso/leading/tracking — el color lo aporta el gradiente), `colors?` (default plata zinc), `start?`/`end?` (dirección, default diagonal `{0,0}→{1,1}`).
+
+**En uso:** `app/login.tsx` (palabra "Evoluciona." del título de bienvenida, con `colors` violeta→índigo→azul `['#c4b5fd','#818cf8','#3b82f6']` — override del default plata porque el plata quedó muy sutil; sobre `zinc-950` el violeta-azul resalta sin recargar).
 
 ### `IconTile`
 
@@ -137,19 +179,33 @@ Sheet modal dark-only que sube desde abajo (`bg-zinc-950 rounded-t-3xl`, backdro
 
 ### `SearchableSelect`
 
-Input con búsqueda y lista desplegable. Usar para selección de ejercicios, alimentos, etc.
+**Card reutilizable de búsqueda + selección de ítems** (dark-only `zinc`, rediseñada desde la maqueta "Datos de salud"). **Una sola card** (`bg-zinc-900 rounded-3xl border-zinc-800`) que contiene: título opcional, buscador con **lupa a la izquierda** (sin chevron) y, debajo, los ítems **seleccionados** listados con divisores y un **botón circular** (`border-zinc-600`) para quitar cada uno. Al escribir, abre un dropdown absoluto de resultados. Reemplaza al diseño viejo de dos cards separadas (buscador + chips de seleccionados) y fusiona todo en una. **Reutilizar SIEMPRE** para buscar + seleccionar ítems de un catálogo en vez de copiar el patrón input + lista.
+
+> **Punto de color de severidad:** cada ítem muestra un dot por `severity` (`Low` teal / `Medium` orange / `High` red). La maqueta no lo dibuja, pero se conserva como dato real de gravedad (no es el acento del módulo). El **acento de módulo lo aporta el consumidor** (footer/spinner): este átomo es **neutro zinc** para reutilizarse en cualquier módulo.
+
+**Props:** `items: SelectableItem[]`, `selectedIds: string[]`, `onSelectionChange: (ids) => void`, `placeholder?`, `cardTitle?` (título bold; si falta no hay header), `cardSubtitle?`, `cardIconName?` (Ionicons; si se pasa muestra un círculo `zinc-800` a la izquierda — el onboarding NO lo pasa para igualar la maqueta).
+
+> **Tipo de ítem genérico:** acepta `SelectableItem` (`{ id, name, severity? }`), NO el `HealthItem` del dominio de Salud. `severity` es **opcional**: los ítems de Salud la traen (dot de color por gravedad), los de Nutrición (alergias) no, y el dot cae a gris neutro. Esto mantiene al átomo desacoplado de Salud y reutilizable en cualquier módulo (`HealthItem` y `NutritionItem` son ambos asignables a `SelectableItem`).
+
+**En uso:** `HealthConfigStep` (onboarding Salud, sin ícono/subtítulo), `InjuriesConfig`/`ConditionsConfig` (perfil, con ícono + subtítulo), `NutritionAllergyStep` y `NutritionDietStyleStep` (onboarding Nutrición, ítems sin severidad → dot neutro).
 
 ### `TagSelect`
 
-Selector de tags múltiples (chips). Usar para filtros y configuración multi-opción.
+Selector de tags múltiples con buscador + dropdown (dark-only `zinc`). Input `bg-zinc-950 border-zinc-800` (focus `border-zinc-600`), dropdown `bg-zinc-800` y, si `showSelectedList` (default `true`), chips `bg-zinc-800 border-zinc-600`. Migrado de `slate` a `zinc`. En onboarding Nutrición se pasa `showSelectedList={false}` y la selección se muestra con `SelectedItemList` (filas) en vez de chips. Props: `items`, `selectedIds`, `onSelectionChange`, `placeholder?`, `showSelectedList?`.
+
+> **Nota:** `TagSelect` (items `{id,name}`) y `SearchableSelect` (items `HealthItem` con severidad) comparten la misma mecánica de buscador. No se unificaron porque difieren en el tipo de ítem y en el render de la selección (chips/filas vs. card fusionada). Si aparece un 3.º consumidor con las mismas necesidades, recién ahí conviene unificarlos.
 
 ### `SegmentedControl`
 
-Control segmentado dark-only (estilo iOS) para toggles de 2-4 opciones excluyentes y cortas. Contenedor `bg-zinc-900 border-zinc-800 rounded-xl p-1`; el segmento activo se resalta en `bg-zinc-800` con el texto del acento. Los segmentos son `flex-1` (ancho igual). **Genérico** sobre el tipo del `value` (`<T extends string>`). Reutilizar SIEMPRE para toggles tipo IA/Manual o selectores de comida en vez de copiar `TouchableOpacity` con ternarios de fondo.
+Control segmentado dark-only (estilo iOS) para toggles/selectores de 2-4 opciones excluyentes y cortas. Contenedor `bg-zinc-900 border-zinc-800 rounded-xl p-1`, segmentos `flex-1` (ancho igual). **Genérico** sobre el tipo del `value` (`<T extends string>`). Dos `variant` para el segmento activo:
+- **`subtle`** (default): resalte tenue `bg-zinc-800` + **texto** del acento. Para toggles tipo IA/Manual.
+- **`solid`**: **relleno completo** del acento (`bg-lime/amber/zinc-50`) + texto `zinc-900`. Para selectores tipo maqueta de onboarding (ej. nivel de experiencia).
 
-**Props:** `options: { label: string; value: T }[]`, `value: T`, `onChange: (value: T) => void`, `accent?: 'lime' | 'amber' | 'mono'` (default `mono`, define el color del texto activo).
+Reutilizar SIEMPRE en vez de copiar `TouchableOpacity` con ternarios de fondo.
 
-**En uso:** biblioteca de rutinas de Fitness (`app/(tabs)/fitness/index.tsx`, toggle IA/Manual, `lime`); selector de comida en `FoodRegisterView` (Desayuno/Almuerzo/Merienda/Cena, `amber`).
+**Props:** `options: { label: string; value: T }[]`, `value: T`, `onChange: (value: T) => void`, `accent?: 'lime' | 'amber' | 'mono'` (default `mono`), `variant?: 'subtle' | 'solid'` (default `subtle`).
+
+**En uso:** biblioteca de rutinas de Fitness (`app/(tabs)/fitness/index.tsx`, IA/Manual, `lime` subtle); selector de comida en `FoodRegisterView` (`amber` subtle); `BasicInfoStep1` (género, `mono` subtle); nivel de experiencia en `FitnessConfigStep` subStep 0 (`lime` **solid**).
 
 **Cuándo NO usar:** chips redondeados independientes (usar `SelectablePill`), selección con scroll horizontal, o labels largos que no entran en `flex-1` (más de ~4 opciones).
 
@@ -159,9 +215,23 @@ Control segmentado dark-only (estilo iOS) para toggles de 2-4 opciones excluyent
 
 **Props:** `value: number`, `onChange: (value: number) => void`, `step?` (default 5), `min?` (default 0), `max?` (default 9999), `unit?` (default `'g'`), `accent?: 'amber' | 'lime' | 'mono'` (default `amber`). El `onChange` ya llega acotado a `[min, max]`.
 
-**En uso:** `ConsumedFoodCard` (gramos del alimento, `step` 5, `min` 1, `max` 2000).
+**En uso:** `ConsumedFoodCard` (gramos del alimento, `step` 5, `min` 1, `max` 2000); `EquipmentSelectedList` (cantidad de equipamiento, `step` 1, `min` 1, sin unidad, `accent="lime"`).
 
 **Cuándo NO usar:** edición de valor preciso con arrastre fino (usar `RulerPicker`).
+
+### `WheelPicker`
+
+**Átomo.** Selector de valor numérico con el control **NATIVO del SO**: en **iOS** es un wheel vertical girable (`UIPickerView`), en **Android** un dropdown/diálogo nativo (Android stock no tiene wheel girable). Muestra la etiqueta + el valor grande arriba (`text-5xl` blanco + unidad `zinc-400`) y debajo el wheel; en iOS resalta la fila central (`zinc-800 rounded-xl`), con divisor vertical y columna de unidad a la derecha. **Reutilizar SIEMPRE** para elegir un número de un rango (peso, altura, edad…) en vez de cablear `Picker` + display de valor inline.
+
+> **Por qué nativo y no un wheel JS:** al ser un componente nativo, no pelea con el responder system del `ScrollView` padre. Un wheel JS (ScrollView vertical con snap) entraría en **conflicto de gesto** con el scroll vertical de la página (lección documentada en `agent-implementation-lessons.md`). El `RulerPicker` evita ese conflicto por ser horizontal; este lo evita por ser nativo.
+
+**Props:** `label`, `value: number`, `onChange: (value: number) => void`, `min`, `max`, `step?` (default 1), `unit`, `wheelHeight?` (alto del wheel en iOS, default 180 — bajarlo para que entren varios en pantalla), `accent?: 'lime' | 'amber' | 'mono'` (default `mono`; tiñe el **valor grande** con el color del módulo — la unidad sigue tenue `zinc-400` en `mono`).
+
+> **Ojo con el gesto:** el wheel nativo **captura el pan vertical**, así que NO se puede scrollear la página arrastrando sobre él. Si hay 2+ wheels, calculá `wheelHeight` para que TODO entre en pantalla sin scroll (ver `BasicInfoStep2`, que lo computa responsive). Documentado en `agent-implementation-lessons.md`.
+
+**En uso:** `BasicInfoStep2` (onboarding: Peso 30–200 kg, Altura 100–220 cm); `FitnessConfigStep` (onboarding subStep 2: Duración por sesión 15–120 min, `accent="lime"`, solo cuando se elige "Elegir tiempo").
+
+**Cuándo NO usar:** ajuste fino con arrastre tipo regla horizontal (usar `RulerPicker`), o cantidades con `−/+` (usar `QuantityStepper`).
 
 ### `SelectablePill`
 
@@ -175,7 +245,11 @@ Chip seleccionable (píldora) dark-only: `rounded-full border` + texto. Estructu
 
 ### `WeekDayPicker`
 
-Selector de días de la semana. Usado en la creación/edición de rutinas.
+Selector de días de la semana con **pills circulares** (`rounded-full`, dark-only `zinc`, rediseñado desde la maqueta de onboarding Fitness). Seleccionado = círculo `bg-zinc-900` con **borde + texto del acento**; sin seleccionar = `bg-zinc-900 border-zinc-800` + texto `zinc-400`. Todos los días se tratan igual (se quitó la distinción de fin de semana rojo de la versión slate vieja: la maqueta no la usa). **Reutilizar SIEMPRE** para elegir días de la semana en vez de copiar la fila de `TouchableOpacity` circulares.
+
+**Props:** `days: { value: number; label: string; isWeekend?: boolean }[]` (`isWeekend` queda por compatibilidad con `WEEKDAY_OPTIONS`, ya no afecta el estilo), `selectedDays: number[]`, `onChange: (days) => void`, `accent?: 'lime' | 'amber' | 'mono'` (default `mono`).
+
+**En uso:** `FitnessConfigStep` (onboarding subStep 2, `lime`), `FitnessTrainingPreferencesConfig` (perfil, `lime`).
 
 ### `BackButton`
 
@@ -338,27 +412,49 @@ Módulo dark-only `zinc` con acento `rose-400` (`colors.md` → Salud). Rediseñ
 | `BodyMetricTrendCard` | **Card de tendencia por métrica** (`bg-zinc-900 rounded-3xl`). Nombre + "Último valor" a la izquierda, valor grande + unidad a la derecha, **sparkline SVG** (`react-native-svg`, línea `rose-400` con **puntos en los extremos**) y fila inferior `fechaInicio · cambio · fechaFin`. El cambio es texto plano `zinc-500` con signo `−/+` (sin pill ni color, según la maqueta); el detalle del % se quitó. |
 | `MeasurementHistoryCard` | Card compacta del historial (barra lateral `rose-400`, fecha + resumen). `zinc`/`rose`. |
 | `MeasurementHistorySection` | Lista de hasta 4 mediciones recientes + CTA `rose-400` "Ver historial completo". `zinc`/`rose`. |
+| `MeasurementDetailView` | **Vista de detalle de una medición** (`/health/[id]`, dark `zinc`/`rose-400`, rediseñada desde la maqueta). Header back circular (`bg-zinc-900`, chevron `rose-400`) + título + botón "Comparar" outline (`border-zinc-700`, ícono `analytics-outline` rose). Bloque de fecha con `calendar-outline` rose + fecha grande + "Registrado a las HH:MM" (solo hora, `formatCapturedTime`). Card "Composición corporal" (reusa `BodyCompositionColumns`) y card "Medidas perimetrales" con filas `label · · · · valor cm` (**leader punteado**: `border-b border-dotted border-zinc-700 flex-1`). `PerimeterRow` es subcomponente local. Solo renderiza columnas/filas con dato real (no inventa). `paddingBottom` del scroll suma `TAB_BAR_HEIGHT` + `insets.bottom` (vive en `(tabs)`, tab bar nativo encima). Props: `measurement`, `onBack`, `onPressCompare?`. |
+| `BodyCompositionColumns` | **Átomo.** Fila de columnas de composición corporal (Peso/Grasa/Masa magra) separadas por divisores verticales `zinc-800`: etiqueta `zinc-400` arriba, valor `white text-3xl` + unidad abajo. **Reutilizar SIEMPRE** en vez de copiar el `flex-row` con columna + divisor. Cada consumidor arma su propio array `items` (labels/formato propios). Props: `items: { label, value, unit }[]`, `className?`. En uso: `LastMeasurementCard`, `MeasurementDetailView`. |
+| `MeasurementComparisonSheet` | **Bottom sheet de comparación entre dos mediciones** (`height 88%`, dark `zinc`/`rose-400`, rediseñado desde la maqueta). Header back circular (`chevron-back` rose, llama `onClose`) + título + fechas `target vs base` (más reciente primero, `formatShortDate` → "21 jun. 2026"). Dos cards: **resumen** (3 columnas destacadas Peso/Grasa/Cintura con `viejo → nuevo` y unidad, divisores verticales `zinc-800`; cae a las primeras 3 deltas si esas keys faltan) y **"Cambios en tus mediciones"** (lista de TODAS las deltas: etiqueta · `viejo ↓/↑ nuevo` (nuevo en rose-400) · `Cambio:` firmado). El **cambio se pinta por DIRECCIÓN** (baja = `green-400`, sube = `red-400`, igual = `zinc-500`) por decisión del usuario, fiel a la maqueta — es color de dirección, NO interpretación de salud (ver `agent-implementation-lessons.md`). Las mediciones se ordenan **cronológicamente** en el util (`base` = más antigua, `target` = más reciente) para que el diff sea "anterior → actual". `SummaryColumn`/`ChangeRow` son subcomponentes locales (uso único). Props: `comparison`, `isLoading`, `error`, `onClose`. |
 | `BodyMeasurementFormView` | **Formulario de registro de medición** (`/health/measurements`, dark `zinc`/`rose-400`, rediseñado desde la maqueta). Header back + título centrado "Registrar medición". **Una sola card** `zinc-900 rounded-3xl` con dos secciones divididas por línea: "Composición corporal" (fila Peso) y "Medidas perimetrales" (subtítulo + 8 filas: Cintura, Cuello, Pecho, Brazo, Antebrazo, Cadera, Muslo, Pantorrilla). Cada fila es `label ···· [input unidad]` con caja `border-zinc-800`. CTA `rose-400` con `save-outline` + "Guardar medición" (texto `zinc-900`) al final del `ScrollView` (no flotante); el `paddingBottom` del scroll suma `TAB_BAR_HEIGHT` + `insets.bottom` para no quedar tapado por el tab bar nativo. `MeasurementRow` es subcomponente local (uso único). **No renderiza el panel "Grasa corporal estimada / Masa magra"** de la maqueta: esos valores los calcula el backend al guardar, no hay dato en vivo y `agent.md §7` prohíbe calcular salud en el cliente (ver `agent-implementation-lessons.md`). Props: `isSubmitting`, `submitError`, `onBack`, `onSubmit`. |
 
-### Perfil — `src/components/features/profile/`
-
-Perfil es un **stack anidado de rutas reales** en `app/profile/` (`_layout.tsx` + `index.tsx` + `fitness.tsx`/`nutrition.tsx`/`health.tsx`/`settings.tsx`), pusheado desde el home, **fuera de `(tabs)`** → sin tab bar nativo. **Re-rediseñado** desde una nueva maqueta: cards con icon-tile + bullets por módulo, dark-only `zinc` **neutro** (Perfil = "resto de la UI" en `colors.md` → sin acento; el azul de la maqueta se tradujo a `zinc`, decisión del usuario — ver `agent-implementation-lessons.md`). La raíz (`index.tsx`) es: título "Perfil" + `ProfileIdentityHeader` (card horizontal) + "CUENTA" (Suscripción) + "MIS MÓDULOS" (cards de Fitness/Nutrición/Salud activos con bullets + Configuración) + botón "Cerrar sesión" (outline **rojo** destructivo) + "Versión". Cada fila de módulo `router.push('/profile/<sección>')`.
-
-> **Por qué rutas reales y no navegación por estado:** antes el Perfil navegaba sus sub-secciones por estado (`activeSection`) dentro de una sola pantalla native-stack; el gesto swipe nativo de iOS popeaba toda la ruta `/profile` → volvía al home (y con `usePreventRemove` glitcheaba: arrancaba la salida nativa y saltaba de vuelta). Pasar cada sección a ruta real hace que el swipe vuelva a la vista anterior con animación nativa, sin glitch. Las rutas de sección usan el scaffold compartido `ProfileSectionScreen` (nav bar + manejo del back interno de los configs anidados, que **siguen** navegando por estado dentro de cada `SettingsView`; mientras un config está abierto se deshabilita el gesto para evitar el glitch en ese nivel). Los 7 `*Config` quedaron **intactos** (no se route-ificó su back interno multi-paso, refactor mayor innecesario).
-
-> **Bullets de las cards de módulo = sub-secciones REALES, no las de la maqueta.** La maqueta dibujaba bullets inventados (Fitness: Objetivos/Experiencia/Equipamiento; Salud: Mediciones/Lesiones/Condiciones). Se usan los labels reales del config de cada módulo (Fitness: Equipamiento/Días y duración/Sub objetivo; Nutrición: Sub objetivo/Alergias alimenticias/Estilo de dieta; Salud: Lesiones/Afecciones médicas — "Mediciones" vive en el tab Salud, no en el config). Misma regla "no inventar" de siempre.
-
-**Sub-vistas migradas a `zinc`:** los 3 submenús (`FitnessSettingsView`, `NutritionSettingsView`, `HealthSettingsView`) ahora reusan `ProfileListGroup` + `ProfileListRow` (se borraron sus 3 `SubMenuItem` duplicados). Las `*Config` (`EquipmentConfig`, `InjuriesConfig`/`ConditionsConfig`, `DietaryConfig`, `FitnessSubGoalConfig`, `FitnessTrainingPreferencesConfig`, `DataManagement`) se migraron de `slate`+cyan a `zinc` con CTA mono `bg-zinc-50`/`text-zinc-950`. `DataManagement` y `DietaryConfig` perdieron su `BackButton` cyan propio → ahora el back lo da el **nav bar compartido** (a `DietaryConfig` se le agregó `onRegisterBackHandler` y a `NutritionSettingsView` el `onSubBackChange`, igual que Fitness/Salud).
-
-> **Deuda `slate` restante (átomos compartidos con onboarding):** `SectionCard`, `CheckableCard`, `WeekDayPicker`, `RulerPicker`, `SearchableSelect`, `EquipmentSelect`, `TagSelect` siguen en `slate` (`slate-900 ≈ zinc-900`, diferencia mínima). No se migraron acá por su blast radius en onboarding; se limpian incrementalmente al tocarlos. `ProfileMenuPanel` y `SectionHeader` se borraron al quedar huérfanos. `ProfileHeader`/`SettingsSection`/`ConfigMenuItem` quedan (solo los referencia `_profile_old.tsx.bak`, backup del usuario).
+### Onboarding — `src/components/features/onboarding/`
 
 | Componente | Descripción |
 |------------|-------------|
-| `ProfileModuleCard` | **Card de navegación del Perfil** (dark `zinc` neutro, sin acento). Reutiliza `IconTile` (color zinc-300). Cubre las dos formas de la maqueta: fila con **subtítulo** (Suscripción "Plan Premium activo" / Configuración "Ajustes de la aplicación") y **card de módulo con bullets** (Fitness/Nutrición/Salud). `subtitle` y `bullets` son **excluyentes**. Chevron a la derecha. Los `bullets` deben ser sub-secciones reales. Props: `icon` (Ionicons), `title`, `subtitle?`, `bullets?: string[]`, `onPress`. |
-| `ProfileSectionScreen` | **Scaffold de las rutas de sección del Perfil** (`app/profile/fitness|nutrition|health|settings`). Aporta el nav bar (back circular + título centrado) y centraliza el back interno de los configs anidados (que navegan por estado dentro de cada `SettingsView`). Back: si hay config abierto (`subBack`) vuelve a la lista del módulo, si no popea la ruta. Mientras un config está abierto **deshabilita el gesto swipe nativo** (evita el glitch de native-stack) y `usePreventRemove` cubre el back físico de Android. Render-prop: `children({ onSubBackChange })`. Props: `title`, `children`. |
+| `ModuleSelectionStep` | **Paso de selección de módulos del onboarding "Elige tu enfoque"** (montado en `app/onboarding.tsx`, dark-only `zinc` neutro). Alineado al chrome de los pasos 1/2/3: `bg-zinc-950`, `ProgressBar` original (no el indicador numerado de la maqueta), `OnboardingHeader` **centrado** ("Elige tu enfoque" + subtítulo) y `OnboardingFooter` con helper info (círculo `zinc-900`/`border-zinc-800` + `information-circle-outline`). Las **tarjetas de módulo** (`ModuleCard` local) se mantienen **sin cambios por decisión del usuario**: imagen de fondo a la derecha + degradado `#0F172B → rgba(51,78,145,0.25)`, ícono en círculo `bg-white/20`, check blanco — NO se migraron a `zinc` ni se tradujo el azul del degradado (excepción puntual a la regla "maqueta azul → acento"). Selección múltiple + opción "Todo incluido" (frontend-only, toggle de todos). Props: `modules`, `selectedModuleIds`, `onSelectionChange`, `onContinue`, `isSubmitting`, `isLoading`. |
+| `BasicInfoStep3` | **Paso 3 del onboarding: Objetivo** (montado en `app/onboarding.tsx`, `step === 2`, dark-only `zinc` **neutro**). Mismo lenguaje que los pasos 1/2: `ProgressBar` original, `OnboardingHeader` **centrado** ("Tu objetivo" + subtítulo), footer con helper de info, sin botón "Atrás" (back por swipe). Los **objetivos** se presentan como **lista de items** (`SelectableCard variant="outline"`, estilo de la maqueta) — solo título, porque `Goal` no trae descripción (no se inventa). Selección por borde `zinc-100`. El botón "Continuar" queda habilitado con guard por `alert` (contrato del test del paso 3, a diferencia de los pasos 1/2 que usan `disabled`). Reutiliza `OnboardingHeader`, `OnboardingFooter`, `ProgressBar`, `SelectableCard`. Props: `goal`, `onGoalChange`, `onContinue`, `onBack` (no se renderiza, lo cubre el swipe), `isSubmitting`, `goals`, `isLoading`. |
+| `BasicInfoStep2` | **Paso 2 del onboarding: Peso + Altura** (montado en `app/onboarding.tsx`, `step === 1`, dark-only `zinc` **neutro**). Rediseñado desde la maqueta "Datos físicos": `ProgressBar` original, `OnboardingHeader` **centrado** ("Datos físicos" + subtítulo), dos cards `zinc-900 rounded-3xl` cada una con un **`WheelPicker`** nativo (Peso 30–200 kg, Altura 100–220 cm) y `OnboardingFooter` con helper de info ("Podrás modificar estos datos más adelante."). **No dibuja botón "Atrás"** (la maqueta no lo muestra): el back se resuelve por swipe (`SwipeBackWrapper` en `onboarding.tsx`), igual que el paso 1 no tiene back. Reemplazó al `RulerPicker` horizontal por el wheel nativo (pedido del usuario: control nativo en iOS y Android). Reutiliza `OnboardingHeader`, `OnboardingFooter`, `ProgressBar`, `WheelPicker`. Props: `weight`, `onWeightChange`, `height`, `onHeightChange`, `onContinue`, `onBack` (este último ya no se renderiza, lo cubre el swipe). |
+| `BasicInfoStep1` | **Paso 1 del onboarding: Fecha de nacimiento + Género** (montado en `app/onboarding.tsx`, `step === 0`, dark-only `zinc` **neutro**). Rediseñado desde la maqueta "Datos básicos": `ProgressBar` original (no el indicador numerado de la img — decisión del usuario), `OnboardingHeader` **centrado** (título "Datos básicos" + subtítulo), card `zinc-900 rounded-3xl` con el `DateTimePicker` spinner (texto blanco) y **género con `SegmentedControl accent="mono"`** de SOLO Masculino/Femenino (sin "Otro"). El estado **"no seleccionado"** se logra dejando `gender=''`: ningún segmento matchea → ninguno resaltado (no hay tercer segmento fantasma). `OnboardingFooter` con helper de candado ("Usaremos estos datos para calcular recomendaciones más precisas."). **No es módulo** → el azul de la maqueta se tradujo a `zinc` neutro (igual que login/Perfil/PrivacyTermsStep). Reutiliza `OnboardingHeader`, `OnboardingFooter`, `ProgressBar`, `SegmentedControl`. Props: `date`, `onDateChange`, `gender`, `onGenderChange`, `onContinue`. |
+
+> **`OnboardingHeader` (`common/`) ahora acepta `centered?: boolean`** (default `false`): centra título y subtítulo. Lo usa `BasicInfoStep1` (maqueta de Datos básicos); el resto del flujo (pasos 2/3) sigue alineado a la izquierda (default). El prop `inverted` sigue igual.
+
+### Auth — `src/components/features/auth/`
+
+Pantalla de bienvenida/login (`app/login.tsx`, dark-only `zinc` **neutro**). Rediseñada desde la maqueta: wordmark "WELLIUM" (`tracking-[8px]` zinc-500), título de 3 líneas "Entrena. / Aliméntate. / Evoluciona." (`text-6xl font-extrabold`; las dos primeras en blanco y "Evoluciona." con `GradientText` violeta→azul), subtítulo zinc-500, fila de 3 features con divisores verticales (`barbell`/`restaurant`/`heart`-outline, mismos íconos que el tab bar) y los dos botones sociales. **Login NO es un módulo** (`colors.md` → "resto de la UI" = `zinc` neutro): el azul de la maqueta se tradujo a `zinc`, decisión del usuario — mismo criterio que Perfil. **No se implementó el paginador de 2 puntos** de la maqueta: implicaría un carrusel de 2 slides y solo había diseño de una (no inventar — ver `agent-implementation-lessons.md`). Tampoco la línea de Términos/Privacidad (el usuario la excluyó). `FeatureColumn` es subcomponente local (uso único, mapeado sobre el array `FEATURES`).
+
+| Componente | Descripción |
+|------------|-------------|
+| `PrivacyTermsStep` | **Paso de privacidad del onboarding** (`src/components/features/onboarding/`, montado en `app/onboarding.tsx`, dark-only `zinc` **neutro**). Rediseñado desde la maqueta "Tu privacidad es lo primero": hero de escudo `shield-outline` blanco sobre círculos `zinc-900`/`zinc-800` (sin el glow azul de la maqueta), título + subtítulo, **3 filas de feature informativas** (`IconTile` + label, divisores `zinc-800`, sin card, **sin chevron**), card de consentimiento (`Switch` mono + nota con `lock` + link "Política de Privacidad") y CTA sólido `bg-zinc-50`/`text-zinc-950` "Continuar". **No es módulo** → el azul de la maqueta se tradujo a `zinc` neutro (decisión del usuario, igual que login/Perfil). El hero y las filas se compactaron (`size 48`, `py-3`) para que la card de consentimiento + botón no queden cortados. El **modal de Política de Privacidad** (contenido legal real: Ley 18.331/ARCO/AES-256) se mantiene, accesible **solo** desde el link de la nota del toggle (el usuario pidió sacar el acceso de las filas, no del toggle — ver `agent-implementation-lessons.md`). Reutiliza `IconTile`. Props: `onContinue`, `isSubmitting`. |
+| `SocialAuthButton` | **Átomo.** Botón de autenticación social (`rounded-2xl py-4`, ícono + label centrados). Dos variantes: `light` (superficie `white` + texto `zinc-900`, acción primaria — Google) y `dark` (superficie `zinc-900` + borde `zinc-800` + texto `white`, secundaria — Apple). El ícono se pasa como `ReactNode` (SVG del proveedor). **Reutilizar SIEMPRE** en vez de copiar el `TouchableOpacity flex-row` por cada proveedor. Props: `label`, `icon`, `variant: 'light' \| 'dark'`, `onPress`. En uso: `app/login.tsx` (Google + Apple). |
+
+### Perfil — `src/components/features/profile/`
+
+Perfil es un **stack de rutas reales** en `app/profile/` (`_layout.tsx` + `index.tsx` + las listas de módulo `fitness.tsx`/`nutrition.tsx`/`health.tsx`/`settings.tsx` + un archivo de ruta por cada config: `fitness-equipment`/`fitness-training`/`fitness-subgoal`/`nutrition-dietary`/`health-injuries`/`health-conditions`), pusheado desde el home, **fuera de `(tabs)`** → sin tab bar nativo. **Re-rediseñado** desde una nueva maqueta: cards con icon-tile + bullets por módulo, dark-only `zinc` **neutro** (Perfil = "resto de la UI" en `colors.md` → sin acento; el azul de la maqueta se tradujo a `zinc`, decisión del usuario — ver `agent-implementation-lessons.md`). La raíz (`index.tsx`) es: título "Perfil" + `ProfileIdentityHeader` (card horizontal) + "CUENTA" (Suscripción) + "MIS MÓDULOS" (cards de Fitness/Nutrición/Salud activos con bullets + Configuración) + botón "Cerrar sesión" (outline **rojo** destructivo) + "Versión". Cada fila de módulo `router.push('/profile/<sección>')`.
+
+> **Por qué TODO es ruta real (incluidos los configs):** antes el Perfil navegaba por estado (`activeSection` en `index`, `activeSubView` en cada `SettingsView`); el gesto swipe nativo de iOS popeaba de más y, con `usePreventRemove` + `gestureEnabled:false`, glitcheaba (la salida nativa arrancaba y el JS la cancelaba con un salto). Primero se route-ificó solo el **nivel sección**, dejando los configs por estado y confiando en `gestureEnabled:false` para frenar el gesto — **pero ese toggle no frena el gesto de forma confiable**, así que el glitch seguía al volver de un config. La solución definitiva: **cada config también es ruta real** (`/profile/fitness-equipment`, etc.). El swipe-back es 100% nativo y suave en todos los niveles. El scaffold `ProfileSectionScreen` envuelve tanto las listas como los configs (nav bar + back = `router.back()`); el guard de "cambios sin guardar" de cada config lo aporta el hook `useUnsavedChangesGuard` (`usePreventRemove` solo cuando hay cambios reales). Se eliminó toda la plomería `onSubBackChange`/`backHandlerRef`/`onRegisterBackHandler`/`gestureEnabled`.
+
+> **Bullets de las cards de módulo = sub-secciones REALES, no las de la maqueta.** La maqueta dibujaba bullets inventados (Fitness: Objetivos/Experiencia/Equipamiento; Salud: Mediciones/Lesiones/Condiciones). Se usan los labels reales del config de cada módulo (Fitness: Equipamiento/Días y duración/Sub objetivo; Nutrición: Sub objetivo/Alergias alimenticias/Estilo de dieta; Salud: Lesiones/Afecciones médicas — "Mediciones" vive en el tab Salud, no en el config). Misma regla "no inventar" de siempre.
+
+**Sub-vistas alineadas a la raíz:** los 3 submenús (`FitnessSettingsView`, `NutritionSettingsView`, `HealthSettingsView`) ahora reusan **`ProfileModuleCard`** (icon-tile + título), el mismo átomo que la raíz, para que no desentonen con el diseño nuevo. Antes usaban una lista plana de texto (`ProfileListGroup` + `ProfileListRow`); esos dos átomos quedaron huérfanos al migrar las 3 vistas → se borraron. Cada item lleva un ícono decorativo de UI (Fitness: `barbell`/`calendar`/`flag`/`heart`/`ban`; Nutrición: `flag`/`alert-circle`/`restaurant`; Salud: `bandage`/`medkit`) y `router.push` a la ruta real del config. Las `SettingsView` quedaron como **listas puras** (sin estado ni props): solo cards + navegación. Las `*Config` (`EquipmentConfig`, `InjuriesConfig`/`ConditionsConfig`, `DietaryConfig`, `FitnessSubGoalConfig`, `FitnessTrainingPreferencesConfig`) reciben solo `onBack` (= `router.back()` tras guardar) y usan `useUnsavedChangesGuard` para el guard de salida; ya no reciben `onRegisterBackHandler`. Todas en `zinc` con CTA mono `bg-zinc-50`/`text-zinc-950`.
+
+> **Deuda `slate` restante (átomos compartidos con onboarding):** `SectionCard`, `CheckableCard`, `RulerPicker`, `SearchableSelect`, `TagSelect` siguen en `slate` (`slate-900 ≈ zinc-900`, diferencia mínima). (`WeekDayPicker` y `EquipmentSelect` ya se migraron a `zinc`.) No se migraron acá por su blast radius en onboarding; se limpian incrementalmente al tocarlos. `ProfileMenuPanel` y `SectionHeader` se borraron al quedar huérfanos. `ProfileHeader`/`SettingsSection`/`ConfigMenuItem` quedan (solo los referencia `_profile_old.tsx.bak`, backup del usuario).
+
+| Componente | Descripción |
+|------------|-------------|
+| `ProfileModuleCard` | **Card de navegación del Perfil** (dark `zinc` neutro, sin acento). Reutiliza `IconTile` (color zinc-300). Cubre tres formas: fila con **subtítulo** (Suscripción "Plan Premium activo" / Configuración "Ajustes de la aplicación"), **card de módulo con bullets** (Fitness/Nutrición/Salud en la raíz) y **fila solo título** (items de las sub-vistas — sin subtitle ni bullets renderiza solo icon-tile + título + chevron). `subtitle` y `bullets` son **excluyentes**. Los `bullets` deben ser sub-secciones reales. **Reutilizar SIEMPRE** para filas/cards de navegación del Perfil (raíz y sub-vistas), no crear filas paralelas. Props: `icon` (Ionicons), `title`, `subtitle?`, `bullets?: string[]`, `onPress`. En uso: `app/profile/index.tsx` (raíz) y `FitnessSettingsView`/`NutritionSettingsView`/`HealthSettingsView` (sub-vistas). |
+| `ProfileSectionScreen` | **Scaffold de TODAS las rutas del Perfil** (listas de módulo y configs por igual). Aporta el nav bar (back circular `router.back()` + título centrado) sobre el contenido. El back es **swipe nativo** (cada vista es ruta real), sin la plomería `subBack`/`gestureEnabled`/`usePreventRemove` que tenía antes. El guard de cambios sin guardar de los configs lo pone `useUnsavedChangesGuard`, no este scaffold. Props: `title`, `children`. |
+| `useUnsavedChangesGuard(hasUnsavedChanges, message?)` | **Hook** (`src/hooks/useUnsavedChangesGuard.ts`). Si `hasUnsavedChanges`, intercepta el back (botón, gesto swipe o hardware) con `usePreventRemove` y pide confirmación (`Alert`) antes de salir; al confirmar hace `navigation.dispatch(data.action)`. **Reutilizar SIEMPRE** en sub-pantallas con formulario que viven en su propia ruta, en vez de copiar el `backHandlerRef`/`onRegisterBackHandler`. En uso: los 6 configs del Perfil. |
 | `ProfileIdentityHeader` | **Card de identidad horizontal** (rediseñada desde la nueva maqueta): card `zinc-900 border-zinc-800` con avatar circular 80px a la izquierda (imagen Clerk o iniciales), nombre y badge de plan (pill `zinc` con `diamond-outline`, sin azul). **No muestra email** (la maqueta es una card limpia nombre + plan; el prop `email` se mantiene en la interfaz pero ya no se renderiza). Props: `fullName`, `email`, `avatarUrl?`, `plan?`. |
-| `ProfileListRow` | **Átomo.** Fila de lista de perfil: `label` + `value?` + chevron. `destructive` → texto `red-400`. Sin `onPress` es informativa. **Ya no se usa en la vista raíz** (la reemplazaron las `ProfileModuleCard`), pero **sigue vivo en las sub-vistas** `FitnessSettingsView`/`NutritionSettingsView`/`HealthSettingsView` (dentro de `ProfileListGroup`). Props: `label`, `value?`, `onPress?`, `showChevron?`, `destructive?`. |
-| `ProfileListGroup` | Grupo de lista agrupada: encabezado opcional + card `zinc-900` con divisores automáticos entre hijos. **Sigue vivo en las sub-vistas** de módulo (no en la raíz). Props: `title?`, `children` (`ProfileListRow`). |
 
 ### Historial — `src/components/features/training-history/`
 
@@ -372,6 +468,8 @@ Perfil es un **stack anidado de rutas reales** en `app/profile/` (`_layout.tsx` 
 | `SessionStatsCard` | **Card de resumen del detalle de sesión** (`[id].tsx`, dark `zinc`/`lime`, rediseñada desde la maqueta). Tres columnas separadas por divisores verticales `bg-zinc-800`: Series completadas (`N` lime `/ M` zinc-500), Repeticiones (total, blanco) y Esfuerzo promedio (`RPE` lime + valor blanco, `—` si no hay). Los valores se computan desde los sets reales con `computeSessionStats` (no del backend). Props: `stats: SessionStats`. |
 | `SessionExerciseCard` | **Card de un ejercicio en el detalle de sesión** (dark `zinc`/`lime`, rediseñada desde la maqueta). Card `rounded-3xl`: número en círculo outline (`border-zinc-700`), nombre (prefiere español), `N / M series completadas`, badge `RPE n` (pill `zinc-800`, texto lime) y chevron lime que colapsa/expande el listado de sets (`SetsTable`). `defaultExpanded?` (default `false`; la pantalla abre el primero). **No muestra los músculos objetivo** que tenía la versión anterior: la maqueta es más austera. Props: `exercise`, `index`, `defaultExpanded?`. |
 | `SetsTable` | **Listado de sets de un ejercicio** (dark `zinc`, rediseñado de tabla de columnas → filas simples de la maqueta). Cada fila: `Serie N` (izq) + `formatSetDetail(set)` (der: `"12 rep • 20 kg"`, `"45 s"` o `"—"` si no se completó, en `zinc-600`), divididas por `border-zinc-800`. Solo lo usa `SessionExerciseCard`. Props: `sets`. |
+| `SessionComparePicker` | Bottom sheet para **elegir la sesión a comparar** (lista paginada de `TrainingHistoryListCard`, excluye la sesión actual). Props: `excludeId`, `onSelect`, `onClose`. |
+| `SessionComparisonSheet` | **Bottom sheet de comparación entre dos sesiones** (`height 88%`, dark `zinc`/`lime`, rediseñado desde la maqueta). Header back (`chevron-back` lime) + título + fechas `target ↔ base` (`formatSessionDateDots`, "22 jun. 2026"). Tres bloques: **"Rendimiento general"** (veredicto `mejor`/`peor`/`similar` con ícono en círculo + 3 mini-stats `PerformanceStat` de series/duración/volumen), **"Comparación de sesiones"** (tabla con cabecera de fechas y filas `ComparisonRow`: etiqueta · valor base `zinc` → valor target `lime`) y **"Ejercicios en común"** (card con filas `ExerciseDeltaRow`: nombre + top set `peso × reps` base→target + cambio destacado `+5 kg`/`+3 repeticiones`). `PerformanceStat`/`ComparisonRow`/`ExerciseDeltaRow` son subcomponentes locales (uso único). El **azul de la maqueta → `lime-400`** (regla de siempre). Las sesiones se ordenan **cronológicamente** en el util (`base` = más antigua, `target` = más reciente) para que el diff sea "anterior → actual". El top set y el veredicto se computan en cliente desde `sets[]` (agregación de presentación, **no** cálculo de salud — ver `agent-implementation-lessons.md`). Props: `comparison`, `isLoading`, `error`, `onClose`. |
 
 ---
 

@@ -1,30 +1,40 @@
 import { useOAuth } from '@clerk/clerk-expo';
+import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import {
-    Alert,
-    Dimensions,
-    Platform,
-    Text,
-    TouchableOpacity,
-    useColorScheme,
-    View,
-} from 'react-native';
+import { Alert, Platform, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import AppleDarkIcon from '@/assets/svg/Apple_dark.svg';
 import AppleLightIcon from '@/assets/svg/Apple_light.svg';
 import GoogleIcon from '@/assets/svg/google.svg';
+import { GradientText } from '@/src/components/common/GradientText';
+import { SocialAuthButton } from '@/src/components/features/auth/SocialAuthButton';
 
 // Esto es para que en Android se cierre el navegador web cuando termina el flujo seguro
 WebBrowser.maybeCompleteAuthSession();
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+/** Color zinc neutro de los íconos/labels de features (login no es un módulo, ver colors.md) */
+const FEATURE_ICON_COLOR = '#d4d4d8'; // zinc-300
+
+/** Features de la app destacados en la bienvenida (íconos consistentes con el tab bar) */
+const FEATURES: { icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
+  { icon: 'barbell-outline', label: 'Entrenamiento' },
+  { icon: 'restaurant-outline', label: 'Nutrición' },
+  { icon: 'heart-outline', label: 'Salud' },
+];
+
+/** Columna de feature: ícono + etiqueta, usada en la fila de bienvenida */
+function FeatureColumn({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+  return (
+    <View className="flex-1 items-center">
+      <Ionicons name={icon} size={30} color={FEATURE_ICON_COLOR} />
+      <Text className="text-zinc-400 text-sm mt-3">{label}</Text>
+    </View>
+  );
+}
 
 /** Pantalla de bienvenida y autenticación social */
 export default function LoginScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
   // Hooks de autenticación social de Clerk
   const { startOAuthFlow: startGoogleOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
   const { startOAuthFlow: startAppleOAuthFlow } = useOAuth({ strategy: 'oauth_apple' });
@@ -43,68 +53,73 @@ export default function LoginScreen() {
       }
     } catch (err: any) {
       console.error('Error de OAuth', err);
-      if(err?.e?.toUpperCase() == "You're already signed in".toUpperCase()){
-        Linking.createURL('/(tabs)')
+      if (err?.e?.toUpperCase() === "You're already signed in".toUpperCase()) {
+        Linking.createURL('/(tabs)');
       }
       Alert.alert('Interrumpido', 'No se pudo iniciar sesión con esta red.');
     }
   };
 
   return (
-    <View className="flex-1 bg-slate-100 dark:bg-slate-950 relative overflow-hidden">
-      {/* Círculo superior izquierdo - parcialmente fuera de pantalla */}
-      <View 
-        className="absolute -top-16 -left-24 w-[360px] h-[360px] rounded-full bg-slate-900 dark:bg-slate-800 justify-center"
-        style={{ paddingLeft: 110, paddingTop: 100 }}
-      >
-        <Text className="text-white text-5xl font-bold leading-tight text-left">
-          Tu{'\n'}cuerpo.{'\n'}Tu{'\n'}energía.{'\n'}Tu{'\n'}salud.
-        </Text>
-      </View>
-
-      {/* Círculo inferior derecho - parcialmente fuera de pantalla */}
-      <View 
-        className="absolute top-[45%] -right-16 w-[280px] h-[280px] rounded-full bg-slate-900 dark:bg-slate-800 justify-center"
-        style={{ paddingRight: 80 }}
-      >
-        <Text className="text-white text-4xl font-bold leading-tight text-right">
-          Todo en{'\n'}un solo{'\n'}lugar
-        </Text>
-      </View>
-
-      {/* Contenedor de botones en la parte inferior */}
-      <View 
-        className="absolute bottom-0 left-0 right-0 px-6 pb-12 pt-8"
-        style={{ paddingBottom: Platform.OS === 'ios' ? 50 : 32 }}
-      >
-        {/* Botón de Google */}
-        <TouchableOpacity
-          className="flex-row items-center justify-center py-4 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm"
-          onPress={() => onSocialLoginPress('oauth_google')}
-          activeOpacity={0.8}
-        >
-          <GoogleIcon width={20} height={20} />
-          <Text className="text-base font-semibold text-slate-900 dark:text-slate-50 ml-3">
-            Continuar con Google
+    <View className="flex-1 bg-zinc-950">
+      <SafeAreaView className="flex-1 px-6">
+        {/* Bloque hero centrado: wordmark + título + subtítulo + features */}
+        <View className="flex-1 justify-center">
+          <Text className="text-center text-zinc-500 text-base font-semibold tracking-[8px] mb-8">
+            WELLIUM
           </Text>
-        </TouchableOpacity>
 
-        {/* Botón de Apple */}
-        {Platform.OS === 'ios' && (
-          <TouchableOpacity
-            className="flex-row items-center justify-center py-4 rounded-full bg-zinc-950 dark:bg-slate-50 mt-4 shadow-sm"
-            onPress={() => onSocialLoginPress('oauth_apple')}
-            activeOpacity={0.8}
-          >
-            <View className="w-5 h-5">
-              {isDark ? <AppleLightIcon width={20} height={20} /> : <AppleDarkIcon width={20} height={20} />}
-            </View>
-            <Text className="text-base font-semibold text-white dark:text-slate-900 ml-3">
-              Continuar con Apple
+          <View className="items-center">
+            <Text className="text-white text-6xl font-extrabold leading-[1.05] tracking-tight">
+              Entrena.
             </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+            <Text className="text-white text-6xl font-extrabold leading-[1.05] tracking-tight">
+              Aliméntate.
+            </Text>
+            <GradientText
+              className="text-6xl font-extrabold leading-[1.05] tracking-tight"
+              colors={['#c4b5fd', '#818cf8', '#3b82f6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0.5 }}
+            >
+              Evoluciona.
+            </GradientText>
+          </View>
+
+          <Text className="text-center text-zinc-500 text-lg leading-relaxed mt-8">
+            Fitness, nutrición y salud{'\n'}en una sola aplicación.
+          </Text>
+
+          {/* Fila de features con divisores verticales */}
+          <View className="flex-row items-center mt-16">
+            {FEATURES.map((feature, index) => (
+              <View key={feature.label} className="flex-1 flex-row items-center">
+                {index > 0 && <View className="w-px h-12 bg-zinc-800" />}
+                <FeatureColumn icon={feature.icon} label={feature.label} />
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Botones de autenticación social */}
+        <View className="pb-4 gap-4">
+          <SocialAuthButton
+            label="Continuar con Google"
+            icon={<GoogleIcon width={20} height={20} />}
+            variant="light"
+            onPress={() => onSocialLoginPress('oauth_google')}
+          />
+
+          {Platform.OS === 'ios' && (
+            <SocialAuthButton
+              label="Continuar con Apple"
+              icon={<AppleLightIcon width={20} height={20} />}
+              variant="dark"
+              onPress={() => onSocialLoginPress('oauth_apple')}
+            />
+          )}
+        </View>
+      </SafeAreaView>
     </View>
   );
 }

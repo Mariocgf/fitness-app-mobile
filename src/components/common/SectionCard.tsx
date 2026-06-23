@@ -15,24 +15,24 @@ interface SectionCardProps {
 }
 
 /**
- * Tarjeta de sección reutilizable para onboarding.
+ * Tarjeta de sección reutilizable para onboarding (dark-only zinc).
  * Muestra ícono en círculo, título, subtítulo y contenido.
- * Sin sombra — solo borde slate-200 según design system.
+ * Sin sombra — solo borde zinc-800 según design system.
  */
 export default function SectionCard({ icon, title, subtitle, children, className = '' }: SectionCardProps) {
   return (
     <View
-      className={`bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 ${className}`}
+      className={`bg-zinc-900 rounded-2xl p-5 border border-zinc-800 ${className}`}
     >
       <View className="flex-row items-center mb-4">
-        <View className="w-11 h-11 bg-slate-100 dark:bg-slate-800 rounded-full items-center justify-center mr-3">
+        <View className="w-11 h-11 bg-zinc-800 rounded-full items-center justify-center mr-3">
           {icon}
         </View>
         <View className="flex-1">
-          <Text className="text-base font-bold text-slate-900 dark:text-slate-50">
+          <Text className="text-base font-bold text-white">
             {title}
           </Text>
-          <Text className="text-sm text-slate-500 dark:text-slate-400">
+          <Text className="text-sm text-zinc-400">
             {subtitle}
           </Text>
         </View>

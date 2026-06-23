@@ -1,62 +1,39 @@
 import { Ionicons } from "@expo/vector-icons";
-import { cssInterop } from "nativewind";
 import React from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { TAB_BAR_HEIGHT } from "@/src/components/features/routine/routine-detail-shared";
 import { BodyMeasurementDto } from "@/src/types/health";
 
-cssInterop(Ionicons, {
-  className: { target: "style", nativeStyleToProp: { color: true } },
-});
+import {
+  BodyCompositionColumns,
+  CompositionItem,
+} from "./BodyCompositionColumns";
+
+const ROSE = "#fb7185"; // rose-400 — acento del módulo Salud
 
 const MONTHS = [
   "ene", "feb", "mar", "abr", "may", "jun",
   "jul", "ago", "sep", "oct", "nov", "dic",
 ];
 
+/** Formatea "YYYY-MM-DD" a "21 de jun. 2026". */
 const formatDate = (dateStr: string): string => {
   const [year, month, day] = dateStr.split("-").map(Number);
   return `${day} de ${MONTHS[month - 1]}. ${year}`;
 };
 
-const formatCapturedAt = (iso: string): string => {
+/** Extrae solo la hora "18:33" del ISO de captura. */
+const formatCapturedTime = (iso: string): string => {
   const d = new Date(iso);
-  const day = d.getDate();
-  const month = MONTHS[d.getMonth()];
-  const year = d.getFullYear();
   const hh = d.getHours().toString().padStart(2, "0");
   const mm = d.getMinutes().toString().padStart(2, "0");
-  return `${day} de ${month}. ${year} a las ${hh}:${mm}`;
+  return `${hh}:${mm}`;
 };
 
-function CompositionChip({
-  value,
-  unit,
-  label,
-}: {
-  value: string;
-  unit: string;
-  label: string;
-}) {
-  return (
-    <View className="flex-1 items-center bg-slate-100 dark:bg-slate-800 rounded-2xl py-4 px-2">
-      <View className="flex-row items-baseline gap-0.5">
-        <Text className="text-slate-900 dark:text-slate-50 text-2xl font-bold">
-          {value}
-        </Text>
-        <Text className="text-slate-500 dark:text-slate-400 text-xs font-medium">
-          {unit}
-        </Text>
-      </View>
-      <Text className="text-slate-500 dark:text-slate-400 text-xs mt-1 text-center">
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-function MeasurementRow({
+/** Fila de medida perimetral: etiqueta · · · · valor cm, con leader punteado. */
+function PerimeterRow({
   label,
   value,
   isLast,
@@ -68,18 +45,15 @@ function MeasurementRow({
   const display = value % 1 === 0 ? value.toString() : value.toFixed(1);
   return (
     <View
-      className={`flex-row items-center justify-between py-3.5 ${
-        !isLast ? "border-b border-slate-100 dark:border-slate-800" : ""
+      className={`flex-row items-center py-4 ${
+        !isLast ? "border-b border-zinc-800" : ""
       }`}
     >
-      <Text className="text-slate-700 dark:text-slate-300 text-base">
-        {label}
-      </Text>
-      <View className="flex-row items-baseline gap-0.5">
-        <Text className="text-slate-900 dark:text-slate-50 text-base font-semibold">
-          {display}
-        </Text>
-        <Text className="text-slate-500 dark:text-slate-400 text-sm"> cm</Text>
+      <Text className="text-white text-base">{label}</Text>
+      <View className="flex-1 border-b border-dotted border-zinc-700 mx-3 mb-1" />
+      <View className="flex-row items-baseline gap-1">
+        <Text className="text-white text-base font-medium">{display}</Text>
+        <Text className="text-zinc-500 text-sm">cm</Text>
       </View>
     </View>
   );
@@ -88,10 +62,10 @@ function MeasurementRow({
 const PERIMETER_FIELDS: { key: keyof BodyMeasurementDto; label: string }[] = [
   { key: "waistCm", label: "Cintura" },
   { key: "neckCm", label: "Cuello" },
-  { key: "hipCm", label: "Cadera" },
   { key: "chestCm", label: "Pecho" },
   { key: "armCm", label: "Brazo" },
   { key: "forearmCm", label: "Antebrazo" },
+  { key: "hipCm", label: "Cadera" },
   { key: "thighCm", label: "Muslo" },
   { key: "calfCm", label: "Pantorrilla" },
 ];
@@ -107,100 +81,95 @@ export function MeasurementDetailView({
   onBack,
   onPressCompare,
 }: MeasurementDetailViewProps) {
-  const hasComposition =
-    measurement.weightKg != null ||
-    measurement.bodyFatPercentage != null ||
-    measurement.leanMassKg != null;
+  const insets = useSafeAreaInsets();
+
+  // Solo se muestran las columnas de composición con dato real.
+  const compositionItems: CompositionItem[] = [
+    measurement.weightKg != null && {
+      label: "Peso",
+      value: measurement.weightKg.toString(),
+      unit: "kg",
+    },
+    measurement.bodyFatPercentage != null && {
+      label: "Grasa corporal",
+      value: measurement.bodyFatPercentage.toFixed(1),
+      unit: "%",
+    },
+    measurement.leanMassKg != null && {
+      label: "Masa magra",
+      value: measurement.leanMassKg.toFixed(1),
+      unit: "kg",
+    },
+  ].filter(Boolean) as CompositionItem[];
 
   const perimeterRows = PERIMETER_FIELDS.filter(
     (f) => measurement[f.key] != null,
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-950">
+    <View className="flex-1 bg-zinc-950" style={{ paddingTop: insets.top }}>
       {/* Header */}
-      <View className="flex-row items-center px-4 pt-2 pb-4 gap-1">
+      <View className="flex-row items-center px-4 pt-2 pb-4 gap-3">
         <TouchableOpacity
           onPress={onBack}
           activeOpacity={0.7}
-          className="p-1 -ml-1"
+          className="w-10 h-10 rounded-full bg-zinc-900 items-center justify-center"
         >
-          <Ionicons
-            name="chevron-back"
-            size={28}
-            className="text-slate-900 dark:text-slate-50"
-          />
+          <Ionicons name="chevron-back" size={22} color={ROSE} />
         </TouchableOpacity>
-        <Text className="flex-1 text-slate-900 dark:text-slate-50 text-xl font-bold">
+        <Text className="flex-1 text-white text-2xl font-bold">
           Detalle de medición
         </Text>
         {onPressCompare != null && (
           <TouchableOpacity
             onPress={onPressCompare}
             activeOpacity={0.7}
-            className="flex-row items-center gap-1 px-3 py-1.5 bg-rose-600 dark:bg-rose-500 rounded-full"
+            className="flex-row items-center gap-1.5 px-4 py-2 border border-zinc-700 rounded-full"
           >
-            <Ionicons name="swap-horizontal" size={16} className="text-white" />
-            <Text className="text-white text-sm font-semibold">Comparar</Text>
+            <Ionicons name="analytics-outline" size={18} color={ROSE} />
+            <Text className="text-zinc-200 text-sm font-semibold">Comparar</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View className="px-4 pb-10 gap-4">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: TAB_BAR_HEIGHT + insets.bottom + 24,
+        }}
+      >
+        <View className="px-4 gap-4">
           {/* Fecha y hora de registro */}
-          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
-            <View className="flex-row items-center gap-3 mb-2">
-              <View className="w-1.5 h-7 bg-rose-600 dark:bg-rose-400 rounded-full" />
-              <Text className="text-slate-900 dark:text-slate-50 text-2xl font-bold">
+          <View className="px-1 mb-1">
+            <View className="flex-row items-center gap-2.5">
+              <Ionicons name="calendar-outline" size={22} color={ROSE} />
+              <Text className="text-white text-2xl font-bold">
                 {formatDate(measurement.date)}
               </Text>
             </View>
-            <Text className="text-slate-500 dark:text-slate-400 text-sm ml-4">
-              Registrado el {formatCapturedAt(measurement.capturedAt)}
+            <Text className="text-zinc-500 text-sm mt-1 ml-8">
+              Registrado a las {formatCapturedTime(measurement.capturedAt)}
             </Text>
           </View>
 
           {/* Composición corporal */}
-          {hasComposition && (
-            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
-              <Text className="text-slate-900 dark:text-slate-50 font-semibold text-base mb-3">
+          {compositionItems.length > 0 && (
+            <View className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
+              <Text className="text-white font-semibold text-lg mb-4">
                 Composición corporal
               </Text>
-              <View className="flex-row gap-3">
-                {measurement.weightKg != null && (
-                  <CompositionChip
-                    value={measurement.weightKg.toFixed(1)}
-                    unit=" kg"
-                    label="Peso"
-                  />
-                )}
-                {measurement.bodyFatPercentage != null && (
-                  <CompositionChip
-                    value={measurement.bodyFatPercentage.toFixed(1)}
-                    unit="%"
-                    label="Grasa corporal"
-                  />
-                )}
-                {measurement.leanMassKg != null && (
-                  <CompositionChip
-                    value={measurement.leanMassKg.toFixed(1)}
-                    unit=" kg"
-                    label="Masa magra"
-                  />
-                )}
-              </View>
+              <BodyCompositionColumns items={compositionItems} />
             </View>
           )}
 
           {/* Medidas perimetrales */}
           {perimeterRows.length > 0 && (
-            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
-              <Text className="text-slate-900 dark:text-slate-50 font-semibold text-base mb-1">
+            <View className="bg-zinc-900 border border-zinc-800 rounded-3xl px-5 py-3">
+              <Text className="text-white font-semibold text-lg mb-1 mt-2">
                 Medidas perimetrales
               </Text>
               {perimeterRows.map((field, index) => (
-                <MeasurementRow
+                <PerimeterRow
                   key={field.key}
                   label={field.label}
                   value={measurement[field.key] as number}
@@ -211,6 +180,6 @@ export function MeasurementDetailView({
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

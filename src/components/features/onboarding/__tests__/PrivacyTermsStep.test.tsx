@@ -14,9 +14,9 @@ describe('PrivacyTermsStep', () => {
       <PrivacyTermsStep onContinue={mockOnContinue} isSubmitting={false} />
     );
 
-    expect(getByText('Tu privacidad es lo primero')).toBeTruthy();
-    expect(getByText('Lo que debes saber:')).toBeTruthy();
-    expect(getByText('Datos sensibles Protegidos')).toBeTruthy();
+    expect(getByText('Tu privacidad es lo primero.')).toBeTruthy();
+    expect(getByText('Tus datos están protegidos.')).toBeTruthy();
+    expect(getByText('Podés eliminar tus datos cuando quieras.')).toBeTruthy();
   });
 
   it('el botón debe estar deshabilitado por defecto', () => {
@@ -24,7 +24,7 @@ describe('PrivacyTermsStep', () => {
       <PrivacyTermsStep onContinue={mockOnContinue} isSubmitting={false} />
     );
 
-    const button = getByText('Continuar & Configurar');
+    const button = getByText('Continuar');
     // En RNTL, para verificar deshabilitado se usa el prop 'accessibilityState'
     // o se verifica que no llame al callback al ser presionado.
     fireEvent.press(button);
@@ -39,19 +39,18 @@ describe('PrivacyTermsStep', () => {
     const switchComponent = getByRole('switch');
     fireEvent(switchComponent, 'onValueChange', true);
 
-    const button = getByText('Continuar & Configurar');
+    const button = getByText('Continuar');
     fireEvent.press(button);
 
     expect(mockOnContinue).toHaveBeenCalledTimes(1);
   });
 
-  it('debe mostrar el modal de política al presionar el texto', () => {
-    const { getByText, getByTestId, queryByText } = render(
+  it('debe mostrar el modal de política al presionar el link de la nota', () => {
+    const { getByText } = render(
       <PrivacyTermsStep onContinue={mockOnContinue} isSubmitting={false} />
     );
 
-    // El Modal de React Native a veces es difícil de testear si no tiene visible={true}
-    // Pero podemos verificar el trigger del evento.
+    // El Modal con visible=false no monta sus hijos, así que solo existe el link.
     const policyLink = getByText('Política de Privacidad');
     fireEvent.press(policyLink);
 
@@ -60,11 +59,11 @@ describe('PrivacyTermsStep', () => {
   });
 
   it('debe mostrar un loader cuando isSubmitting es true', () => {
-    const { getByTestId, queryByText } = render(
+    const { queryByText } = render(
       <PrivacyTermsStep onContinue={mockOnContinue} isSubmitting={true} />
     );
 
     // El texto del botón no debería estar si hay un loader (según la lógica del componente)
-    expect(queryByText('Continuar & Configurar')).toBeNull();
+    expect(queryByText('Continuar')).toBeNull();
   });
 });

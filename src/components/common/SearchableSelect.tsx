@@ -8,24 +8,42 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    useColorScheme,
     View,
 } from 'react-native';
-
-import { HealthItem } from '@/src/types/health';
 
 cssInterop(Ionicons, {
   className: { target: 'style', nativeStyleToProp: { color: true } },
 });
 
+/**
+ * Forma mínima de un ítem seleccionable. `severity` es OPCIONAL: las lesiones
+ * y afecciones de Salud la traen (dot de color por gravedad), pero otros módulos
+ * como las alergias de Nutrición no, y el dot cae a un gris neutro.
+ * Mantiene al átomo desacoplado del dominio de Salud (es reutilizable).
+ */
+export interface SelectableItem {
+  id: string;
+  name: string;
+  severity?: 'Low' | 'Medium' | 'High';
+}
+
+/**
+ * Colores semánticos por severidad del ítem (lesión/afección).
+ * Se conservan como punto de color aunque la maqueta no los muestre:
+ * son el dato que distingue gravedad, no el acento del módulo.
+ */
 const SEVERITY_COLORS: Record<string, string> = {
-  Low: '#2dd4bf',    
-  Medium: '#fb923c', 
-  High: '#f87171',   
+  Low: '#2dd4bf',    // teal-400
+  Medium: '#fb923c', // orange-400
+  High: '#f87171',   // red-400
 };
 
+/** Color del dot: por severidad si existe, gris neutro si no (ej. alergias). */
+const dotColor = (severity?: string): string =>
+  (severity && SEVERITY_COLORS[severity]) || '#a1a1aa';
+
 interface SearchableSelectProps {
-  items: HealthItem[];
+  items: SelectableItem[];
   selectedIds: string[];
   onSelectionChange: (ids: string[]) => void;
   placeholder?: string;
@@ -35,22 +53,28 @@ interface SearchableSelectProps {
   cardSubtitle?: string;
   /** Nombre del ícono Ionicons para la card (opcional) */
   cardIconName?: string;
-  /** Etiqueta para la sección de seleccionados (singular/plural automático) */
-  selectedLabel?: string;
 }
 
+/**
+ * Card reutilizable de búsqueda + selección de ítems (dark-only zinc).
+ * Rediseñada desde la maqueta de "Datos de salud": una sola card con título,
+ * buscador con lupa y, debajo, los ítems seleccionados con un botón circular
+ * para quitarlos. Conserva el punto de color de severidad por ítem.
+ *
+ * Se usa en el onboarding de Salud (Lesiones / Afecciones), su configuración de
+ * Perfil y el onboarding de Nutrición (Alergias). El acento de módulo lo aporta el
+ * consumidor (footer, spinner): este átomo es neutro para reutilizarse en cualquier
+ * módulo, y acepta ítems sin `severity` (el dot cae a gris neutro).
+ */
 export default function SearchableSelect({
   items,
   selectedIds,
   onSelectionChange,
-  placeholder = 'Seleccionar - Opcional',
+  placeholder = 'Buscar',
   cardTitle,
   cardSubtitle,
   cardIconName,
-  selectedLabel = 'Seleccionadas',
 }: SearchableSelectProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark'; // needed for placeholderTextColor and TextInput style (native props)
   const inputRef = useRef<TextInput>(null);
 
   const [query, setQuery] = useState('');
@@ -95,7 +119,7 @@ export default function SearchableSelect({
     return () => { sub1.remove(); sub2.remove(); };
   }, [isKeyboardVisible, isOpen]);
 
-  const handleSelect = (item: HealthItem) => {
+  const handleSelect = (item: SelectableItem) => {
     onSelectionChange([...safeSelectedIds, item.id]);
     setQuery('');
     setIsOpen(false);
@@ -116,182 +140,129 @@ export default function SearchableSelect({
     if (!isOpen) setIsOpen(true);
   };
 
-  const closeDropdown = () => {
-    setIsOpen(false);
-    inputRef.current?.blur();
-    Keyboard.dismiss();
-  };
-
   return (
-    <View className="gap-3">
-      {/* Card principal: encabezado + buscador */}
-      <View className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
-        {/* Encabezado opcional */}
-        {cardTitle && (
-          <View className="flex-row items-center gap-3 mb-4">
-            {cardIconName && (
-              <View className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 items-center justify-center">
-                <Ionicons
-                  name={cardIconName as any}
-                  size={20}
-                  className="text-slate-500 dark:text-slate-400"
-                />
-              </View>
-            )}
-            <View className="flex-1">
-              <Text className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">
-                {cardTitle}
-              </Text>
-              {cardSubtitle && (
-                <Text className="text-[13px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  {cardSubtitle}
-                </Text>
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* Input de búsqueda */}
-        <View style={{ zIndex: 50 }}>
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={() => inputRef.current?.focus()}
-            className={`flex-row items-center border rounded-xl px-4 bg-slate-50 dark:bg-slate-950 ${
-              isOpen
-                ? 'border-zinc-400 dark:border-zinc-500'
-                : 'border-zinc-200 dark:border-zinc-700'
-            }`}
-            style={{ height: 50 }}
-          >
-            <TextInput
-              ref={inputRef}
-              value={query}
-              onChangeText={handleChangeText}
-              onFocus={handleFocus}
-              placeholder={placeholder}
-              placeholderTextColor={isDark ? '#71717a' : '#9ca3af'}
-              style={{
-                flex: 1,
-                height: 50,
-                paddingVertical: 0,
-                fontSize: 16,
-                color: isDark ? '#ffffff' : '#0f172a',
-              }}
-              autoCorrect={false}
-              autoCapitalize="none"
-              returnKeyType="done"
-              blurOnSubmit={true}
-              onSubmitEditing={() => Keyboard.dismiss()}
-            />
-            <TouchableOpacity
-              onPress={() => isOpen ? closeDropdown() : inputRef.current?.focus()}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons
-                name={isOpen ? 'chevron-up' : 'chevron-down'}
-                size={20}
-                className="text-zinc-400 dark:text-zinc-500"
-              />
-            </TouchableOpacity>
-          </TouchableOpacity>
-
-          {isOpen && filteredItems.length > 0 && (
-            <View
-              className="absolute left-0 right-0 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800"
-              style={{
-                top: 54,
-                maxHeight: 200,
-                zIndex: 100,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.1,
-                shadowRadius: 8,
-                elevation: 8,
-              }}
-            >
-              <ScrollView
-                keyboardShouldPersistTaps="always"
-                nestedScrollEnabled
-                showsVerticalScrollIndicator={false}
-              >
-                {filteredItems.map((item) => {
-                  const severityColor = SEVERITY_COLORS[item.severity] || '#94a3b8';
-                  return (
-                    <TouchableOpacity
-                      key={item.id}
-                      onPress={() => handleSelect(item)}
-                      activeOpacity={0.6}
-                      className="flex-row items-center px-4 py-3 border-b border-zinc-100 dark:border-zinc-700/50"
-                    >
-                      <View
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: 5,
-                          backgroundColor: severityColor,
-                          marginRight: 10,
-                        }}
-                      />
-                      <Text className="flex-1 text-[15px] text-slate-900 dark:text-zinc-200">
-                        {item.name} - {item.severity}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+    <View className="bg-zinc-900 rounded-3xl p-5 border border-zinc-800">
+      {/* Encabezado opcional (sin ícono = look maqueta onboarding) */}
+      {cardTitle && (
+        <View className="flex-row items-center gap-3 mb-4">
+          {cardIconName && (
+            <View className="w-10 h-10 rounded-full bg-zinc-800 items-center justify-center">
+              <Ionicons name={cardIconName as any} size={20} className="text-zinc-400" />
             </View>
           )}
+          <View className="flex-1">
+            <Text className="text-xl font-bold text-white">{cardTitle}</Text>
+            {cardSubtitle && (
+              <Text className="text-sm text-zinc-400 mt-0.5">{cardSubtitle}</Text>
+            )}
+          </View>
         </View>
+      )}
+
+      {/* Buscador con lupa */}
+      <View style={{ zIndex: 50 }}>
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => inputRef.current?.focus()}
+          className={`flex-row items-center gap-3 border rounded-2xl px-4 bg-zinc-950 ${
+            isOpen ? 'border-zinc-600' : 'border-zinc-800'
+          }`}
+          style={{ height: 54 }}
+        >
+          <Ionicons name="search" size={20} className="text-zinc-500" />
+          <TextInput
+            ref={inputRef}
+            value={query}
+            onChangeText={handleChangeText}
+            onFocus={handleFocus}
+            placeholder={placeholder}
+            placeholderTextColor="#71717a"
+            style={{
+              flex: 1,
+              height: 54,
+              paddingVertical: 0,
+              fontSize: 16,
+              color: '#ffffff',
+            }}
+            autoCorrect={false}
+            autoCapitalize="none"
+            returnKeyType="done"
+            blurOnSubmit={true}
+            onSubmitEditing={() => Keyboard.dismiss()}
+          />
+        </TouchableOpacity>
+
+        {/* Dropdown de resultados */}
+        {isOpen && filteredItems.length > 0 && (
+          <View
+            className="absolute left-0 right-0 rounded-2xl overflow-hidden border border-zinc-700 bg-zinc-800"
+            style={{
+              top: 58,
+              maxHeight: 200,
+              zIndex: 100,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+            }}
+          >
+            <ScrollView
+              keyboardShouldPersistTaps="always"
+              nestedScrollEnabled
+              showsVerticalScrollIndicator={false}
+            >
+              {filteredItems.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  onPress={() => handleSelect(item)}
+                  activeOpacity={0.6}
+                  className="flex-row items-center px-4 py-3 border-b border-zinc-700/50"
+                >
+                  <View
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      backgroundColor: dotColor(item.severity),
+                      marginRight: 12,
+                    }}
+                  />
+                  <Text className="flex-1 text-[15px] text-zinc-200">{item.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </View>
 
-      {/* Card de seleccionados */}
+      {/* Ítems seleccionados: fila por ítem con botón circular para quitar */}
       {selectedItems.length > 0 && (
-        <View className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 gap-2">
-          {/* Header: "Seleccionadas (N)" + "Borrar todas" */}
-          <View className="flex-row items-center justify-between mb-1">
-            <Text className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-              {selectedLabel} ({selectedItems.length})
-            </Text>
-            <TouchableOpacity onPress={() => onSelectionChange([])}>
-              <Text style={{ fontSize: 14, color: '#3b82f6', fontWeight: '500' }}>
-                Borrar todas
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Chips con borde */}
-          {selectedItems.map((item) => {
-            const dotColor = SEVERITY_COLORS[item.severity] || '#94a3b8';
-            return (
+        <View className="mt-2">
+          {selectedItems.map((item) => (
+            <View
+              key={item.id}
+              className="flex-row items-center py-4 border-t border-zinc-800"
+            >
               <View
-                key={item.id}
-                className="flex-row items-center px-3.5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950"
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: dotColor(item.severity),
+                  marginRight: 12,
+                }}
+              />
+              <Text className="flex-1 text-base text-white">{item.name}</Text>
+              <TouchableOpacity
+                onPress={() => handleRemove(item.id)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                className="w-7 h-7 rounded-full border border-zinc-600 items-center justify-center"
               >
-                <View
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: dotColor,
-                    marginRight: 10,
-                  }}
-                />
-                <Text className="flex-1 text-[15px] text-slate-900 dark:text-slate-200">
-                  {item.name} - {item.severity}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => handleRemove(item.id)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons
-                    name="close"
-                    size={18}
-                    className="text-slate-500 dark:text-slate-400"
-                  />
-                </TouchableOpacity>
-              </View>
-            );
-          })}
+                <Ionicons name="close" size={16} className="text-zinc-400" />
+              </TouchableOpacity>
+            </View>
+          ))}
         </View>
       )}
     </View>

@@ -1,7 +1,7 @@
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { cssInterop } from 'nativewind';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -19,6 +19,8 @@ cssInterop(Ionicons, {
 });
 
 import EquipmentSelect from '@/src/components/common/EquipmentSelect';
+import EquipmentSelectedList from '@/src/components/common/EquipmentSelectedList';
+import { useUnsavedChangesGuard } from '@/src/hooks/useUnsavedChangesGuard';
 import { getEquipments } from '@/src/services/fitness.service';
 import {
     getUserEquipment,
@@ -28,16 +30,15 @@ import {
 import { Equipment, EquipmentSelection } from '@/src/types/fitness';
 
 interface EquipmentConfigProps {
+  /** Vuelve a la lista del módulo tras guardar (la ruta lo cablea a `router.back()`) */
   onBack: () => void;
-  /** Registra el handler de back del componente en el padre */
-  onRegisterBackHandler?: (fn: (() => void) | null) => void;
 }
 
 /**
- * Sub-pantalla de configuración de equipamiento.
+ * Sub-pantalla de configuración de equipamiento (ruta `/profile/fitness-equipment`).
  * Reutiliza EquipmentSelect del onboarding con el nuevo diseño visual.
  */
-export default function EquipmentConfig({ onBack, onRegisterBackHandler }: EquipmentConfigProps) {
+export default function EquipmentConfig({ onBack }: EquipmentConfigProps) {
   const { getToken } = useAuth();
   const insets = useSafeAreaInsets();
 
@@ -97,26 +98,10 @@ export default function EquipmentConfig({ onBack, onRegisterBackHandler }: Equip
     return false;
   };
 
-  const backHandlerRef = useRef<() => void>(() => {});
-  backHandlerRef.current = () => {
-    if (hasChanges()) {
-      Alert.alert(
-        'Cambios sin guardar',
-        'Tus cambios en equipamiento no se guardaron. ¿Deseas salir de todas formas?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Salir sin guardar', style: 'destructive', onPress: onBack },
-        ]
-      );
-    } else {
-      onBack();
-    }
-  };
-
-  useEffect(() => {
-    onRegisterBackHandler?.(() => backHandlerRef.current());
-    return () => onRegisterBackHandler?.(null);
-  }, []);
+  useUnsavedChangesGuard(
+    hasChanges(),
+    'Tus cambios en equipamiento no se guardaron. ¿Querés salir de todas formas?'
+  );
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -143,22 +128,10 @@ export default function EquipmentConfig({ onBack, onRegisterBackHandler }: Equip
     }
   };
 
-  const handleIncrement = (id: string) => {
+  const handleChangeQty = (id: string, qty: number) => {
     setSelectedEquipment((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, qty: item.qty + 1 } : item))
+      prev.map((item) => (item.id === id ? { ...item, qty } : item))
     );
-  };
-
-  const handleDecrement = (id: string) => {
-    const item = selectedEquipment.find((e) => e.id === id);
-    if (!item) return;
-    if (item.qty <= 1) {
-      setSelectedEquipment((prev) => prev.filter((e) => e.id !== id));
-    } else {
-      setSelectedEquipment((prev) =>
-        prev.map((e) => (e.id === id ? { ...e, qty: e.qty - 1 } : e))
-      );
-    }
   };
 
   const handleRemove = (id: string) => {
@@ -210,79 +183,34 @@ export default function EquipmentConfig({ onBack, onRegisterBackHandler }: Equip
             selectedEquipment={selectedEquipment}
             onSelectionChange={setSelectedEquipment}
             placeholder="Buscar equipamiento"
-            showSelectedList={false}
           />
         </View>
       </View>
 
       {/* Lista de seleccionados — scrolleable */}
       {selectedWithDetails.length > 0 && (
-        <View style={{ flex: 1, marginTop: 16 }}>
-          {/* Encabezado con contador y "Borrar todas" */}
-          <View className="flex-row items-center justify-between px-5 mb-2">
-            <Text className="text-sm font-semibold text-zinc-300">
-              Seleccionadas ({selectedWithDetails.length})
-            </Text>
-            <TouchableOpacity onPress={() => setSelectedEquipment([])}>
-              <Text className="text-sm font-medium text-red-400">Borrar todas</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView
-            style={{ flex: 1 }}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            onScrollBeginDrag={() => DeviceEventEmitter.emit('closeDropdowns')}
-            contentContainerStyle={{
-              paddingHorizontal: 16,
-              paddingBottom: insets.bottom + 100,
-              gap: 8,
-            }}
-          >
-            {selectedWithDetails.map((item) => (
-              <View
-                key={item.id}
-                className="flex-row items-center h-[60px] bg-zinc-900 rounded-2xl px-4 border border-zinc-800"
-              >
-                <Text className="flex-1 text-base text-white">
-                  {item.name}
-                </Text>
-
-                {/* Controles qty con borde */}
-                <View className="flex-row items-center border border-zinc-700 rounded-2xl overflow-hidden mr-4">
-                  <TouchableOpacity
-                    onPress={() => handleDecrement(item.id)}
-                    activeOpacity={0.6}
-                    className="w-9 h-9 items-center justify-center"
-                  >
-                    <Text className="text-xl font-semibold text-zinc-400">-</Text>
-                  </TouchableOpacity>
-
-                  <Text className="text-base font-semibold text-white w-8 text-center">
-                    {item.qty}
-                  </Text>
-
-                  <TouchableOpacity
-                    onPress={() => handleIncrement(item.id)}
-                    activeOpacity={0.6}
-                    className="w-9 h-9 items-center justify-center"
-                  >
-                    <Text className="text-xl font-semibold text-zinc-400">+</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Botón eliminar */}
-                <TouchableOpacity
-                  onPress={() => handleRemove(item.id)}
-                  activeOpacity={0.6}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons name="trash-outline" size={18} className="text-zinc-500" />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
+        <ScrollView
+          style={{ flex: 1, marginTop: 16 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={() => DeviceEventEmitter.emit('closeDropdowns')}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingBottom: insets.bottom + 100,
+          }}
+        >
+          <EquipmentSelectedList
+            items={selectedWithDetails.map((item) => ({
+              id: String(item.id),
+              name: item.name,
+              qty: item.qty,
+            }))}
+            onChangeQty={handleChangeQty}
+            onRemove={handleRemove}
+            onClearAll={() => setSelectedEquipment([])}
+            accent="lime"
+          />
+        </ScrollView>
       )}
 
       {/* Botón Guardar fijo abajo */}

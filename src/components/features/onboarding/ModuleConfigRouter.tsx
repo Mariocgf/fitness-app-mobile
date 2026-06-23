@@ -36,10 +36,10 @@ export default function ModuleConfigRouter({
   if (currentConfigIndex >= activeModules.length) {
     return (
       <View className="flex-1 items-center justify-center px-10">
-        <Text className="text-2xl font-bold text-slate-900 dark:text-white text-center">
+        <Text className="text-2xl font-bold text-white text-center">
           ¡Configuración completa!
         </Text>
-        <Text className="text-lg text-slate-500 dark:text-zinc-400 text-center mt-4">
+        <Text className="text-lg text-zinc-400 text-center mt-4">
           Todos tus módulos han sido configurados.
         </Text>
       </View>
@@ -88,10 +88,10 @@ export default function ModuleConfigRouter({
       // Módulo sin configuración específica → avanzar automáticamente
       return (
         <View className="flex-1 items-center justify-center px-10">
-          <Text className="text-2xl font-bold text-slate-900 dark:text-white text-center">
+          <Text className="text-2xl font-bold text-white text-center">
             {currentModule.name}
           </Text>
-          <Text className="text-lg text-slate-500 dark:text-zinc-400 text-center mt-4">
+          <Text className="text-lg text-zinc-400 text-center mt-4">
             Próximamente: Configuración personalizada.
           </Text>
         </View>

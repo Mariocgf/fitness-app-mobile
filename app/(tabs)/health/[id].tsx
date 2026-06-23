@@ -52,8 +52,8 @@ export default function MeasurementDetailScreen() {
 
   if (isFetching && !measurement) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-100 dark:bg-slate-950">
-        <ActivityIndicator size="large" color="#e11d48" />
+      <View className="flex-1 items-center justify-center bg-zinc-950">
+        <ActivityIndicator size="large" color="#fb7185" />
       </View>
     );
   }

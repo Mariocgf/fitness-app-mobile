@@ -37,6 +37,9 @@ interface HealthConfigStepProps {
   setIsSubmitting: (v: boolean) => void;
 }
 
+/** Acento del módulo Salud (colors.md → dark = rose-400). */
+const HEALTH_ACCENT = '#fb7185';
+
 export default function HealthConfigStep({
   brandColor,
   onComplete,
@@ -97,16 +100,16 @@ export default function HealthConfigStep({
   };
 
   const helperFooter = (
-    <View className="w-10 h-10 rounded-lg bg-white dark:bg-slate-800 items-center justify-center border border-slate-200 dark:border-slate-800">
-      <Ionicons name="lock-closed-outline" size={20} className="text-slate-500" />
+    <View className="w-11 h-11 rounded-2xl bg-zinc-900 items-center justify-center border border-zinc-800">
+      <Ionicons name="lock-closed-outline" size={20} color={HEALTH_ACCENT} />
     </View>
   );
 
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color={brandColor} />
-        <Text className="text-slate-500 dark:text-slate-400 mt-4">
+        <ActivityIndicator size="large" color={HEALTH_ACCENT} />
+        <Text className="text-zinc-400 mt-4">
           Cargando datos de salud...
         </Text>
       </View>
@@ -117,7 +120,7 @@ export default function HealthConfigStep({
   if (subStep === 0) {
     return (
       <View className="flex-1">
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <ProgressBar currentStep={0} totalSteps={2} />
 
         <ScrollView
@@ -130,8 +133,9 @@ export default function HealthConfigStep({
             onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
           >
             <OnboardingHeader
-              title={"Datos\nde salud"}
-              subtitle="Cuéntanos sobre tus lesiones que debeamos considerar."
+              title="Datos de salud"
+              subtitle="Cuéntanos tus lesiones que debamos considerar."
+              centered
             />
 
             <SearchableSelect
@@ -139,10 +143,7 @@ export default function HealthConfigStep({
               selectedIds={selectedInjuryIds}
               onSelectionChange={setSelectedInjuryIds}
               placeholder="Buscar lesión"
-              cardTitle="Tienes alguna lesión?"
-              cardSubtitle="Selecciona todas las que apliquen"
-              cardIconName="shield-outline"
-              selectedLabel="Seleccionadas"
+              cardTitle="¿Tienes alguna lesión?"
             />
           </Pressable>
         </ScrollView>
@@ -164,7 +165,7 @@ export default function HealthConfigStep({
   return (
     <SwipeBackWrapper onSwipeBack={() => setSubStep(0)}>
       <View className="flex-1">
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <ProgressBar currentStep={1} totalSteps={2} />
         <BackButton onPress={() => setSubStep(0)} color={brandColor} />
 
@@ -178,8 +179,9 @@ export default function HealthConfigStep({
             onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
           >
             <OnboardingHeader
-              title={"Datos\nde salud"}
-              subtitle="¿Tenés alguna afección médica que debamos considerar?"
+              title="Datos de salud"
+              subtitle="¿Tienes alguna afección médica que debamos considerar?"
+              centered
             />
 
             <SearchableSelect
@@ -187,10 +189,7 @@ export default function HealthConfigStep({
               selectedIds={selectedConditionIds}
               onSelectionChange={setSelectedConditionIds}
               placeholder="Buscar afección"
-              cardTitle="Afecciones médicas"
-              cardSubtitle="Selecciona todas las que apliquen"
-              cardIconName="medkit-outline"
-              selectedLabel="Seleccionadas"
+              cardTitle="¿Tienes alguna afección?"
             />
           </Pressable>
         </ScrollView>

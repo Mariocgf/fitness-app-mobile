@@ -26,12 +26,15 @@ describe('BasicInfoStep1', () => {
       />
     );
 
-    expect(getByText('Datos basico')).toBeTruthy();
-    expect(getByText('Ingresa tu fecha de nacimiento')).toBeTruthy();
-    expect(getByText('Selecciona tu genero')).toBeTruthy();
+    expect(getByText('Datos básicos')).toBeTruthy();
+    expect(getByText('Fecha de nacimiento')).toBeTruthy();
+    expect(getByText('Género')).toBeTruthy();
+    // Solo dos géneros, sin "Otro"
+    expect(getByText('Masculino')).toBeTruthy();
+    expect(getByText('Femenino')).toBeTruthy();
   });
 
-  it('debe mostrar una alerta si se intenta continuar sin seleccionar género', () => {
+  it('no debe avanzar si no se seleccionó género (botón deshabilitado)', () => {
     const { getByText } = render(
       <BasicInfoStep1
         date={defaultDate}
@@ -45,7 +48,6 @@ describe('BasicInfoStep1', () => {
     const continueButton = getByText('Continuar');
     fireEvent.press(continueButton);
 
-    expect(global.alert).toHaveBeenCalledWith('Por favor selecciona tu género.');
     expect(mockOnContinue).not.toHaveBeenCalled();
   });
 
@@ -67,7 +69,7 @@ describe('BasicInfoStep1', () => {
   });
 
   it('debe llamar a onGenderChange al seleccionar una opción', () => {
-    const { getByTestId } = render(
+    const { getByText } = render(
       <BasicInfoStep1
         date={defaultDate}
         onDateChange={mockOnDateChange}
@@ -77,9 +79,7 @@ describe('BasicInfoStep1', () => {
       />
     );
 
-    // Buscamos el componente Picker por su testID mockeado en jest-setup
-    const picker = getByTestId('Picker');
-    fireEvent(picker, 'onValueChange', 'female');
+    fireEvent.press(getByText('Femenino'));
 
     expect(mockOnGenderChange).toHaveBeenCalledWith('female');
   });

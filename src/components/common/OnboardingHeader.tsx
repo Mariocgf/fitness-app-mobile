@@ -8,6 +8,8 @@ interface OnboardingHeaderProps {
   subtitle: string;
   /** Si true, fuerza texto blanco (para fondos oscuros) */
   inverted?: boolean;
+  /** Si true, centra título y subtítulo (maqueta de Datos básicos) */
+  centered?: boolean;
 }
 
 /**
@@ -15,16 +17,16 @@ interface OnboardingHeaderProps {
  * Respetando colores de colors.md
  * El título admite saltos de línea con \n
  */
-export default function OnboardingHeader({ title, subtitle, inverted = false }: OnboardingHeaderProps) {
+export default function OnboardingHeader({ title, subtitle, inverted = false, centered = false }: OnboardingHeaderProps) {
   return (
-    <View>
-      <Text className={`text-[42px] font-bold leading-[1] ${
-        inverted ? 'text-white' : 'text-slate-900 dark:text-slate-50'
+    <View className={centered ? 'items-center' : ''}>
+      <Text className={`text-[42px] font-bold leading-[1] ${centered ? 'text-center' : ''} ${
+        inverted ? 'text-white' : 'text-white'
       }`}>
         {title}
       </Text>
-      <Text className={`text-lg mt-2 mb-8 ${
-        inverted ? 'text-white/60' : 'text-slate-500 dark:text-slate-400'
+      <Text className={`text-lg mt-2 mb-8 ${centered ? 'text-center' : ''} ${
+        inverted ? 'text-white/60' : 'text-zinc-400'
       }`}>
         {subtitle}
       </Text>

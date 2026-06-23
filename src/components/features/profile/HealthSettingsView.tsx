@@ -1,41 +1,17 @@
-import InjuriesConfig, { ConditionsConfig } from '@/src/components/features/profile/InjuriesConfig';
-import { ProfileListGroup } from '@/src/components/features/profile/ProfileListGroup';
-import { ProfileListRow } from '@/src/components/features/profile/ProfileListRow';
-import React, { useState } from 'react';
+import { ProfileModuleCard } from '@/src/components/features/profile/ProfileModuleCard';
+import { useRouter } from 'expo-router';
+import React from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-type HealthSubView = null | 'injuries' | 'conditions';
-
-interface HealthSettingsViewProps {
-  onBack?: () => void;
-  onSubBackChange?: (fn: (() => void) | null) => void;
-}
-
 /**
- * Vista de sub-opciones del módulo Salud dentro del perfil.
- * Lista agrupada dark `zinc` (sin íconos, consistente con la pantalla de Perfil).
+ * Lista de sub-opciones del módulo Salud dentro del perfil.
+ * Cards `ProfileModuleCard` (icon-tile + título), mismo lenguaje visual que la
+ * raíz del Perfil. Cada item navega a su ruta real (`/profile/health-*`).
  */
-export const HealthSettingsView: React.FC<HealthSettingsViewProps> = ({ onBack, onSubBackChange }) => {
+export const HealthSettingsView: React.FC = () => {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [activeSubView, setActiveSubView] = useState<HealthSubView>(null);
-
-  const handleSubBack = () => {
-    setActiveSubView(null);
-    onSubBackChange?.(null);
-  };
-
-  const registerBackHandler = (fn: (() => void) | null) => {
-    onSubBackChange?.(fn ? () => fn() : null);
-  };
-
-  if (activeSubView === 'injuries') {
-    return <InjuriesConfig onBack={handleSubBack} onRegisterBackHandler={registerBackHandler} />;
-  }
-
-  if (activeSubView === 'conditions') {
-    return <ConditionsConfig onBack={handleSubBack} onRegisterBackHandler={registerBackHandler} />;
-  }
 
   return (
     <View className="flex-1">
@@ -43,10 +19,16 @@ export const HealthSettingsView: React.FC<HealthSettingsViewProps> = ({ onBack, 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: 24, paddingBottom: insets.bottom + 20 }}
       >
-        <ProfileListGroup>
-          <ProfileListRow label="Lesiones" onPress={() => setActiveSubView('injuries')} />
-          <ProfileListRow label="Afecciones médicas" onPress={() => setActiveSubView('conditions')} />
-        </ProfileListGroup>
+        <ProfileModuleCard
+          icon="bandage-outline"
+          title="Lesiones"
+          onPress={() => router.push('/profile/health-injuries')}
+        />
+        <ProfileModuleCard
+          icon="medkit-outline"
+          title="Afecciones médicas"
+          onPress={() => router.push('/profile/health-conditions')}
+        />
       </ScrollView>
     </View>
   );

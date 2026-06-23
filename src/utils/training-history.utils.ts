@@ -10,6 +10,12 @@ export const formatSessionDate = (d: Date): string =>
     year: 'numeric',
   });
 
+const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+/** Formatea una fecha a "22 jun. 2026" (día mes abreviado con punto, año) */
+export const formatSessionDateDots = (d: Date): string =>
+  `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}. ${d.getFullYear()}`;
+
 /** Formatea una fecha a "Lunes 24 de marzo, 09:30" */
 export const formatSessionDateTime = (d: Date): string => {
   const datePart = d.toLocaleDateString('es-AR', {

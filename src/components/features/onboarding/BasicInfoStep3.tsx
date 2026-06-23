@@ -1,22 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React from 'react';
-import {
-    Platform,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
-
-import InputCard from '@/src/components/common/InputCard';
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
 import OnboardingHeader from '@/src/components/common/OnboardingHeader';
 import ProgressBar from '@/src/components/common/ProgressBar';
+import SelectableCard from '@/src/components/common/SelectableCard';
 import { Goal } from '@/src/types/goal';
 
 /** Total de pasos del onboarding básico */
@@ -33,14 +22,16 @@ interface BasicInfoStep3Props {
 }
 
 /**
- * Paso 3 del onboarding: Selección de objetivo (grid 2×2).
- * Diseño según imagen de referencia y colores de colors.md.
+ * Paso 3 del onboarding: Selección de objetivo.
+ * Dark-only zinc neutro (onboarding no es módulo → "resto de la UI" en colors.md,
+ * mismo criterio que los pasos 1/2). Los objetivos se presentan como lista de
+ * items (estilo de la maqueta) vía SelectableCard variant="outline". El back se
+ * resuelve por swipe (SwipeBackWrapper en onboarding.tsx).
  */
 export default function BasicInfoStep3({
   goal,
   onGoalChange,
   onContinue,
-  onBack,
   isSubmitting,
   goals,
   isLoading,
@@ -54,30 +45,9 @@ export default function BasicInfoStep3({
   };
 
   return (
-    <View className="flex-1 bg-slate-100 dark:bg-slate-950">
-      {/* Barra de progreso - paso 2 (último del onboarding básico) */}
+    <View className="flex-1 bg-zinc-950">
+      {/* Indicador de progreso original (no los círculos numerados de la maqueta) */}
       <ProgressBar currentStep={2} totalSteps={TOTAL_ONBOARDING_STEPS} />
-
-      {/* Botón Atrás */}
-      <View className="px-6">
-        <TouchableOpacity
-          onPress={onBack}
-          className="flex-row items-center py-2 -ml-1 self-start"
-          activeOpacity={0.6}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons
-            name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
-            size={Platform.OS === 'ios' ? 28 : 24}
-            className="text-slate-950 dark:text-slate-50"
-          />
-          {Platform.OS === 'ios' && (
-            <Text className="text-lg text-slate-900 dark:text-slate-50 -ml-1">
-              Atrás
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
 
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
@@ -85,66 +55,43 @@ export default function BasicInfoStep3({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="pt-2">
+        <View className="pt-6">
           <OnboardingHeader
-            title={"Datos\nbásicos"}
-            subtitle="Necesitamos algunos datos para personalizar tu experiencia Wellium."
+            title="Tu objetivo"
+            subtitle="Esto nos ayuda a generar rutinas y planes adaptados a vos."
+            centered
           />
 
-          {/* Card: Objetivo */}
-          <InputCard>
-            <Text className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-              ¿Qué quieres lograr?
-            </Text>
+          <Text className="text-base text-zinc-400 mb-3">¿Qué quieres lograr?</Text>
 
-            {isLoading ? (
-              <View className="py-10 items-center justify-center">
-                <Text className="text-slate-500 dark:text-slate-400">
-                  Cargando objetivos...
-                </Text>
-              </View>
-            ) : (
-              <View className="flex-row flex-wrap justify-between">
-                {goals.map((option) => {
-                  const isSelected = goal === option.id;
-
-                  return (
-                    <TouchableOpacity
-                      key={option.id}
-                      onPress={() => onGoalChange(option.id)}
-                      activeOpacity={0.7}
-                      className={`w-[48%] mb-3 py-4 px-3 rounded-xl items-center justify-center border ${
-                        isSelected
-                          ? 'border-zinc-950 dark:border-zinc-50 bg-zinc-950 dark:bg-zinc-50'
-                          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
-                      }`}
-                    >
-                      <Text
-                        className={`text-sm font-medium text-center ${
-                          isSelected
-                            ? 'text-white dark:text-slate-900'
-                            : 'text-slate-900 dark:text-slate-50'
-                        }`}
-                      >
-                        {option.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
-          </InputCard>
+          {isLoading ? (
+            <View className="py-10 items-center justify-center">
+              <Text className="text-zinc-400">Cargando objetivos...</Text>
+            </View>
+          ) : (
+            <View>
+              {goals.map((option) => (
+                <SelectableCard
+                  key={option.id}
+                  isSelected={goal === option.id}
+                  label={option.name}
+                  onPress={() => onGoalChange(option.id)}
+                  variant="outline"
+                />
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
 
       <OnboardingFooter
         onPress={handleContinue}
-        disabled={!goal || isSubmitting}
+        disabled={isSubmitting}
         buttonLabel="Continuar"
-        helperText="Usaremos estos datos para darte planes más personalizados"
+        helperText="Podrás modificar esto más adelante."
         helperIcon={
-          <View className="w-10 h-10 rounded-lg bg-white dark:bg-slate-800 items-center justify-center border border-slate-200 dark:border-slate-800">
-            <Ionicons name="sparkles-outline" size={20} className="text-slate-500 dark:text-slate-400" />
+          <View className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 items-center justify-center">
+            <Ionicons name="information-circle-outline" size={20} color="#a1a1aa" />
           </View>
         }
       />

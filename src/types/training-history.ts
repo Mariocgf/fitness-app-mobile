@@ -93,16 +93,39 @@ export interface SessionMetricDelta {
   direction: 'up' | 'down' | 'same';
 }
 
+/** Set representativo (top set) de una sesión: peso × repeticiones */
+export interface SessionSetSnapshot {
+  weight: number;
+  reps: number;
+}
+
+/** Tipo de cambio destacado entre los top sets de un ejercicio */
+export type ExerciseHeadlineKind = 'weight' | 'reps' | 'none';
+
 export interface SessionExerciseDelta {
   exerciseId: string;
   exerciseName: string;
   exerciseNameEs: string | null;
-  metrics: SessionMetricDelta[];
+  /** Top set de la sesión más antigua (referencia) */
+  baseTopSet: SessionSetSnapshot;
+  /** Top set de la sesión más reciente (actual) */
+  targetTopSet: SessionSetSnapshot;
+  /** Qué cambió entre ambos top sets: peso, repeticiones o nada */
+  headlineKind: ExerciseHeadlineKind;
+  /** Diferencia firmada del cambio destacado (kg si `weight`, reps si `reps`) */
+  headlineDiff: number;
 }
 
+/** Veredicto general de la comparación, derivado de series completadas y volumen */
+export type ComparisonVerdict = 'better' | 'worse' | 'similar';
+
 export interface TrainingSessionComparison {
+  /** Sesión más antigua (referencia) */
   base: TrainingHistorySession;
+  /** Sesión más reciente (actual) */
   target: TrainingHistorySession;
+  /** Veredicto general derivado de las métricas de trabajo */
+  overall: ComparisonVerdict;
   summaryDeltas: SessionMetricDelta[];
   exerciseDeltas: SessionExerciseDelta[];
 }

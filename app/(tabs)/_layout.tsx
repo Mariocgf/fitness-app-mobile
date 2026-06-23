@@ -6,7 +6,7 @@ import { useAuth } from '@clerk/clerk-expo';
 import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 export default function TabLayout() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -35,16 +35,27 @@ export default function TabLayout() {
                 backgroundColor: 'transparent',
                 elevation: 0,
               },
-              // Blur nativo del tab bar: iOS (nativo) y Android (dimezisBlurView).
+              // Blur nativo solo en iOS. En Android, dimezisBlurView es experimental
+              // y puede crashear al dibujar bitmaps hardware con rendering software.
               tabBarBackground: () => (
-                <BlurView
-                  intensity={isDark ? 40 : 60}
-                  tint={isDark ? 'dark' : 'light'}
-                  experimentalBlurMethod={
-                    Platform.OS === 'android' ? 'dimezisBlurView' : undefined
-                  }
-                  style={StyleSheet.absoluteFill}
-                />
+                Platform.OS === 'ios' ? (
+                  <BlurView
+                    intensity={isDark ? 40 : 60}
+                    tint={isDark ? 'dark' : 'light'}
+                    style={StyleSheet.absoluteFill}
+                  />
+                ) : (
+                  <View
+                    style={[
+                      StyleSheet.absoluteFill,
+                      {
+                        backgroundColor: isDark
+                          ? 'rgba(2, 6, 23, 0.88)'
+                          : 'rgba(248, 250, 252, 0.88)',
+                      },
+                    ]}
+                  />
+                )
               ),
               tabBarLabelStyle: {
                 fontSize: 10,

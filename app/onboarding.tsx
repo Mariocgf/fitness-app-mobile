@@ -430,7 +430,7 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-slate-100 dark:bg-slate-950">
+    <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-zinc-950">
       {step === -2 && (
         <PrivacyTermsStep
           onContinue={handleAcceptTerms}

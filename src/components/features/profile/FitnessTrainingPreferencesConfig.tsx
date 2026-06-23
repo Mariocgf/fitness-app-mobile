@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RulerPicker from '@/src/components/common/RulerPicker';
 import SectionCard from '@/src/components/common/SectionCard';
 import WeekDayPicker from '@/src/components/common/WeekDayPicker';
+import { useUnsavedChangesGuard } from '@/src/hooks/useUnsavedChangesGuard';
 import {
   getTrainingPreferences,
   updateTrainingPreferences,
@@ -19,8 +20,8 @@ cssInterop(Ionicons, {
 });
 
 interface FitnessTrainingPreferencesConfigProps {
+  /** Vuelve a la lista del módulo tras guardar (la ruta lo cablea a `router.back()`) */
   onBack: () => void;
-  onRegisterBackHandler?: (fn: (() => void) | null) => void;
 }
 
 const dayToPickerValue: Record<FitnessDay, number> = {
@@ -62,13 +63,10 @@ const areSameDays = (a: number[], b: number[]) => {
  */
 export default function FitnessTrainingPreferencesConfig({
   onBack,
-  onRegisterBackHandler,
 }: FitnessTrainingPreferencesConfigProps) {
   const { getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
-  const onRegisterBackHandlerRef = useRef(onRegisterBackHandler);
-  onRegisterBackHandlerRef.current = onRegisterBackHandler;
   const insets = useSafeAreaInsets();
 
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
@@ -115,27 +113,10 @@ export default function FitnessTrainingPreferencesConfig({
     [sessionDuration, initialSessionDuration, selectedDays, initialDays]
   );
 
-  const backHandlerRef = useRef<() => void>(() => {});
-  backHandlerRef.current = () => {
-    if (!hasChanges) {
-      onBack();
-      return;
-    }
-
-    Alert.alert(
-      'Cambios sin guardar',
-      'Tus cambios de disponibilidad no se guardaron. ¿Querés salir de todas formas?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Salir sin guardar', style: 'destructive', onPress: onBack },
-      ]
-    );
-  };
-
-  useEffect(() => {
-    onRegisterBackHandlerRef.current?.(() => backHandlerRef.current());
-    return () => onRegisterBackHandlerRef.current?.(null);
-  }, []);
+  useUnsavedChangesGuard(
+    hasChanges,
+    'Tus cambios de disponibilidad no se guardaron. ¿Querés salir de todas formas?'
+  );
 
   const handleSave = async () => {
     const preferredWorkoutDays = toFitnessDays(selectedDays);
@@ -202,6 +183,7 @@ export default function FitnessTrainingPreferencesConfig({
             days={WEEKDAY_OPTIONS}
             selectedDays={selectedDays}
             onChange={setSelectedDays}
+            accent="lime"
           />
         </SectionCard>
 

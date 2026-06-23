@@ -277,11 +277,10 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   // Configura la barra de navegación nativa de Android (solo Android).
-  // Sin esto, en SDK 52+ la barra es transparente y el contenido se dibuja detrás.
+  // Con edge-to-edge habilitado, Android no permite forzar posición ni fondo:
+  // el área detrás de la navigation bar la pinta el propio layout.
   useEffect(() => {
     if (Platform.OS !== 'android') return;
-    NavigationBar.setPositionAsync('relative');
-    NavigationBar.setBackgroundColorAsync(colorScheme === 'dark' ? '#020617' : '#f1f5f9');
     NavigationBar.setButtonStyleAsync(colorScheme === 'dark' ? 'light' : 'dark');
   }, [colorScheme]);
 
@@ -305,7 +304,8 @@ export default function RootLayout() {
           >
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
               <RootNavigator />
-              <StatusBar style="auto" />
+              {/* App dark-only: íconos/texto de la status bar siempre en claro para que se vean */}
+              <StatusBar style="light" />
             </ThemeProvider>
           </ClerkProvider>
         </QueryClientProvider>

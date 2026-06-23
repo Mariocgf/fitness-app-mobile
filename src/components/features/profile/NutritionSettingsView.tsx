@@ -1,37 +1,17 @@
-import DietaryConfig from '@/src/components/features/profile/DietaryConfig';
-import { ProfileListGroup } from '@/src/components/features/profile/ProfileListGroup';
-import { ProfileListRow } from '@/src/components/features/profile/ProfileListRow';
-import React, { useState } from 'react';
+import { ProfileModuleCard } from '@/src/components/features/profile/ProfileModuleCard';
+import { useRouter } from 'expo-router';
+import React from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-type NutritionSubView = null | 'dietary';
-
-interface NutritionSettingsViewProps {
-  onBack?: () => void;
-  onSubBackChange?: (fn: (() => void) | null) => void;
-}
-
 /**
- * Vista de sub-opciones del módulo Nutrición dentro del perfil.
- * Lista agrupada dark `zinc` (sin íconos, consistente con la pantalla de Perfil).
+ * Lista de sub-opciones del módulo Nutrición dentro del perfil.
+ * Cards `ProfileModuleCard` (icon-tile + título), mismo lenguaje visual que la
+ * raíz del Perfil. Cada item navega a su ruta real (`/profile/nutrition-*`).
  */
-export const NutritionSettingsView: React.FC<NutritionSettingsViewProps> = ({ onBack, onSubBackChange }) => {
+export const NutritionSettingsView: React.FC = () => {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [activeSubView, setActiveSubView] = useState<NutritionSubView>(null);
-
-  const handleSubBack = () => {
-    setActiveSubView(null);
-    onSubBackChange?.(null);
-  };
-
-  const registerBackHandler = (fn: (() => void) | null) => {
-    onSubBackChange?.(fn ? () => fn() : null);
-  };
-
-  if (activeSubView === 'dietary') {
-    return <DietaryConfig onBack={handleSubBack} onRegisterBackHandler={registerBackHandler} />;
-  }
 
   return (
     <View className="flex-1">
@@ -39,17 +19,21 @@ export const NutritionSettingsView: React.FC<NutritionSettingsViewProps> = ({ on
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: 24, paddingBottom: insets.bottom + 20 }}
       >
-        <ProfileListGroup>
-          <ProfileListRow
-            label="Sub objetivo"
-            onPress={() => Alert.alert('Sub objetivo', 'Próximamente.')}
-          />
-          <ProfileListRow
-            label="Alergias alimenticias"
-            onPress={() => Alert.alert('Alergias alimenticias', 'Próximamente.')}
-          />
-          <ProfileListRow label="Estilo de dieta" onPress={() => setActiveSubView('dietary')} />
-        </ProfileListGroup>
+        <ProfileModuleCard
+          icon="flag-outline"
+          title="Sub objetivo"
+          onPress={() => Alert.alert('Sub objetivo', 'Próximamente.')}
+        />
+        <ProfileModuleCard
+          icon="alert-circle-outline"
+          title="Alergias alimenticias"
+          onPress={() => Alert.alert('Alergias alimenticias', 'Próximamente.')}
+        />
+        <ProfileModuleCard
+          icon="restaurant-outline"
+          title="Estilo de dieta"
+          onPress={() => router.push('/profile/nutrition-dietary')}
+        />
       </ScrollView>
     </View>
   );
