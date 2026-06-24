@@ -1,7 +1,17 @@
 import { logger } from '@/src/utils/logger';
 import { AxiosError } from 'axios';
 import apiClient from '../api/client';
-import { AdaptRoutineResponseDto, PagedRoutinesResponse, Routine, RoutinePreviewResponse, SwapPick, SwapSuggestionsResponse } from '../types/routine';
+import {
+  AdaptRoutineResponseDto,
+  PagedRoutinesResponse,
+  Routine,
+  RoutineDay,
+  RoutinePreviewResponse,
+  RoutineVersionDetail,
+  RoutineVersionsResponse,
+  SwapPick,
+  SwapSuggestionsResponse,
+} from '../types/routine';
 import { SessionLog } from '../types/session';
 import { ExerciseLoadType, capitalize } from '../utils/format.utils';
 
@@ -32,12 +42,21 @@ export interface CreateRoutinePayload {
   days: CreateRoutineDayPayload[];
 }
 
-const capitalizeRoutineNames = (routine: Routine): Routine => ({
-  ...routine,
-  days: routine.days?.map((day) => ({
+/** Capitaliza el nombre de cada ejercicio dentro de los días (mismo shape en rutina y versión). */
+const capitalizeDays = (days: RoutineDay[] | undefined): RoutineDay[] =>
+  days?.map((day) => ({
     ...day,
     exercises: day.exercises?.map((ex) => ({ ...ex, name: capitalize(ex.name) })) ?? [],
-  })) ?? [],
+  })) ?? [];
+
+const capitalizeRoutineNames = (routine: Routine): Routine => ({
+  ...routine,
+  days: capitalizeDays(routine.days),
+});
+
+const capitalizeVersionDetail = (detail: RoutineVersionDetail): RoutineVersionDetail => ({
+  ...detail,
+  days: capitalizeDays(detail.days),
 });
 
 /**
@@ -460,5 +479,116 @@ export const rejectRoutineAdaptation = async (
       },
     }
   );
+};
+
+/* ──────────────────────────── Versionado de rutinas ─────────────────────── */
+
+/**
+ * Obtiene el historial de versiones de una rutina (metadata, sin contenido).
+ * GET /api/routine/{routineId}/versions
+ */
+export const getRoutineVersions = async (
+  routineId: string,
+  token: string | null
+): Promise<RoutineVersionsResponse> => {
+  const url = `/api/Routine/${routineId}/versions`;
+  try {
+    const { data } = await apiClient.get<RoutineVersionsResponse>(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return data;
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      logger.error('[routine.service]', url, 'FAIL', {
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+    }
+    throw error;
+  }
+};
+
+/**
+ * Obtiene el contenido completo de una versión concreta.
+ * GET /api/routine/{routineId}/versions/{versionId}
+ */
+export const getRoutineVersionDetail = async (
+  routineId: string,
+  versionId: string,
+  token: string | null
+): Promise<RoutineVersionDetail> => {
+  const url = `/api/Routine/${routineId}/versions/${versionId}`;
+  try {
+    const { data } = await apiClient.get<RoutineVersionDetail>(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return capitalizeVersionDetail(data);
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      logger.error('[routine.service]', url, 'FAIL', {
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+    }
+    throw error;
+  }
+};
+
+/**
+ * Cambia la versión activa de la rutina (NO crea historial, solo cambia la activa).
+ * Refresca los targets de nutrición en el backend.
+ * PATCH /api/routine/{routineId}/active-version
+ */
+export const setActiveRoutineVersion = async (
+  routineId: string,
+  versionId: string,
+  token: string | null
+): Promise<RoutineVersionDetail> => {
+  const url = `/api/Routine/${routineId}/active-version`;
+  try {
+    const { data } = await apiClient.patch<RoutineVersionDetail>(
+      url,
+      { versionId },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return capitalizeVersionDetail(data);
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      logger.error('[routine.service]', url, 'FAIL', {
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+    }
+    throw error;
+  }
+};
+
+/**
+ * Restaura una versión clonándola como una versión NUEVA (queda activa + última).
+ * Deja trazabilidad. Sirve para "copiar una versión vieja para editarla".
+ * POST /api/routine/{routineId}/versions/{versionId}/restore
+ */
+export const restoreRoutineVersion = async (
+  routineId: string,
+  versionId: string,
+  token: string | null
+): Promise<RoutineVersionDetail> => {
+  const url = `/api/Routine/${routineId}/versions/${versionId}/restore`;
+  try {
+    const { data } = await apiClient.post<RoutineVersionDetail>(
+      url,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return capitalizeVersionDetail(data);
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      logger.error('[routine.service]', url, 'FAIL', {
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+    }
+    throw error;
+  }
 };
 

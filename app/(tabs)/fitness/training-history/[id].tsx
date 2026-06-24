@@ -113,6 +113,9 @@ export default function TrainingSessionDetailScreen() {
               </Text>
               <Text className="text-zinc-400 text-base mt-2">
                 {formatSessionDateTimeDot(session.trainedAt)}
+                {session.routineVersionNumber != null
+                  ? `  ·  Versión ${session.routineVersionNumber}`
+                  : ''}
               </Text>
 
               <View className="flex-row items-center justify-between mt-2 mb-6">

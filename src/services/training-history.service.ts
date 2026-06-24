@@ -47,6 +47,11 @@ const mapSessionDto = (dto: TrainingHistorySessionDto): TrainingHistorySession =
   totalSeconds: parseHmsToSeconds(dto.totalTime),
   routineId: dto.routineId,
   routineName: dto.routineName,
+  routineVersionId: dto.routineVersionId ?? null,
+  // El número puede venir como number o string; las versiones arrancan en 1, así
+  // que `Number(...) || null` descarta 0/NaN/"" sin perder ningún valor válido.
+  routineVersionNumber:
+    dto.routineVersionNumber == null ? null : Number(dto.routineVersionNumber) || null,
   exercises: (dto.exercises ?? []).map(mapExerciseDto),
 });
 

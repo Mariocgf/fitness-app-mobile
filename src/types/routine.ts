@@ -34,7 +34,53 @@ export interface Routine {
   name: string; // e.g. "Fuerza Pro - Nivel Intermedio"
   createdAt: string;
   source: RoutineSource;
+  isActive: boolean; // rutina activa del usuario (NO la versión, ver versionado abajo)
+  days: RoutineDay[];
+  // ── Versionado ──────────────────────────────────────────────────────────
+  // El backend ya devuelve estos campos en GET /api/routine/{id} y /active-routine.
+  // Opcionales para degradar sin romper si una respuesta vieja todavía no los trae.
+  /** Versión cuyo contenido está en days[] (la que se usa ahora). */
+  activeVersionId?: string | null;
+  /** Última versión creada (puede diferir de activeVersionId). */
+  latestVersionId?: string | null;
+  /** Número de la versión activa mostrada (v1, v2, ...). */
+  versionNumber?: number | null;
+}
+
+/* ──────────────────────────── Versionado de rutinas ─────────────────────── */
+
+/** Metadata de una versión en el historial (sin el contenido de days[]). */
+export interface RoutineVersionSummary {
+  id: string;
+  versionNumber: number;
   isActive: boolean;
+  isLatest: boolean;
+  basedOnVersionId: string | null;
+  changeReason: string | null;
+  createdAt: string; // ISO
+}
+
+/** Respuesta de GET /{routineId}/versions — historial completo. */
+export interface RoutineVersionsResponse {
+  routineId: string;
+  name: string;
+  activeVersionId: string | null;
+  latestVersionId: string | null;
+  versions: RoutineVersionSummary[]; // ordenadas de la más nueva a la más vieja
+}
+
+/**
+ * Contenido completo de una versión. Reusa RoutineDay/RoutineExercise: el backend
+ * documenta "el mismo shape de days[]/exercises[] que devuelve GET /api/routine/{id}".
+ */
+export interface RoutineVersionDetail {
+  id: string;
+  routineId: string;
+  versionNumber: number;
+  isActive: boolean;
+  basedOnVersionId: string | null;
+  changeReason: string | null;
+  createdAt: string;
   days: RoutineDay[];
 }
 

@@ -22,6 +22,7 @@ export function RecentActivityCard({ session, onPress }: RecentActivityCardProps
     `${exerciseCount} ${exerciseCount === 1 ? 'ejercicio' : 'ejercicios'}`,
     formatDurationLong(session.totalSeconds),
     formatRelativeDay(session.trainedAt),
+    ...(session.routineVersionNumber != null ? [`v${session.routineVersionNumber}`] : []),
   ].join('  •  ');
 
   return (

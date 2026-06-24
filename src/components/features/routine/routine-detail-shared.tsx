@@ -3,7 +3,6 @@
  * de rutinas. Vive en su propio módulo para que ambos archivos las reutilicen
  * sin imports circulares.
  */
-import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Platform, Text, View } from 'react-native';
 import Animated, {
@@ -12,12 +11,39 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-// Permite usar `className` (con color) en Ionicons vía NativeWind.
-
 /* ── Constantes de layout ─────────────────────────────────────────────────── */
 
 export const TAB_BAR_HEIGHT = Platform.select({ ios: 49, android: 56, default: 49 }) as number;
 export const BOTTOM_BUTTON_HEIGHT = 60;
+
+/* ── VersionBadge ── pill chico no interactivo para versionado ────────────── */
+
+interface VersionBadgeProps {
+  label: string;
+  /** `lime` resalta (En uso / Última); `zinc` es neutro (número de versión). */
+  tone?: 'lime' | 'zinc';
+}
+
+/**
+ * Badge compacto para el versionado de rutinas. No es interactivo (a diferencia
+ * de `SelectablePill`), así que vive como átomo propio. Lo usan el header del
+ * detalle de rutina y las filas de `RoutineVersionsSheet`.
+ */
+export const VersionBadge: React.FC<VersionBadgeProps> = ({ label, tone = 'zinc' }) => (
+  <View
+    className={`px-2 py-0.5 rounded-full border ${
+      tone === 'lime'
+        ? 'bg-lime-400/15 border-lime-400/40'
+        : 'bg-white/5 border-white/10'
+    }`}
+  >
+    <Text
+      className={`text-[11px] font-semibold ${tone === 'lime' ? 'text-lime-400' : 'text-zinc-300'}`}
+    >
+      {label}
+    </Text>
+  </View>
+);
 
 /* ── DaySlot ── 3 slots fijos, cross-fade de contenido al deslizar ────────── */
 

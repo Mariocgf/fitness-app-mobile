@@ -112,9 +112,8 @@ export const computeSessionStats = (session: TrainingHistorySession): SessionSta
   };
 };
 
-/** Detalle de un set para el listado: "12 rep • 20 kg", "45 s" o "—" si no se completó */
+/** Detalle de un set para el listado: "12 rep • 20 kg", "45 s" o "—" si no hay datos */
 export const formatSetDetail = (set: TrainingHistorySet): string => {
-  if (!set.isCompleted) return '—';
   const parts: string[] = [];
   if (set.repsPerformed > 0) parts.push(`${set.repsPerformed} rep`);
   if (set.weightUsed > 0) parts.push(formatWeightKg(set.weightUsed));

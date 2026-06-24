@@ -23,7 +23,7 @@ export function SessionExerciseCard({
 }: SessionExerciseCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
-  const displayName = exercise.exerciseNameEs ?? exercise.exerciseName;
+  const displayName = exercise.exerciseNameEs || exercise.exerciseName || 'Ejercicio sin nombre';
   const completedSets = exercise.sets.filter((s) => s.isCompleted).length;
 
   return (

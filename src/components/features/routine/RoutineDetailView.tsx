@@ -10,11 +10,19 @@ import {
   DaySlot,
   SLOT_CONFIGS,
   TAB_BAR_HEIGHT,
+  VersionBadge,
 } from '@/src/components/features/routine/routine-detail-shared';
+import { RoutineVersionsSheet } from '@/src/components/features/routine/RoutineVersionsSheet';
 import { translateDay } from '@/src/i18n';
-import { confirmSwapExercises, getSwapSuggestions } from '@/src/services/routine.service';
+import {
+  confirmSwapExercises,
+  getRoutineVersionDetail,
+  getSwapSuggestions,
+  restoreRoutineVersion,
+  setActiveRoutineVersion,
+} from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
-import { HealthWarning, Routine, RoutineDay, RoutineExercise, SwapSuggestionItem, WarningLevel } from '@/src/types/routine';
+import { HealthWarning, Routine, RoutineDay, RoutineExercise, RoutineVersionDetail, RoutineVersionSummary, SwapSuggestionItem, WarningLevel } from '@/src/types/routine';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -22,6 +30,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -116,9 +125,27 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
   onDelete,
   onActivate,
 }) => {
+  /* ── Estado de versionado ─────────────────────────────────────────────── */
+  const [isVersionsOpen, setIsVersionsOpen] = useState(false);
+  const [previewVersion, setPreviewVersion] = useState<RoutineVersionDetail | null>(null);
+  const [isLoadingVersion, setIsLoadingVersion] = useState(false);
+  const [versionAction, setVersionAction] = useState<'activate' | 'restore' | null>(null);
+
+  const isPreviewing = previewVersion !== null;
+  const activeVersionId = routine.activeVersionId ?? null;
+  const latestVersionId = routine.latestVersionId ?? null;
+  // La versión en preview trae su propio `isActive` → no dependemos de que la rutina
+  // venga con activeVersionId (degrada bien si el backend todavía no lo manda).
+  const previewIsActiveVersion = previewVersion ? previewVersion.isActive : false;
+
+  // En modo preview, la lista de días muestra el contenido de esa versión histórica;
+  // si no, el contenido de la versión activa de la rutina.
   const sortedDays = useMemo(
-    () => (routine?.days ? buildSortedDays(routine.days) : []),
-    [routine?.days],
+    () => {
+      const src = previewVersion ? previewVersion.days : routine?.days;
+      return src ? buildSortedDays(src) : [];
+    },
+    [previewVersion, routine?.days],
   );
 
   // Arranca en el día de hoy sin necesidad de un effect posterior
@@ -200,6 +227,23 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
   useEffect(() => {
     baseOffset.value = activeDayIndex * screenWidth;
   }, [activeDayIndex, screenWidth]);
+
+  // Al cambiar de versión (entrar/salir de preview), reseteamos al primer día: la
+  // versión puede tener otra cantidad de días. El guard evita pisar el "hoy" inicial.
+  const prevPreviewRef = useRef(previewVersion);
+  useEffect(() => {
+    if (prevPreviewRef.current === previewVersion) return;
+    prevPreviewRef.current = previewVersion;
+    setActiveDayIndex(0);
+    setSelectedExercise(null);
+    requestAnimationFrame(() => {
+      try {
+        flatListRef.current?.scrollToIndex({ index: 0, animated: false });
+      } catch {
+        /* la lista todavía no terminó de medir; el índice 0 se aplica igual */
+      }
+    });
+  }, [previewVersion]);
 
   const handleClose = () => {
     progress.value = withTiming(
@@ -304,6 +348,76 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
     finally { setIsApplying(false); }
   }, [picks, getToken, onRoutineUpdated, exitSwapMode]);
 
+  /* ── Handlers de versionado ───────────────────────────────────────────── */
+
+  /** Carga el contenido de la versión elegida y la muestra en modo preview. */
+  const handleSelectVersion = useCallback(async (summary: RoutineVersionSummary) => {
+    setIsVersionsOpen(false);
+    setIsLoadingVersion(true);
+    try {
+      const token = await getToken();
+      const detail = await getRoutineVersionDetail(routine.id, summary.id, token);
+      setPreviewVersion(detail);
+    } catch {
+      Alert.alert('Error', 'No se pudo cargar la versión. Intentá de nuevo.');
+    } finally {
+      setIsLoadingVersion(false);
+    }
+  }, [getToken, routine.id]);
+
+  /** Sale del preview y vuelve a la versión activa de la rutina. */
+  const handleExitPreview = useCallback(() => {
+    setPreviewVersion(null);
+    setSelectedExercise(null);
+  }, []);
+
+  /** Usa la versión en preview como activa (PATCH active-version, no crea historial). */
+  const handleActivateVersion = useCallback(async () => {
+    if (!previewVersion) return;
+    setVersionAction('activate');
+    try {
+      const token = await getToken();
+      const detail = await setActiveRoutineVersion(routine.id, previewVersion.id, token);
+      const updated: Routine = {
+        ...routine,
+        days: detail.days,
+        activeVersionId: detail.id,
+        versionNumber: detail.versionNumber,
+        // Activar NO cambia la última versión.
+        latestVersionId: routine.latestVersionId ?? null,
+      };
+      onRoutineUpdated(updated);
+      setPreviewVersion(null);
+    } catch {
+      Alert.alert('Error', 'No se pudo activar la versión. Intentá de nuevo.');
+    } finally {
+      setVersionAction(null);
+    }
+  }, [previewVersion, getToken, routine, onRoutineUpdated]);
+
+  /** Restaura la versión en preview como una versión NUEVA (queda activa + última). */
+  const handleRestoreVersion = useCallback(async () => {
+    if (!previewVersion) return;
+    setVersionAction('restore');
+    try {
+      const token = await getToken();
+      const detail = await restoreRoutineVersion(routine.id, previewVersion.id, token);
+      const updated: Routine = {
+        ...routine,
+        days: detail.days,
+        activeVersionId: detail.id,
+        latestVersionId: detail.id, // restaurar crea la nueva última versión
+        versionNumber: detail.versionNumber,
+      };
+      onRoutineUpdated(updated);
+      setPreviewVersion(null);
+    } catch {
+      Alert.alert('Error', 'No se pudo restaurar la versión. Intentá de nuevo.');
+    } finally {
+      setVersionAction(null);
+    }
+  }, [previewVersion, getToken, routine, onRoutineUpdated]);
+
   /* ── Wiring de acciones del contexto ─────────────────────────────────── */
 
   const openAdaptModal = useCallback(() => setIsAdaptModalOpen(true), []);
@@ -345,6 +459,18 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
     const close = () => setIsOptionsOpen(false);
     const swapHasActivity = loadingItems.size > 0 || Object.keys(suggestions).length > 0;
 
+    // En preview de una versión, la única acción es saltar a otra versión.
+    if (isPreviewing) {
+      return [
+        {
+          icon: 'layers-outline' as const,
+          label: 'Ver versiones',
+          onPress: () => { close(); setIsVersionsOpen(true); },
+          destructive: false,
+        },
+      ];
+    }
+
     if (isSwapMode) {
       return [
         ...(selectedForSwap.size > 0 || swapHasActivity ? [
@@ -376,6 +502,14 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
       onPress: () => void;
       destructive: boolean;
     }[] = [];
+
+    // Versiones: disponible para cualquier rutina (el historial es por rutina).
+    items.push({
+      icon: 'layers-outline',
+      label: 'Ver versiones',
+      onPress: () => { close(); setIsVersionsOpen(true); },
+      destructive: false,
+    });
 
     // Acciones de entrenamiento: solo aplican sobre la rutina activa (no en la
     // vista de preview/readOnly de una rutina no activa).
@@ -429,6 +563,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
 
     return items;
   }, [
+    isPreviewing,
     isSwapMode, selectedForSwap.size, loadingItems.size, suggestions,
     onRegenerate, enterSwapMode, requestSuggestions, exitSwapMode,
     routine.source, routine.isActive, onActivate, onDelete, openAdaptModal,
@@ -477,34 +612,53 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
       <Animated.View style={[{ flex: 1 }, contentOpacity]}>
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <View
-          className="flex-row items-center px-4"
-          style={{ paddingTop: insets.top + 12, paddingBottom: 8 }}
-        >
-          <TouchableOpacity
-            onPress={handleClose}
-            className="w-9 h-9 rounded-full bg-white/10 items-center justify-center"
-          >
-            <Ionicons name="chevron-back" size={20} className="text-white" />
-          </TouchableOpacity>
-
-          <Text
-            className="flex-1 text-white text-base font-semibold text-center mx-3"
-            numberOfLines={1}
-          >
-            {isGenerating ? '···' : routine.name}
-          </Text>
-
-          {menuItems.length > 0 ? (
+        <View className="px-4" style={{ paddingTop: insets.top + 12, paddingBottom: 8 }}>
+          <View className="flex-row items-center">
             <TouchableOpacity
-              onPress={() => setIsOptionsOpen(true)}
+              onPress={isPreviewing ? handleExitPreview : handleClose}
               className="w-9 h-9 rounded-full bg-white/10 items-center justify-center"
             >
-              <Ionicons name="ellipsis-horizontal" size={20} className="text-white" />
+              <Ionicons name="chevron-back" size={20} className="text-white" />
             </TouchableOpacity>
+
+            <Text
+              className="flex-1 text-white text-base font-semibold text-center mx-3"
+              numberOfLines={1}
+            >
+              {isGenerating ? '···' : routine.name}
+            </Text>
+
+            {menuItems.length > 0 ? (
+              <TouchableOpacity
+                onPress={() => setIsOptionsOpen(true)}
+                className="w-9 h-9 rounded-full bg-white/10 items-center justify-center"
+              >
+                <Ionicons name="ellipsis-horizontal" size={20} className="text-white" />
+              </TouchableOpacity>
+            ) : (
+              <View className="w-9" />
+            )}
+          </View>
+
+          {/* Badge de versionado: número de versión + distintivos (En uso / Última) */}
+          {!isGenerating && (previewVersion ? (
+            <View className="flex-row items-center justify-center gap-2 mt-2">
+              <VersionBadge label={`Versión ${previewVersion.versionNumber}`} />
+              {previewIsActiveVersion && <VersionBadge label="En uso" tone="lime" />}
+              {latestVersionId != null && previewVersion.id === latestVersionId && (
+                <VersionBadge label="Última" tone="lime" />
+              )}
+            </View>
           ) : (
-            <View className="w-9" />
-          )}
+            routine.versionNumber != null && (
+              <View className="flex-row items-center justify-center gap-2 mt-2">
+                <VersionBadge label={`Versión ${routine.versionNumber}`} />
+                {activeVersionId != null && activeVersionId === latestVersionId && (
+                  <VersionBadge label="Última" tone="lime" />
+                )}
+              </View>
+            )
+          ))}
         </View>
 
         {/* ── Sección del día (swipeable, circular) ─────────────────────── */}
@@ -614,7 +768,9 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
                 contentContainerStyle={{
                   paddingHorizontal: 16,
                   paddingTop: 4,
-                  paddingBottom: insets.bottom + TAB_BAR_HEIGHT + BOTTOM_BUTTON_HEIGHT + 32,
+                  // En preview hay dos botones apilados → más espacio para no taparlos.
+                  paddingBottom:
+                    insets.bottom + TAB_BAR_HEIGHT + BOTTOM_BUTTON_HEIGHT + 32 + (isPreviewing ? 64 : 0),
                 }}
               >
                 {day.exercises.map((exercise, idx) => (
@@ -645,8 +801,46 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
           />
         )}
 
-        {/* ── Botón principal ────────────────────────────────────────────── */}
-        {!isGenerating && !readOnly && (
+        {/* ── Botón inferior: CTAs de versión en preview, "Comenzar" en vivo ── */}
+        {!isGenerating && isPreviewing ? (
+          <View
+            className="absolute w-full px-4"
+            style={{ bottom: insets.bottom + TAB_BAR_HEIGHT + 8 }}
+          >
+            {previewIsActiveVersion ? (
+              <View className="flex-row items-center justify-center gap-1.5 mb-2">
+                <Ionicons name="checkmark-circle" size={16} className="text-lime-400" />
+                <Text className="text-lime-400 text-sm font-semibold">Esta es la versión en uso</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                className="w-full h-[60px] bg-white rounded-2xl items-center justify-center"
+                style={{ opacity: versionAction !== null ? 0.6 : 1 }}
+                disabled={versionAction !== null}
+                onPress={handleActivateVersion}
+              >
+                {versionAction === 'activate' ? (
+                  <ActivityIndicator color="#000" />
+                ) : (
+                  <Text className="text-zinc-900 font-bold text-base">Activar versión</Text>
+                )}
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              className="w-full h-[52px] mt-2 rounded-2xl items-center justify-center border border-white/20 bg-white/5"
+              style={{ opacity: versionAction !== null ? 0.6 : 1 }}
+              disabled={versionAction !== null}
+              onPress={handleRestoreVersion}
+            >
+              {versionAction === 'restore' ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text className="text-white font-semibold text-base">Restaurar como nueva versión</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : (!isGenerating && !readOnly && (
           <View
             className="absolute w-full px-4"
             style={{ bottom: insets.bottom + TAB_BAR_HEIGHT + 8 }}
@@ -681,7 +875,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
               )}
             </TouchableOpacity>
           </View>
-        )}
+        ))}
 
         {/* ── Dropdown de opciones ──────────────────────────────────────── */}
         <Modal
@@ -779,6 +973,24 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
           onClose={() => setIsAdaptModalOpen(false)}
           onRoutineUpdated={onRoutineUpdated}
         />
+
+        {/* ── Versionado: lista de versiones + loader del detalle ──────────── */}
+        <RoutineVersionsSheet
+          visible={isVersionsOpen}
+          routineId={routine.id}
+          selectedVersionId={previewVersion?.id ?? activeVersionId}
+          onClose={() => setIsVersionsOpen(false)}
+          onSelectVersion={handleSelectVersion}
+        />
+
+        {isLoadingVersion && (
+          <View className="absolute inset-0 bg-black/50 items-center justify-center z-50">
+            <View className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 items-center">
+              <ActivityIndicator size="large" color="#a3e635" />
+              <Text className="text-white mt-3 font-medium">Cargando versión...</Text>
+            </View>
+          </View>
+        )}
       </Animated.View>
       )}
     </Animated.View>

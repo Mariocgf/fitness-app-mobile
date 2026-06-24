@@ -19,9 +19,11 @@ export function SetsTable({ sets }: SetsTableProps) {
     );
   }
 
+  const sortedSets = [...sets].sort((a, b) => a.setNumber - b.setNumber);
+
   return (
     <View>
-      {sets.map((set, index) => {
+      {sortedSets.map((set, index) => {
         const incomplete = !set.isCompleted;
         return (
           <View

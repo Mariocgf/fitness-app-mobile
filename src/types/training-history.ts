@@ -26,6 +26,10 @@ export interface TrainingHistorySession {
   totalSeconds: number;
   routineId: string;
   routineName: string;
+  /** Versión de la rutina con la que se hizo este entreno (queda clavada). */
+  routineVersionId: string | null;
+  /** Número de esa versión (v1, v2, ...). Null si el backend no lo registró. */
+  routineVersionNumber: number | null;
   exercises: TrainingHistoryExercise[];
 }
 
@@ -70,6 +74,9 @@ export interface TrainingHistorySessionDto {
   totalTime: string;
   routineId: string;
   routineName: string;
+  // El backend puede mandar el número como number o string (resto del DTO usa strings).
+  routineVersionId?: string | null;
+  routineVersionNumber?: number | string | null;
   exercises: TrainingHistoryExerciseDto[];
 }
 
