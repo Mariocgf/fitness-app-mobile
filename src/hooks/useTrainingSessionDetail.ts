@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { useCallback, useEffect, useState } from 'react';
 import { getTrainingSessionById } from '../services/training-history.service';
 import { getSession, setSession } from '../store/training-history-cache';
@@ -53,7 +54,7 @@ export function useTrainingSessionDetail(
       }
     } catch (err) {
       setError(mapHttpErrorToFriendlyMessage(err));
-      console.error('[useTrainingSessionDetail] Error:', err);
+      logger.error('[useTrainingSessionDetail] Error:', err);
     } finally {
       setIsLoading(false);
     }

@@ -1,17 +1,12 @@
 import CheckableCard from '@/src/components/common/CheckableCard';
+import FieldSection from '@/src/components/common/FieldSection';
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
 import OnboardingHeader from '@/src/components/common/OnboardingHeader';
 import ProgressBar from '@/src/components/common/ProgressBar';
-import SectionCard from '@/src/components/common/SectionCard';
 import { SubGoal } from '@/src/types/nutrition';
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import { ScrollView, View } from 'react-native';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 interface NutritionSubGoalStepProps {
   /** Lista de sub-objetivos disponibles */
@@ -35,23 +30,20 @@ export default function NutritionSubGoalStep({
   onContinue,
 }: NutritionSubGoalStepProps) {
   return (
-    <View className="flex-1">
+    <View className="flex-1 bg-zinc-950">
       <ProgressBar currentStep={0} totalSteps={3} />
 
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 32, paddingBottom: 16 }}
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16 }}
         showsVerticalScrollIndicator={false}
       >
         <OnboardingHeader
           title={"Perfil\nde nutrición"}
           subtitle="Define tus metas alimenticias para personalizar tus recetas"
+          centered
         />
 
-        <SectionCard
-          icon={<Ionicons name="flag-outline" size={20} className="text-slate-500" />}
-          title="Sub objetivo"
-          subtitle="¿Qué quieres lograr?"
-        >
+        <FieldSection eyebrow="Sub objetivo" question="¿Qué quieres lograr?">
           <View className="gap-3">
             {subGoals.map((goal) => (
               <CheckableCard
@@ -60,16 +52,18 @@ export default function NutritionSubGoalStep({
                 label={goal.name}
                 description={goal.description}
                 onPress={() => onSelectSubGoal(goal.id)}
+                variant="radio"
+                accent="amber"
               />
             ))}
           </View>
-        </SectionCard>
+        </FieldSection>
       </ScrollView>
 
       <OnboardingFooter
         onPress={onContinue}
         helperText="Usaremos estos datos para darte planes más personalizados. Puedes editarlos luego."
-        helperIcon={<Ionicons name="sparkles-outline" size={18} className="text-slate-500" />}
+        helperIcon={<Ionicons name="sparkles-outline" size={18} className="text-zinc-400" />}
       />
     </View>
   );

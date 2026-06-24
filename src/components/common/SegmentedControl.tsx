@@ -10,6 +10,13 @@ const ACTIVE_TEXT: Record<SegmentedAccent, string> = {
   mono: 'text-white',
 };
 
+/** Relleno del segmento activo en variante `solid`. */
+const ACTIVE_FILL: Record<SegmentedAccent, string> = {
+  lime: 'bg-lime-400',
+  amber: 'bg-amber-400',
+  mono: 'bg-zinc-50',
+};
+
 export interface SegmentedOption<T extends string> {
   label: string;
   value: T;
@@ -19,15 +26,23 @@ interface SegmentedControlProps<T extends string> {
   options: SegmentedOption<T>[];
   value: T;
   onChange: (value: T) => void;
-  /** Color del texto del segmento activo. Default `mono`. */
+  /** Color del acento del segmento activo. Default `mono`. */
   accent?: SegmentedAccent;
+  /**
+   * Estilo del segmento activo:
+   * - `subtle` (default): resalte tenue `zinc-800` + texto del acento (toggles IA/Manual).
+   * - `solid`: relleno completo del acento + texto `zinc-900` (selector de la maqueta de onboarding).
+   */
+  variant?: 'subtle' | 'solid';
 }
 
 /**
- * Control segmentado dark-only (estilo iOS): contenedor `zinc-900` con un riel
- * y el segmento activo resaltado en `zinc-800` con el texto del acento.
+ * Control segmentado dark-only (estilo iOS): contenedor `zinc-900` con un riel.
+ * Dos estilos de segmento activo según `variant`:
+ * - `subtle`: resalte `zinc-800` + texto del acento.
+ * - `solid`: relleno del acento + texto oscuro.
  *
- * Reutilizar SIEMPRE para toggles de 2-3 opciones excluyentes (ej. IA/Manual)
+ * Reutilizar SIEMPRE para toggles/selectores de 2-3 opciones excluyentes
  * en vez de copiar `TouchableOpacity` con ternarios de fondo.
  */
 export function SegmentedControl<T extends string>({
@@ -35,20 +50,24 @@ export function SegmentedControl<T extends string>({
   value,
   onChange,
   accent = 'mono',
+  variant = 'subtle',
 }: SegmentedControlProps<T>) {
+  const isSolid = variant === 'solid';
   return (
     <View className="flex-row bg-zinc-900 border border-zinc-800 rounded-xl p-1">
       {options.map((option) => {
         const isActive = option.value === value;
+        const activeBg = isSolid ? ACTIVE_FILL[accent] : 'bg-zinc-800';
+        const activeText = isSolid ? 'text-zinc-900' : ACTIVE_TEXT[accent];
         return (
           <TouchableOpacity
             key={option.value}
             onPress={() => onChange(option.value)}
             activeOpacity={0.8}
-            className={`flex-1 items-center py-2.5 rounded-lg ${isActive ? 'bg-zinc-800' : ''}`}
+            className={`flex-1 items-center py-2.5 rounded-lg ${isActive ? activeBg : ''}`}
           >
             <Text
-              className={`text-sm font-semibold ${isActive ? ACTIVE_TEXT[accent] : 'text-zinc-400'}`}
+              className={`text-sm font-semibold ${isActive ? activeText : 'text-zinc-400'}`}
             >
               {option.label}
             </Text>

@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { AxiosError } from 'axios';
 import apiClient from '../api/client';
 import { AdaptRoutineResponseDto, PagedRoutinesResponse, Routine, RoutinePreviewResponse, SwapPick, SwapSuggestionsResponse } from '../types/routine';
@@ -142,7 +143,6 @@ export const getSwapSuggestions = async (
   const url = useAI
     ? '/api/Routine/swap-suggestions/ai'
     : '/api/Routine/swap-suggestions';
-  console.log('[routine.service] POST', url, { routineExerciseIds, hasToken: !!token });
 
   try {
     // ⚠️ C# System.Text.Json por defecto espera PascalCase. Usar exacto nombre del DTO.
@@ -155,21 +155,16 @@ export const getSwapSuggestions = async (
         },
       }
     );
-    console.log('[routine.service]', url, 'OK', {
-      suggestionsCount: data.suggestions?.length,
-      hasHealthWarning: data.hasHealthWarning,
-      warningLevel: data.warningLevel,
-    });
     return data;
   } catch (error) {
     if (error instanceof AxiosError) {
-      console.error('[routine.service]', url, 'FAIL', {
+      logger.error('[routine.service]', url, 'FAIL', {
         status: error.response?.status,
         data: error.response?.data,
         message: error.message,
       });
     } else {
-      console.error('[routine.service]', url, 'FAIL', error);
+      logger.error('[routine.service]', url, 'FAIL', error);
     }
     throw error;
   }
@@ -193,7 +188,7 @@ export const createRoutine = async (
     return capitalizeRoutineNames(data);
   } catch (error) {
     if (error instanceof AxiosError) {
-      console.error('[routine.service]', url, 'FAIL', {
+      logger.error('[routine.service]', url, 'FAIL', {
         status: error.response?.status,
         data: error.response?.data,
       });
@@ -221,7 +216,7 @@ export const activateRoutine = async (
     return capitalizeRoutineNames(data);
   } catch (error) {
     if (error instanceof AxiosError) {
-      console.error('[routine.service]', url, 'FAIL', {
+      logger.error('[routine.service]', url, 'FAIL', {
         status: error.response?.status,
         data: error.response?.data,
       });
@@ -251,7 +246,7 @@ export const updateRoutine = async (
     return capitalizeRoutineNames(data);
   } catch (error) {
     if (error instanceof AxiosError) {
-      console.error('[routine.service]', url, 'FAIL', {
+      logger.error('[routine.service]', url, 'FAIL', {
         status: error.response?.status,
         data: error.response?.data,
       });
@@ -273,7 +268,6 @@ export const confirmSwapExercises = async (
   token: string | null
 ): Promise<Routine> => {
   const url = '/api/Routine/swap-exercises';
-  console.log('[routine.service] POST', url, { swapsCount: swaps.length, swaps, hasToken: !!token });
 
   try {
     const { data } = await apiClient.post<Routine>(
@@ -285,17 +279,16 @@ export const confirmSwapExercises = async (
         },
       }
     );
-    console.log('[routine.service]', url, 'OK', { routineId: data.id, daysCount: data.days?.length });
     return capitalizeRoutineNames(data);
   } catch (error) {
     if (error instanceof AxiosError) {
-      console.error('[routine.service]', url, 'FAIL', {
+      logger.error('[routine.service]', url, 'FAIL', {
         status: error.response?.status,
         data: error.response?.data,
         message: error.message,
       });
     } else {
-      console.error('[routine.service]', url, 'FAIL', error);
+      logger.error('[routine.service]', url, 'FAIL', error);
     }
     throw error;
   }
@@ -322,7 +315,7 @@ export const fetchMyRoutines = async (
     return data;
   } catch (error) {
     if (error instanceof AxiosError) {
-      console.error('[routine.service]', url, 'FAIL', {
+      logger.error('[routine.service]', url, 'FAIL', {
         status: error.response?.status,
         data: error.response?.data,
       });
@@ -347,7 +340,7 @@ export const fetchRoutinePreview = async (
     return data;
   } catch (error) {
     if (error instanceof AxiosError) {
-      console.error('[routine.service]', url, 'FAIL', {
+      logger.error('[routine.service]', url, 'FAIL', {
         status: error.response?.status,
         data: error.response?.data,
       });
@@ -374,7 +367,7 @@ export const getRoutineById = async (
     return capitalizeRoutineNames(data);
   } catch (error) {
     if (error instanceof AxiosError) {
-      console.error('[routine.service]', url, 'FAIL', {
+      logger.error('[routine.service]', url, 'FAIL', {
         status: error.response?.status,
         data: error.response?.data,
       });

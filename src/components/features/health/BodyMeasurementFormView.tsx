@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { cssInterop } from "nativewind";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -15,10 +14,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { TAB_BAR_HEIGHT } from "@/src/components/features/routine/routine-detail-shared";
 import { BodyMeasurementPayload } from "@/src/types/health";
-
-cssInterop(Ionicons, {
-  className: { target: "style", nativeStyleToProp: { color: true } },
-});
 
 /** Acento del módulo Salud (colors.md → rose-400 dark). */
 const ROSE = "#fb7185";

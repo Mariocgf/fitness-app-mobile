@@ -1,7 +1,8 @@
+import { logger } from '@/src/utils/logger';
 import { ModuleCard } from '@/src/components/features/home/ModuleCard';
 import { GreetingHeader } from '@/src/components/features/home/GreetingHeader';
 import { getActiveModules } from '@/src/services/module.service';
-import { getActiveRoutine } from '@/src/services/routine.service';
+import { generateRoutine, getActiveRoutine } from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { useNutritionRoutineContext } from '@/src/store/nutrition-routine-context';
 import { Routine } from '@/src/types/routine';
@@ -25,6 +26,7 @@ export default function HomeScreen() {
 
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [isFetchingRoutine, setIsFetchingRoutine] = useState(true);
+  const [isGeneratingRoutine, setIsGeneratingRoutine] = useState(false);
 
   const { setActiveRoutine } = useRoutineDetailContext();
   const { routine: nutritionRoutine, isLoading: isLoadingNutrition } = useNutritionRoutineContext();
@@ -66,7 +68,7 @@ export default function HomeScreen() {
           }
         }
       } catch (error) {
-        console.error('Error cargando datos en Home:', error);
+        logger.error('Error cargando datos en Home:', error);
       } finally {
         setIsFetchingRoutine(false);
       }
@@ -75,6 +77,21 @@ export default function HomeScreen() {
     loadData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleGenerateRoutine = async () => {
+    setIsGeneratingRoutine(true);
+    try {
+      const token = await getToken();
+      const newRoutine = await generateRoutine(token);
+      setRoutine(newRoutine);
+      setActiveRoutine(newRoutine);
+      await AsyncStorage.setItem('@user_routine', JSON.stringify(newRoutine));
+    } catch (error) {
+      logger.error('Error generando rutina desde Home:', error);
+    } finally {
+      setIsGeneratingRoutine(false);
+    }
+  };
 
   /** Resumen de la rutina activa para el card */
   const routineTitle = routine?.name ?? 'Rutina';
@@ -99,9 +116,9 @@ export default function HomeScreen() {
           onAction={() =>
             routine
               ? router.navigate({ pathname: '/(tabs)/fitness', params: { openRoutineId: routine.id } })
-              : router.navigate('/(tabs)/fitness')
+              : handleGenerateRoutine()
           }
-          isLoading={isFetchingRoutine}
+          isLoading={isFetchingRoutine || isGeneratingRoutine}
         />
 
         {/* Card: Nutrición */}

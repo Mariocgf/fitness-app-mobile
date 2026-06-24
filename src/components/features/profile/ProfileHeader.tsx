@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import {
     Image,
@@ -10,10 +9,6 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 interface ProfileHeaderProps {
   /** URL del avatar del usuario (Clerk imageUrl) */

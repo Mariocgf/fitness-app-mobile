@@ -1,15 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 import { BodyMeasurementDto } from '@/src/types/health';
 
 import { MeasurementHistoryCard } from './MeasurementHistoryCard';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 const MAX_VISIBLE = 4;
 

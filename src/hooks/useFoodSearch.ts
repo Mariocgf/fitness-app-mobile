@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -63,7 +64,7 @@ export function useFoodSearch(): UseFoodSearchReturn {
           setHasNextPage(data.hasNextPage ?? data.items.length === PAGE_SIZE);
         }
       } catch (err) {
-        console.error('[useFoodSearch] Error:', err);
+        logger.error('[useFoodSearch] Error:', err);
         if (!cancelled) setError('No pudimos buscar alimentos.');
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -88,7 +89,7 @@ export function useFoodSearch(): UseFoodSearchReturn {
       setPage(nextPage);
       setHasNextPage(data.hasNextPage ?? data.items.length === PAGE_SIZE);
     } catch (err) {
-      console.error('[useFoodSearch] Error cargando más:', err);
+      logger.error('[useFoodSearch] Error cargando más:', err);
       setError('No pudimos cargar más alimentos.');
     } finally {
       setIsLoadingMore(false);

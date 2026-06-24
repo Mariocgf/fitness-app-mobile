@@ -3,7 +3,6 @@ import { useMeasurementHistory } from '@/src/hooks/useMeasurementHistory';
 import { BodyMeasurementDto } from '@/src/types/health';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { cssInterop } from 'nativewind';
 import React, { useCallback } from 'react';
 import {
   ActivityIndicator,
@@ -13,10 +12,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 export default function MeasurementHistoryScreen() {
   const router = useRouter();

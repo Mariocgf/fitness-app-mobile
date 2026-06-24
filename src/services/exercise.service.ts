@@ -70,7 +70,6 @@ export const adjustExerciseLoad = async (
       },
     }
   );
-  console.log(data);
 
   return data;
 };

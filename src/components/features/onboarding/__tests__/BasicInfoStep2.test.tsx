@@ -3,14 +3,14 @@ import { render, fireEvent } from '@testing-library/react-native';
 import BasicInfoStep2 from '../BasicInfoStep2';
 
 // Mock minimalista usando mReact para evitar el plugin de NativeWind
-jest.mock('@/src/components/common/RulerPicker', () => {
-  return function MockRulerPicker(props: any) {
+jest.mock('@/src/components/common/WheelPicker', () => {
+  return function MockWheelPicker(props: any) {
     const mReact = require('react');
     // Usar una cadena simple 'View' evita que el plugin intente inyectar variables interop
-    return mReact.createElement('View', { 
+    return mReact.createElement('View', {
       testID: `picker-${props.label.toLowerCase()}`,
       // Guardar el callback en una prop para poder llamarlo en el test
-      onValueChange: props.onValueChange 
+      onChange: props.onChange
     }, null);
   };
 });
@@ -35,8 +35,8 @@ describe('BasicInfoStep2', () => {
 
     expect(getByTestId('picker-peso')).toBeTruthy();
     
-    // Simular cambio de valor disparando la prop onValueChange del mock
-    fireEvent(getByTestId('picker-peso'), 'onValueChange', 75);
+    // Simular cambio de valor disparando la prop onChange del mock
+    fireEvent(getByTestId('picker-peso'), 'onChange', 75);
     expect(mockOnWeightChange).toHaveBeenCalledWith(75);
 
     fireEvent.press(getByText('Continuar'));

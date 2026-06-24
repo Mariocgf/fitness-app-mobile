@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { useCallback, useEffect, useState } from 'react';
 import { fetchTrainingHistory } from '../services/training-history.service';
 import { setMany } from '../store/training-history-cache';
@@ -43,7 +44,7 @@ export function useTrainingHistoryPreview(
       setMany(data.items);
     } catch (err) {
       setError(mapHttpErrorToFriendlyMessage(err));
-      console.error('[useTrainingHistoryPreview] Error:', err);
+      logger.error('[useTrainingHistoryPreview] Error:', err);
     } finally {
       setIsLoading(false);
     }

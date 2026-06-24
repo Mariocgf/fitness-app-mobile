@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { adaptRoutineWithAi, confirmRoutineAdaptation, rejectRoutineAdaptation } from '@/src/services/routine.service';
 import { AdaptRoutineDay, AdaptRoutineResponseDto, Routine } from '@/src/types/routine';
 import { formatExerciseLoad } from '@/src/utils/format.utils';
@@ -87,7 +88,7 @@ export const AdaptRoutineModal: React.FC<AdaptRoutineModalProps> = ({
         setStep('no-changes');
       }
     } catch (error: any) {
-      console.error('[AdaptRoutineModal] Error en análisis:', error);
+      logger.error('[AdaptRoutineModal] Error en análisis:', error);
       setErrorMessage(error.message || 'No se pudo procesar la adaptación. Intentalo de nuevo.');
       setStep('error');
     }
@@ -115,7 +116,7 @@ export const AdaptRoutineModal: React.FC<AdaptRoutineModalProps> = ({
       onRoutineUpdated(updatedRoutine);
       onClose();
     } catch (error: any) {
-      console.error('[AdaptRoutineModal] Error al confirmar adaptación:', error);
+      logger.error('[AdaptRoutineModal] Error al confirmar adaptación:', error);
       alert(error.message || 'Error al aplicar los cambios. Intentalo nuevamente.');
     } finally {
       setIsActionPending(false);
@@ -134,7 +135,7 @@ export const AdaptRoutineModal: React.FC<AdaptRoutineModalProps> = ({
       await rejectRoutineAdaptation(adaptationData.pendingAdaptationId, token);
       onClose();
     } catch (error: any) {
-      console.error('[AdaptRoutineModal] Error al descartar adaptación:', error);
+      logger.error('[AdaptRoutineModal] Error al descartar adaptación:', error);
       // Cerramos de todos modos para no bloquear al usuario, informando el problema
       onClose();
     } finally {

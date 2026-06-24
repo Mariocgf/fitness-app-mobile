@@ -1,22 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import { ScrollView, View } from 'react-native';
 
 import CheckableCard from '@/src/components/common/CheckableCard';
+import FieldSection from '@/src/components/common/FieldSection';
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
 import OnboardingHeader from '@/src/components/common/OnboardingHeader';
 import ProgressBar from '@/src/components/common/ProgressBar';
-import SectionCard from '@/src/components/common/SectionCard';
 import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
 import {
   ActivityLevel,
   NUTRITION_ACTIVITY_LEVEL_OPTIONS,
 } from '@/src/types/nutrition';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 interface NutritionActivityLevelStepProps {
   /** Nivel de actividad seleccionado */
@@ -40,23 +35,20 @@ export default function NutritionActivityLevelStep({
 }: NutritionActivityLevelStepProps) {
   return (
     <SwipeBackWrapper onSwipeBack={onBack}>
-      <View className="flex-1">
+      <View className="flex-1 bg-zinc-950">
         <ProgressBar currentStep={1} totalSteps={4} />
 
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 32, paddingBottom: 16 }}
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16 }}
           showsVerticalScrollIndicator={false}
         >
           <OnboardingHeader
             title={"Perfil\nde nutrición"}
             subtitle="Tu gasto diario ayuda al backend a calcular objetivos más precisos."
+            centered
           />
 
-          <SectionCard
-            icon={<Ionicons name="walk-outline" size={20} className="text-slate-500" />}
-            title="Nivel de actividad"
-            subtitle="¿Cómo se ve tu movimiento semanal?"
-          >
+          <FieldSection eyebrow="Nivel de actividad" question="¿Cómo se ve tu movimiento semanal?">
             <View className="gap-3">
               {NUTRITION_ACTIVITY_LEVEL_OPTIONS.map((option) => (
                 <CheckableCard
@@ -65,16 +57,18 @@ export default function NutritionActivityLevelStep({
                   label={option.label}
                   description={option.description}
                   onPress={() => onSelectActivityLevel(option.value)}
+                  variant="radio"
+                  accent="amber"
                 />
               ))}
             </View>
-          </SectionCard>
+          </FieldSection>
         </ScrollView>
 
         <OnboardingFooter
           onPress={onContinue}
           helperText="El front solo envía tu nivel de actividad; los cálculos nutricionales los hace el backend."
-          helperIcon={<Ionicons name="calculator-outline" size={18} className="text-slate-500" />}
+          helperIcon={<Ionicons name="calculator-outline" size={18} className="text-zinc-400" />}
         />
       </View>
     </SwipeBackWrapper>

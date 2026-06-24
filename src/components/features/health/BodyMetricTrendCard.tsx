@@ -1,14 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import { Text, View } from 'react-native';
 import Svg, { Circle, Polyline } from 'react-native-svg';
 
 import { BodyMetricPoint, BodyMetricTrend } from '@/src/types/health';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 /** Acento del módulo Salud en modo oscuro (rose-400). */
 const ROSE = '#fb7185';

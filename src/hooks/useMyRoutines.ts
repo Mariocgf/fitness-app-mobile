@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RoutineSummary, RoutineSource } from '../types/routine';
 import { fetchMyRoutines } from '../services/routine.service';
@@ -60,7 +61,7 @@ export function useMyRoutines(token: string | null): UseMyRoutinesReturn {
       setDisplayedRoutines(data.items);
     } catch (err) {
       setError('No se pudieron cargar las rutinas. Intentá de nuevo.');
-      console.error('[useMyRoutines] Error:', err);
+      logger.error('[useMyRoutines] Error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -83,7 +84,7 @@ export function useMyRoutines(token: string | null): UseMyRoutinesReturn {
       const filtered = applyFiltersToData(newRoutines, dateRange, sourceFilter);
       setDisplayedRoutines(filtered.slice(0, nextPage * PAGE_SIZE));
     } catch (err) {
-      console.error('[useMyRoutines] Error loading more:', err);
+      logger.error('[useMyRoutines] Error loading more:', err);
     } finally {
       setIsLoadingMore(false);
     }

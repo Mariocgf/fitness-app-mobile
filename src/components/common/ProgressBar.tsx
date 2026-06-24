@@ -20,7 +20,7 @@ export default function ProgressBar({ currentStep, totalSteps, inverted = false 
   return (
     <View
       className={`flex-row items-center justify-between px-6 gap-2 py-4 ${
-        inverted ? 'bg-transparent' : 'bg-slate-100 dark:bg-slate-950'
+        inverted ? 'bg-transparent' : 'bg-zinc-950'
       }`}
     >
       {Array.from({ length: totalSteps }).map((_, index) => {
@@ -33,7 +33,7 @@ export default function ProgressBar({ currentStep, totalSteps, inverted = false 
             className={`h-1.5 flex-1 rounded-full ${
               inverted
                 ? (isActive || isCompleted ? 'bg-white' : 'bg-white/30')
-                : (isActive || isCompleted ? 'bg-slate-900 dark:bg-slate-50' : 'bg-slate-200 dark:bg-slate-800')
+                : (isActive || isCompleted ? 'bg-zinc-50' : 'bg-zinc-800')
             }`}
           />
         );

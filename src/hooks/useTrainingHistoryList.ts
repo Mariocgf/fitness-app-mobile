@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { deleteTrainingSession, fetchTrainingHistory } from '../services/training-history.service';
 import { remove, setMany } from '../store/training-history-cache';
@@ -63,7 +64,7 @@ export function useTrainingHistoryList(
         setMany(data.items);
       } catch (err) {
         setError(mapHttpErrorToFriendlyMessage(err));
-        console.error('[useTrainingHistoryList] Error:', err);
+        logger.error('[useTrainingHistoryList] Error:', err);
       } finally {
         setIsLoading(false);
       }
@@ -84,7 +85,7 @@ export function useTrainingHistoryList(
       setPage(nextPage);
       setMany(data.items);
     } catch (err) {
-      console.error('[useTrainingHistoryList] loadMore Error:', err);
+      logger.error('[useTrainingHistoryList] loadMore Error:', err);
     } finally {
       setIsLoadingMore(false);
     }
@@ -152,7 +153,7 @@ export function useTrainingHistoryList(
         }
         return success;
       } catch (err) {
-        console.error('[useTrainingHistoryList] deleteSession Error:', err);
+        logger.error('[useTrainingHistoryList] deleteSession Error:', err);
         throw err;
       }
     },

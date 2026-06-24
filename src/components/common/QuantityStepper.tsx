@@ -71,15 +71,15 @@ export function QuantityStepper({
   const color = ACCENT_COLORS[accent];
 
   return (
-    <View className="flex-row items-center justify-between bg-zinc-800/60 rounded-full px-2 py-1.5">
+    <View className="flex-row items-center justify-between gap-3 bg-zinc-800/60 rounded-full px-2 py-1.5">
       <StepButton
         icon="remove"
         color={color}
         disabled={value <= min}
         onPress={() => onChange(Math.max(min, value - step))}
       />
-      <Text className="text-white text-base font-semibold">
-        {Math.round(value)} {unit}
+      <Text className="text-white text-base font-semibold text-center min-w-[24px]">
+        {Math.round(value)}{unit ? ` ${unit}` : ''}
       </Text>
       <StepButton
         icon="add"

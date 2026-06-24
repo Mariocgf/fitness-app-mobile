@@ -55,7 +55,6 @@ export const getOnboardingStatus = async (
       },
     }
   );
-  console.log(data);
   
   return data;
 };

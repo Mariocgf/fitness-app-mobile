@@ -37,12 +37,12 @@ describe('HealthConfigStep', () => {
     );
 
     // Esperar carga inicial
-    await waitFor(() => expect(getByText('Lesiones')).toBeTruthy());
-    
+    await waitFor(() => expect(getByText('¿Tienes alguna lesión?')).toBeTruthy());
+
     fireEvent.press(getByText('Continuar'));
 
     // SubStep 1: Afecciones
-    await waitFor(() => expect(getByText('Afecciones médicas')).toBeTruthy());
+    await waitFor(() => expect(getByText('¿Tienes alguna afección?')).toBeTruthy());
   });
 
   it('debe enviar el perfil al finalizar', async () => {
@@ -57,10 +57,10 @@ describe('HealthConfigStep', () => {
       />
     );
 
-    await waitFor(() => getByText('Lesiones'));
+    await waitFor(() => getByText('¿Tienes alguna lesión?'));
     fireEvent.press(getByText('Continuar')); // a paso 1
 
-    await waitFor(() => getByText('Afecciones médicas'));
+    await waitFor(() => getByText('¿Tienes alguna afección?'));
     
     await act(async () => {
       fireEvent.press(getByText('Continuar'));

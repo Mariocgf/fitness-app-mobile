@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React, { useEffect, useRef } from 'react';
 import { Animated, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,10 +8,6 @@ import { RoutineMealDetailDto, RoutineMealSummaryDto } from '@/src/types/nutriti
 import { MEAL_ICONS, MEAL_LABELS } from '@/src/utils/nutrition.utils';
 import { parseMacro, parseInstructionsToSteps } from '@/src/utils/nutritionRoutine.utils';
 import { MacroBreakdownCard } from './MacroBreakdownCard';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 

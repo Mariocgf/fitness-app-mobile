@@ -420,11 +420,8 @@ export function useActiveSession({
         saveCurrentLog(rpe);
         setRpeSaved(true);
       }
-    } catch (error: any) {
+    } catch {
       Alert.alert('Error', 'No se pudo ajustar la carga. Intente nuevamente.');
-      console.log('STATUS:', error?.response?.status);
-      console.log('DATA:', error?.response?.data);
-      console.log('MESSAGE:', error?.message);
     } finally {
       setIsAdjustingLoad(false);
     }
@@ -469,7 +466,6 @@ export function useActiveSession({
       totalTime: formattedTime,
       exercises: flatExercises,
     };
-    console.log('[SESSION] Payload enviado:', JSON.stringify(log, null, 2));
     onFinishSession?.(log);
   }, [globalTime, logs, routineId, onFinishSession]);
 

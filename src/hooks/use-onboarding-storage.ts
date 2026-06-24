@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback } from 'react';
 import { OnboardingDraft } from '../types/user';
@@ -13,7 +14,7 @@ export function useOnboardingStorage() {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
     } catch (error) {
-      console.error('Error guardando draft de onboarding:', error);
+      logger.error('Error guardando draft de onboarding:', error);
     }
   }, []);
 
@@ -22,7 +23,7 @@ export function useOnboardingStorage() {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch (error) {
-      console.error('Error cargando draft de onboarding:', error);
+      logger.error('Error cargando draft de onboarding:', error);
       return null;
     }
   }, []);
@@ -31,7 +32,7 @@ export function useOnboardingStorage() {
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
     } catch (error) {
-      console.error('Error limpiando draft de onboarding:', error);
+      logger.error('Error limpiando draft de onboarding:', error);
     }
   }, []);
 

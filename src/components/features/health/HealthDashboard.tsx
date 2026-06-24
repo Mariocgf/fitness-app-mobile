@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 
@@ -8,10 +7,6 @@ import { BodyEvolutionDashboardDto, BodyMeasurementDto } from '@/src/types/healt
 import { BodyEvolutionDashboardSection } from './BodyEvolutionDashboardSection';
 import { LastMeasurementCard } from './LastMeasurementCard';
 import { MeasurementHistorySection } from './MeasurementHistorySection';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 interface HealthDashboardProps {
   lastMeasurement: BodyMeasurementDto | null;

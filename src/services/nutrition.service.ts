@@ -160,7 +160,6 @@ export const searchFoods = async (
       headers: { Authorization: `Bearer ${token}` },
     },
   );
-  console.log(data);
   
   const unwrapped = unwrapApiData(data);
 
@@ -172,7 +171,6 @@ export const searchFoods = async (
       hasNextPage: unwrapped.length === pageSize,
     };
   }
-  console.log(unwrapped);
   
 
   return unwrapped;
@@ -191,9 +189,7 @@ export const getFoodByBarcode = async (
       headers: { Authorization: `Bearer ${token}` },
     },
   );
-  console.log('Service');
   
-  console.log(data);
   
   return unwrapApiData(data);
 };

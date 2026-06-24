@@ -1,7 +1,6 @@
 import { translateEquipment, translateMuscle } from '@/src/i18n';
 import { SwapCandidate, SwapSuggestionItem } from '@/src/types/routine';
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React from 'react';
 import {
     Image,
@@ -13,10 +12,6 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 interface SwapCandidateModalProps {
   /** La sugerencia (incluye el ejercicio original y sus candidatos). */

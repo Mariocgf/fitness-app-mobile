@@ -1,5 +1,6 @@
+import { logger } from '@/src/utils/logger';
 import { useAuth } from '@clerk/clerk-expo';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -11,6 +12,7 @@ import {
     View,
 } from 'react-native';
 import TagSelect from '@/src/components/common/TagSelect';
+import { useUnsavedChangesGuard } from '@/src/hooks/useUnsavedChangesGuard';
 import {
     getDietaryPreferences,
     getFoodAllergies,
@@ -25,18 +27,15 @@ import {
 import { NutritionItem } from '@/src/types/nutrition';
 
 interface DietaryConfigProps {
-  /** Callback para volver a la pantalla principal del perfil */
+  /** Vuelve a la lista del módulo tras guardar (la ruta lo cablea a `router.back()`) */
   onBack: () => void;
-  /** Registra el handler de back del componente en el padre (nav bar compartido) */
-  onRegisterBackHandler?: (fn: (() => void) | null) => void;
 }
 
 /**
- * Sub-pantalla de configuración de restricciones alimenticias.
+ * Sub-pantalla de configuración de restricciones alimenticias (ruta `/profile/nutrition-dietary`).
  * Reutiliza TagSelect del onboarding de Nutrition. Dark-only `zinc`.
- * El back lo provee el nav bar compartido del perfil (sin BackButton propio).
  */
-export default function DietaryConfig({ onBack, onRegisterBackHandler }: DietaryConfigProps) {
+export default function DietaryConfig({ onBack }: DietaryConfigProps) {
   const { getToken } = useAuth();
 
   const [allergiesList, setAllergiesList] = useState<NutritionItem[]>([]);
@@ -77,7 +76,7 @@ export default function DietaryConfig({ onBack, onRegisterBackHandler }: Dietary
         setSelectedDietIds(uDietIds);
         setInitialDietIds(uDietIds);
       } catch (e) {
-        console.error('Error cargando datos de nutrición:', e);
+        logger.error('Error cargando datos de nutrición:', e);
         Alert.alert('Error', 'No se pudieron cargar los datos de nutrición.');
       } finally {
         setIsLoading(false);
@@ -101,27 +100,10 @@ export default function DietaryConfig({ onBack, onRegisterBackHandler }: Dietary
     return allergiesChanged || dietsChanged;
   };
 
-  // Back con guard de cambios sin guardar, expuesto al nav bar compartido
-  const backHandlerRef = useRef<() => void>(() => {});
-  backHandlerRef.current = () => {
-    if (hasChanges()) {
-      Alert.alert(
-        'Cambios sin guardar',
-        'Tienes cambios pendientes en tu información nutricional. ¿Deseas salir sin guardar?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Salir sin guardar', style: 'destructive', onPress: onBack },
-        ]
-      );
-    } else {
-      onBack();
-    }
-  };
-
-  useEffect(() => {
-    onRegisterBackHandler?.(() => backHandlerRef.current());
-    return () => onRegisterBackHandler?.(null);
-  }, []);
+  useUnsavedChangesGuard(
+    hasChanges(),
+    'Tenés cambios pendientes en tu información nutricional. ¿Querés salir sin guardar?'
+  );
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -142,7 +124,7 @@ export default function DietaryConfig({ onBack, onRegisterBackHandler }: Dietary
         { text: 'OK', onPress: onBack },
       ]);
     } catch (error) {
-      console.error('Error guardando restricciones:', error);
+      logger.error('Error guardando restricciones:', error);
       Alert.alert('Error', 'No se pudieron actualizar las restricciones.');
     } finally {
       setIsSaving(false);

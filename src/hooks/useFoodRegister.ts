@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -123,7 +124,7 @@ export function useFoodRegister({
       ]);
       return true;
     } catch (err) {
-      console.error('[useFoodRegister] Error:', err);
+      logger.error('[useFoodRegister] Error:', err);
       setError('No pudimos agregar el alimento. Intentá de nuevo.');
       return false;
     } finally {
@@ -179,7 +180,7 @@ export function useFoodRegister({
       onDayUpdatedRef.current(updatedDay);
       return true;
     } catch (err) {
-      console.error('[useFoodRegister] Error saving foods:', err);
+      logger.error('[useFoodRegister] Error saving foods:', err);
       setError('No pudimos guardar los alimentos. Intentá de nuevo.');
       return false;
     } finally {

@@ -1,5 +1,6 @@
+import { logger } from '@/src/utils/logger';
 import { useAuth } from '@clerk/clerk-expo';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -13,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import SearchableSelect from '@/src/components/common/SearchableSelect';
+import { useUnsavedChangesGuard } from '@/src/hooks/useUnsavedChangesGuard';
 import {
     getInjuries,
     getMedicalConditions,
@@ -27,11 +29,11 @@ import {
 import { Injury, MedicalCondition } from '@/src/types/health';
 
 interface InjuriesConfigProps {
+  /** Vuelve a la lista del módulo tras guardar (la ruta lo cablea a `router.back()`) */
   onBack: () => void;
-  onRegisterBackHandler?: (fn: (() => void) | null) => void;
 }
 
-export default function InjuriesConfig({ onBack, onRegisterBackHandler }: InjuriesConfigProps) {
+export default function InjuriesConfig({ onBack }: InjuriesConfigProps) {
   const { getToken } = useAuth();
   const insets = useSafeAreaInsets();
 
@@ -54,7 +56,7 @@ export default function InjuriesConfig({ onBack, onRegisterBackHandler }: Injuri
         setSelectedInjuryIds(uInjIds);
         setInitialInjuryIds(uInjIds);
       } catch (e) {
-        console.error('Error cargando lesiones:', e);
+        logger.error('Error cargando lesiones:', e);
         Alert.alert('Error', 'No se pudieron cargar los datos de salud.');
       } finally {
         setIsLoading(false);
@@ -67,26 +69,10 @@ export default function InjuriesConfig({ onBack, onRegisterBackHandler }: Injuri
     selectedInjuryIds.length !== initialInjuryIds.length ||
     selectedInjuryIds.some((id) => !initialInjuryIds.includes(id));
 
-  const backHandlerRef = useRef<() => void>(() => {});
-  backHandlerRef.current = () => {
-    if (hasChanges()) {
-      Alert.alert(
-        'Cambios sin guardar',
-        'Tus cambios en lesiones no se guardaron. ¿Deseas salir de todas formas?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Salir sin guardar', style: 'destructive', onPress: onBack },
-        ]
-      );
-    } else {
-      onBack();
-    }
-  };
-
-  useEffect(() => {
-    onRegisterBackHandler?.(() => backHandlerRef.current());
-    return () => onRegisterBackHandler?.(null);
-  }, []);
+  useUnsavedChangesGuard(
+    hasChanges(),
+    'Tus cambios en lesiones no se guardaron. ¿Querés salir de todas formas?'
+  );
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -98,7 +84,7 @@ export default function InjuriesConfig({ onBack, onRegisterBackHandler }: Injuri
         { text: 'OK', onPress: onBack },
       ]);
     } catch (error) {
-      console.error('Error guardando lesiones:', error);
+      logger.error('Error guardando lesiones:', error);
       Alert.alert('Error', 'No se pudieron actualizar las lesiones.');
     } finally {
       setIsSaving(false);
@@ -135,7 +121,6 @@ export default function InjuriesConfig({ onBack, onRegisterBackHandler }: Injuri
           cardTitle="Lesiones"
           cardSubtitle="¿Tenés alguna lesión activa?"
           cardIconName="bandage-outline"
-          selectedLabel="Lesiones"
         />
       </ScrollView>
 
@@ -157,7 +142,7 @@ export default function InjuriesConfig({ onBack, onRegisterBackHandler }: Injuri
 }
 
 /** Vista de configuración de afecciones médicas */
-export function ConditionsConfig({ onBack, onRegisterBackHandler }: InjuriesConfigProps) {
+export function ConditionsConfig({ onBack }: InjuriesConfigProps) {
   const { getToken } = useAuth();
   const insets = useSafeAreaInsets();
 
@@ -180,7 +165,7 @@ export function ConditionsConfig({ onBack, onRegisterBackHandler }: InjuriesConf
         setSelectedConditionIds(uCondIds);
         setInitialConditionIds(uCondIds);
       } catch (e) {
-        console.error('Error cargando afecciones:', e);
+        logger.error('Error cargando afecciones:', e);
         Alert.alert('Error', 'No se pudieron cargar los datos de salud.');
       } finally {
         setIsLoading(false);
@@ -193,26 +178,10 @@ export function ConditionsConfig({ onBack, onRegisterBackHandler }: InjuriesConf
     selectedConditionIds.length !== initialConditionIds.length ||
     selectedConditionIds.some((id) => !initialConditionIds.includes(id));
 
-  const backHandlerRef = useRef<() => void>(() => {});
-  backHandlerRef.current = () => {
-    if (hasChangesConditions()) {
-      Alert.alert(
-        'Cambios sin guardar',
-        'Tus cambios en afecciones médicas no se guardaron. ¿Deseas salir de todas formas?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Salir sin guardar', style: 'destructive', onPress: onBack },
-        ]
-      );
-    } else {
-      onBack();
-    }
-  };
-
-  useEffect(() => {
-    onRegisterBackHandler?.(() => backHandlerRef.current());
-    return () => onRegisterBackHandler?.(null);
-  }, []);
+  useUnsavedChangesGuard(
+    hasChangesConditions(),
+    'Tus cambios en afecciones médicas no se guardaron. ¿Querés salir de todas formas?'
+  );
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -224,7 +193,7 @@ export function ConditionsConfig({ onBack, onRegisterBackHandler }: InjuriesConf
         { text: 'OK', onPress: onBack },
       ]);
     } catch (error) {
-      console.error('Error guardando afecciones:', error);
+      logger.error('Error guardando afecciones:', error);
       Alert.alert('Error', 'No se pudieron actualizar las afecciones médicas.');
     } finally {
       setIsSaving(false);
@@ -261,7 +230,6 @@ export function ConditionsConfig({ onBack, onRegisterBackHandler }: InjuriesConf
           cardTitle="Afecciones médicas"
           cardSubtitle="¿Tenés alguna condición médica?"
           cardIconName="medkit-outline"
-          selectedLabel="Afecciones"
         />
       </ScrollView>
 

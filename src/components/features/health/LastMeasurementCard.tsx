@@ -1,13 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { cssInterop } from "nativewind";
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 
 import { BodyMeasurementDto } from "@/src/types/health";
 
-cssInterop(Ionicons, {
-  className: { target: "style", nativeStyleToProp: { color: true } },
-});
+import { BodyCompositionColumns } from "./BodyCompositionColumns";
 
 interface LastMeasurementCardProps {
   measurement: BodyMeasurementDto | null;
@@ -25,27 +22,6 @@ const formatDate = (dateStr: string): string => {
   const [year, month, day] = dateStr.split("-").map(Number);
   return `${day} ${MONTHS[month - 1]} ${year}`;
 };
-
-/** Columna de composición corporal: etiqueta arriba, valor + unidad abajo. */
-function CompositionColumn({
-  label,
-  value,
-  unit,
-}: {
-  label: string;
-  value: string;
-  unit: string;
-}) {
-  return (
-    <View className="flex-1">
-      <Text className="text-zinc-400 text-sm mb-1">{label}</Text>
-      <View className="flex-row items-baseline gap-1">
-        <Text className="text-white text-3xl font-bold">{value}</Text>
-        <Text className="text-zinc-400 text-sm font-medium">{unit}</Text>
-      </View>
-    </View>
-  );
-}
 
 /**
  * Card que muestra la última medición corporal del usuario.
@@ -142,20 +118,7 @@ export function LastMeasurementCard({
         </View>
 
         {/* Columnas de composición corporal separadas por divisores */}
-        {compositionItems.length > 0 && (
-          <View className="flex-row mb-5">
-            {compositionItems.map((item, index) => (
-              <React.Fragment key={item.label}>
-                {index > 0 && <View className="w-px self-stretch bg-zinc-800" />}
-                <CompositionColumn
-                  label={item.label}
-                  value={item.value}
-                  unit={item.unit}
-                />
-              </React.Fragment>
-            ))}
-          </View>
-        )}
+        <BodyCompositionColumns items={compositionItems} className="mb-5" />
 
         {/* Resumen de medidas perimetrales */}
         {perimeterCount > 0 && (

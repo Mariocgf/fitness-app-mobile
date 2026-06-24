@@ -32,9 +32,15 @@ const DIRECTION_THRESHOLD = 0.001;
  * No interpreta si el cambio es positivo o negativo para la salud — eso es dominio del backend.
  */
 export function buildMeasurementComparison(
-  base: BodyMeasurementDto,
-  target: BodyMeasurementDto,
+  baseArg: BodyMeasurementDto,
+  targetArg: BodyMeasurementDto,
 ): MeasurementComparison {
+  // Orden cronológico: base = más antigua, target = más reciente, para que el diff
+  // represente siempre "anterior → actual" sin importar qué registro se abrió primero.
+  // (Las fechas son 'YYYY-MM-DD', así que la comparación de strings es válida.)
+  const [base, target] =
+    baseArg.date <= targetArg.date ? [baseArg, targetArg] : [targetArg, baseArg];
+
   const deltas: MeasurementMetricDelta[] = [];
 
   for (const { key, label, unit } of METRIC_DEFINITIONS) {

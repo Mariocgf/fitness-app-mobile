@@ -11,8 +11,14 @@ export default function ProfileStackLayout() {
     <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="fitness" />
+      <Stack.Screen name="fitness-equipment" />
+      <Stack.Screen name="fitness-training" />
+      <Stack.Screen name="fitness-subgoal" />
       <Stack.Screen name="nutrition" />
+      <Stack.Screen name="nutrition-dietary" />
       <Stack.Screen name="health" />
+      <Stack.Screen name="health-injuries" />
+      <Stack.Screen name="health-conditions" />
       <Stack.Screen name="settings" />
     </Stack>
   );

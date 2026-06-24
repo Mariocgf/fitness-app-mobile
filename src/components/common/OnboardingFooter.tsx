@@ -38,17 +38,17 @@ export default function OnboardingFooter({
     ? ''
     : inverted
       ? `${disabled ? 'bg-white/50' : 'bg-white'}`
-      : `${disabled ? 'bg-zinc-950/50 dark:bg-zinc-50/50' : 'bg-zinc-950 dark:bg-zinc-50'}`;
+      : `${disabled ? 'bg-zinc-50/50' : 'bg-zinc-50'}`;
 
   const textClass = brandColor
     ? 'text-white'
     : inverted
-      ? 'text-slate-900'
-      : 'text-white dark:text-slate-900';
+      ? 'text-zinc-950'
+      : 'text-zinc-950';
 
   const helperTextClass = inverted
     ? 'text-sm text-white/60 ml-2 leading-5 flex-1'
-    : 'text-sm text-slate-500 dark:text-slate-400 ml-2 leading-5 flex-1';
+    : 'text-sm text-zinc-400 ml-2 leading-5 flex-1';
 
   return (
     <View

@@ -4,31 +4,45 @@ import { Text, TouchableOpacity, View } from 'react-native';
 interface WeekDay {
   value: number;
   label: string;
-  isWeekend: boolean;
+  /** Conservado por compatibilidad con WEEKDAY_OPTIONS; ya no altera el estilo. */
+  isWeekend?: boolean;
 }
 
+type WeekDayAccent = 'lime' | 'amber' | 'mono';
+
 interface WeekDayPickerProps {
-  /** Lista de días de la semana con su valor, etiqueta y si es fin de semana */
+  /** Lista de días de la semana con su valor y etiqueta */
   days: WeekDay[];
   /** Valores seleccionados actualmente */
   selectedDays: number[];
   /** Callback con el nuevo array de días seleccionados */
   onChange: (days: number[]) => void;
-  /** Color de relleno para días de fin de semana (default: red-400) */
-  weekendColor?: string;
+  /** Color de acento del día seleccionado (default 'mono') */
+  accent?: WeekDayAccent;
 }
 
+/** Clases del borde + texto del día seleccionado, por acento (estilo maqueta: círculo bordeado) */
+const ACCENT_SELECTED: Record<WeekDayAccent, { border: string; text: string }> = {
+  lime: { border: 'border-lime-400', text: 'text-lime-400' },
+  amber: { border: 'border-amber-400', text: 'text-amber-400' },
+  mono: { border: 'border-zinc-50', text: 'text-zinc-50' },
+};
+
 /**
- * Selector de días de la semana con pills.
- * Días de semana usan el acento global (zinc-950), fines de semana usan color rojo.
- * Sin sombra — borde slate-200 según design system.
+ * Selector de días de la semana con pills circulares (dark-only `zinc`).
+ * Seleccionado = círculo bordeado con el acento del módulo + texto del acento;
+ * sin seleccionar = `bg-zinc-900 border-zinc-800` con texto `zinc-400`.
+ * Rediseñado desde la maqueta de onboarding Fitness (todos los días iguales,
+ * sin distinción de fin de semana).
  */
 export default function WeekDayPicker({
   days,
   selectedDays,
   onChange,
-  weekendColor = '#f87171',
+  accent = 'mono',
 }: WeekDayPickerProps) {
+  const selected = ACCENT_SELECTED[accent];
+
   const toggleDay = (value: number) => {
     onChange(
       selectedDays.includes(value)
@@ -41,28 +55,22 @@ export default function WeekDayPicker({
     <View className="flex-row justify-between">
       {days.map((day) => {
         const isSelected = selectedDays.includes(day.value);
-        const isSelectedWeekend = isSelected && day.isWeekend;
-        const isSelectedWeekday = isSelected && !day.isWeekend;
 
         return (
           <TouchableOpacity
             key={day.value}
             onPress={() => toggleDay(day.value)}
             activeOpacity={0.7}
-            className={`w-11 h-11 rounded-2xl items-center justify-center border-2 ${
-              isSelectedWeekday
-                ? 'bg-zinc-950 dark:bg-zinc-50 border-zinc-950 dark:border-zinc-50'
-                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+            className={`w-11 h-11 rounded-full items-center justify-center border-2 ${
+              isSelected
+                ? `bg-zinc-900 ${selected.border}`
+                : 'bg-zinc-900 border-zinc-800'
             }`}
-            style={isSelectedWeekend ? { backgroundColor: weekendColor, borderColor: weekendColor } : undefined}
           >
             <Text
               className={`text-sm font-bold ${
-                isSelectedWeekday
-                  ? 'text-white dark:text-slate-900'
-                  : 'text-slate-700 dark:text-slate-300'
+                isSelected ? selected.text : 'text-zinc-400'
               }`}
-              style={isSelectedWeekend ? { color: '#ffffff' } : undefined}
             >
               {day.label}
             </Text>

@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-expo';
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
@@ -11,6 +12,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import './global.css';
+import '@/src/utils/icon-interop';
 
 import { FullPageLoader } from '@/src/components/common/FullPageLoader';
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
@@ -74,7 +76,7 @@ const tokenCache = {
       const item = await SecureStore.getItemAsync(key);
       return item;
     } catch (error) {
-      console.error('SecureStore get item error: ', error);
+      logger.error('SecureStore get item error: ', error);
       await SecureStore.deleteItemAsync(key);
       return null;
     }
@@ -167,7 +169,7 @@ function RootNavigator() {
           await user.reload().catch(() => {});
         }
       } catch (error) {
-        console.error('Error resolviendo onboarding contra backend:', error);
+        logger.error('Error resolviendo onboarding contra backend:', error);
         if (isMounted) {
           setBackendOnboardingStatus(null);
         }
@@ -266,7 +268,6 @@ function RootNavigator() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false, presentation: 'modal' }} />
-      <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       <Stack.Screen name="session" options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="profile" options={{ headerShown: false, animation: 'slide_from_right' }} />
     </Stack>
@@ -277,11 +278,10 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   // Configura la barra de navegación nativa de Android (solo Android).
-  // Sin esto, en SDK 52+ la barra es transparente y el contenido se dibuja detrás.
+  // Con edge-to-edge habilitado, Android no permite forzar posición ni fondo:
+  // el área detrás de la navigation bar la pinta el propio layout.
   useEffect(() => {
     if (Platform.OS !== 'android') return;
-    NavigationBar.setPositionAsync('relative');
-    NavigationBar.setBackgroundColorAsync(colorScheme === 'dark' ? '#020617' : '#f1f5f9');
     NavigationBar.setButtonStyleAsync(colorScheme === 'dark' ? 'light' : 'dark');
   }, [colorScheme]);
 
@@ -305,7 +305,8 @@ export default function RootLayout() {
           >
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
               <RootNavigator />
-              <StatusBar style="auto" />
+              {/* App dark-only: íconos/texto de la status bar siempre en claro para que se vean */}
+              <StatusBar style="light" />
             </ThemeProvider>
           </ClerkProvider>
         </QueryClientProvider>

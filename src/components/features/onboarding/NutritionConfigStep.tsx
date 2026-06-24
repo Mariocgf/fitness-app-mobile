@@ -1,3 +1,4 @@
+import { logger } from '@/src/utils/logger';
 import { useAuth } from '@clerk/clerk-expo';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
@@ -95,7 +96,7 @@ export default function NutritionConfigStep({
             setSelectedDietIds(draft.dietaryPreferenceIds);
         }
       } catch (e) {
-        console.error('Error inicializando Nutrition config:', e);
+        logger.error('Error inicializando Nutrition config:', e);
         alert('No se pudieron cargar los datos de nutrición.');
       } finally {
         if (!cancelled) {
@@ -147,7 +148,7 @@ export default function NutritionConfigStep({
       );
       onComplete();
     } catch (error) {
-      console.error('Error enviando perfil de nutrición:', error);
+      logger.error('Error enviando perfil de nutrición:', error);
       alert('Hubo un error al guardar los datos de nutrición.');
     } finally {
       setIsSubmitting(false);
@@ -174,7 +175,7 @@ export default function NutritionConfigStep({
     return (
       <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color={brandColor} />
-        <Text className="text-slate-500 dark:text-slate-400 mt-4">
+        <Text className="text-zinc-400 mt-4">
           Cargando datos de nutrición...
         </Text>
       </View>

@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { cssInterop } from 'nativewind';
 import React, { useMemo } from 'react';
 import {
     ActivityIndicator,
@@ -10,10 +9,6 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
 import OnboardingHeader from '@/src/components/common/OnboardingHeader';
@@ -35,7 +30,9 @@ interface ModuleSelectionStepProps {
 
 /**
  * Paso de selección de módulos del onboarding.
- * Fondo slate-100/slate-950. Tarjetas con imagen y degradado #0F172B → transparente.
+ * Dark-only zinc neutro, alineado al chrome de los pasos 1/2/3 (header centrado,
+ * footer con helper info). Las tarjetas con imagen y degradado #0F172B →
+ * transparente se mantienen sin cambios (decisión del usuario).
  */
 export default function ModuleSelectionStep({
   modules,
@@ -90,8 +87,8 @@ export default function ModuleSelectionStep({
   };
 
   return (
-    <View className="flex-1 bg-slate-100 dark:bg-slate-950">
-      {/* Barra de progreso */}
+    <View className="flex-1 bg-zinc-950">
+      {/* Indicador de progreso original (no los círculos numerados de la maqueta) */}
       <ProgressBar currentStep={0} totalSteps={1} />
 
       <ScrollView
@@ -100,16 +97,17 @@ export default function ModuleSelectionStep({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="pt-4">
+        <View className="pt-6">
           <OnboardingHeader
-            title={"Elige tu\nenfoque."}
+            title="Elige tu enfoque"
             subtitle="Personaliza tu experiencia Wellium."
+            centered
           />
 
           {isLoading ? (
             <View className="flex-1 items-center justify-center py-20">
-              <ActivityIndicator size="large" color="#18181b" />
-              <Text className="text-slate-500 dark:text-slate-400 mt-4">
+              <ActivityIndicator size="large" color="#a1a1aa" />
+              <Text className="text-zinc-400 mt-4">
                 Cargando módulos...
               </Text>
             </View>
@@ -154,8 +152,8 @@ export default function ModuleSelectionStep({
         buttonLabel="Continuar"
         helperText="Podrás añadir o quitar módulos en cualquier momento desde tu perfil."
         helperIcon={
-          <View className="w-10 h-10 rounded-lg bg-white dark:bg-slate-800 items-center justify-center border border-slate-200 dark:border-slate-800">
-            <Ionicons name="options-outline" size={20} className="text-slate-500 dark:text-slate-400" />
+          <View className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 items-center justify-center">
+            <Ionicons name="information-circle-outline" size={20} color="#a1a1aa" />
           </View>
         }
       />

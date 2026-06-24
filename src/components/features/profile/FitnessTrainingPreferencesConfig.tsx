@@ -1,6 +1,6 @@
+import { logger } from '@/src/utils/logger';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
-import { cssInterop } from 'nativewind';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,19 +8,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RulerPicker from '@/src/components/common/RulerPicker';
 import SectionCard from '@/src/components/common/SectionCard';
 import WeekDayPicker from '@/src/components/common/WeekDayPicker';
+import { useUnsavedChangesGuard } from '@/src/hooks/useUnsavedChangesGuard';
 import {
   getTrainingPreferences,
   updateTrainingPreferences,
 } from '@/src/services/fitness.service';
 import { FitnessDay, WEEKDAY_OPTIONS } from '@/src/types/fitness';
 
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
-
 interface FitnessTrainingPreferencesConfigProps {
+  /** Vuelve a la lista del módulo tras guardar (la ruta lo cablea a `router.back()`) */
   onBack: () => void;
-  onRegisterBackHandler?: (fn: (() => void) | null) => void;
 }
 
 const dayToPickerValue: Record<FitnessDay, number> = {
@@ -62,13 +59,10 @@ const areSameDays = (a: number[], b: number[]) => {
  */
 export default function FitnessTrainingPreferencesConfig({
   onBack,
-  onRegisterBackHandler,
 }: FitnessTrainingPreferencesConfigProps) {
   const { getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
-  const onRegisterBackHandlerRef = useRef(onRegisterBackHandler);
-  onRegisterBackHandlerRef.current = onRegisterBackHandler;
   const insets = useSafeAreaInsets();
 
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
@@ -98,7 +92,7 @@ export default function FitnessTrainingPreferencesConfig({
         setSessionDuration(duration);
         setInitialSessionDuration(duration);
       } catch (error) {
-        console.error('Error cargando preferencias de entrenamiento:', error);
+        logger.error('Error cargando preferencias de entrenamiento:', error);
         Alert.alert('Error', 'No se pudieron cargar tus preferencias de entrenamiento.');
       } finally {
         setIsLoading(false);
@@ -115,27 +109,10 @@ export default function FitnessTrainingPreferencesConfig({
     [sessionDuration, initialSessionDuration, selectedDays, initialDays]
   );
 
-  const backHandlerRef = useRef<() => void>(() => {});
-  backHandlerRef.current = () => {
-    if (!hasChanges) {
-      onBack();
-      return;
-    }
-
-    Alert.alert(
-      'Cambios sin guardar',
-      'Tus cambios de disponibilidad no se guardaron. ¿Querés salir de todas formas?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Salir sin guardar', style: 'destructive', onPress: onBack },
-      ]
-    );
-  };
-
-  useEffect(() => {
-    onRegisterBackHandlerRef.current?.(() => backHandlerRef.current());
-    return () => onRegisterBackHandlerRef.current?.(null);
-  }, []);
+  useUnsavedChangesGuard(
+    hasChanges,
+    'Tus cambios de disponibilidad no se guardaron. ¿Querés salir de todas formas?'
+  );
 
   const handleSave = async () => {
     const preferredWorkoutDays = toFitnessDays(selectedDays);
@@ -167,7 +144,7 @@ export default function FitnessTrainingPreferencesConfig({
         { text: 'OK', onPress: onBack },
       ]);
     } catch (error) {
-      console.error('Error guardando preferencias de entrenamiento:', error);
+      logger.error('Error guardando preferencias de entrenamiento:', error);
       Alert.alert('Error', 'No se pudieron actualizar tus preferencias de entrenamiento.');
     } finally {
       setIsSaving(false);
@@ -202,6 +179,7 @@ export default function FitnessTrainingPreferencesConfig({
             days={WEEKDAY_OPTIONS}
             selectedDays={selectedDays}
             onChange={setSelectedDays}
+            accent="lime"
           />
         </SectionCard>
 

@@ -1,9 +1,9 @@
+import { logger } from '@/src/utils/logger';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
-import { cssInterop } from 'nativewind';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,10 +12,6 @@ import { ProfileIdentityHeader } from '@/src/components/features/profile/Profile
 import { ProfileModuleCard } from '@/src/components/features/profile/ProfileModuleCard';
 import { getActiveModules } from '@/src/services/module.service';
 import { ActiveModule } from '@/src/types/module';
-
-cssInterop(Ionicons, {
-  className: { target: 'style', nativeStyleToProp: { color: true } },
-});
 
 export default function ProfileScreen() {
   const { signOut, getToken } = useAuth();
@@ -42,7 +38,7 @@ export default function ProfileScreen() {
         setActiveModules(valid);
         await AsyncStorage.setItem('@active_modules', JSON.stringify(valid));
       } catch (e) {
-        console.error('Error cargando módulos activos:', e);
+        logger.error('Error cargando módulos activos:', e);
       } finally {
         setIsLoadingModules(false);
       }
