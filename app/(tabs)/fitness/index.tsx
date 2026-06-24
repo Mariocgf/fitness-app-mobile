@@ -257,12 +257,10 @@ export default function FitnessScreen() {
   const { sessions: historyPreview, isLoading: isLoadingHistory } = useTrainingHistoryPreview(previewToken);
 
   const handleViewAllHistory = useCallback(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     router.push('/fitness/training-history' as any);
   }, [router]);
 
   const handleHistorySessionPress = useCallback((session: TrainingHistorySession) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     router.push({ pathname: '/fitness/training-history/[id]' as any, params: { id: session.id } });
   }, [router]);
 
