@@ -533,6 +533,29 @@ export default function FitnessScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Generar rutina con IA */}
+        <View className="px-4 mt-3">
+          <TouchableOpacity
+            onPress={handleGenerate}
+            disabled={cardState === 'loading'}
+            activeOpacity={0.85}
+            className={`flex-row items-center justify-center py-4 rounded-2xl border ${
+              cardState === 'loading'
+                ? 'bg-zinc-900 border-zinc-800 opacity-60'
+                : 'bg-lime-400/10 border-lime-400'
+            }`}
+          >
+            {cardState === 'loading' ? (
+              <ActivityIndicator size="small" color="#a3e635" />
+            ) : (
+              <Ionicons name="sparkles-outline" size={20} color="#a3e635" />
+            )}
+            <Text className="text-lime-400 font-bold text-base ml-2">
+              {cardState === 'loading' ? 'Generando...' : 'Generar rutina con IA'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
       </ScrollView>
 
       {/* Vista expandida de rutina activa */}
