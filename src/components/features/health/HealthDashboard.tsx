@@ -2,9 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 
+import { ClinicalProfileDto } from '@/src/types/clinical';
 import { BodyEvolutionDashboardDto, BodyMeasurementDto } from '@/src/types/health';
 
 import { BodyEvolutionDashboardSection } from './BodyEvolutionDashboardSection';
+import { ClinicalProfileCard } from './clinical/ClinicalProfileCard';
+import { ClinicalReadingsEntryCard } from './clinical/ClinicalReadingsEntryCard';
+import { RegisterReadingCard } from './clinical/RegisterReadingCard';
 import { LastMeasurementCard } from './LastMeasurementCard';
 import { MeasurementHistorySection } from './MeasurementHistorySection';
 
@@ -17,9 +21,15 @@ interface HealthDashboardProps {
   evolutionError: string | null;
   isLoading: boolean;
   error: string | null;
+  clinicalProfile: ClinicalProfileDto | null;
+  isClinicalLoading: boolean;
+  clinicalReadingsCount: number;
   onRefresh: () => void;
   onRefreshEvolution: () => void;
   onRegister: () => void;
+  onConfigureClinical: () => void;
+  onRegisterReading: () => void;
+  onViewClinicalReadings: () => void;
   onViewDetail?: () => void;
   onViewHistoryItem: (measurement: BodyMeasurementDto) => void;
   onViewMore: () => void;
@@ -38,9 +48,15 @@ export function HealthDashboard({
   evolutionError,
   isLoading,
   error,
+  clinicalProfile,
+  isClinicalLoading,
+  clinicalReadingsCount,
   onRefresh,
   onRefreshEvolution,
   onRegister,
+  onConfigureClinical,
+  onRegisterReading,
+  onViewClinicalReadings,
   onViewDetail,
   onViewHistoryItem,
   onViewMore,
@@ -92,6 +108,31 @@ export function HealthDashboard({
         <Text className="text-white text-4xl font-bold">
           Salud
         </Text>
+      </View>
+
+      {/* ── Bloque clínico ─────────────────────────────────────────────────── */}
+      <View className="px-4">
+        <ClinicalProfileCard
+          profile={clinicalProfile}
+          isLoading={isClinicalLoading}
+          onPress={onConfigureClinical}
+        />
+      </View>
+
+      <View className="px-4">
+        <RegisterReadingCard onPress={onRegisterReading} />
+      </View>
+
+      <View className="px-4">
+        <ClinicalReadingsEntryCard
+          totalCount={clinicalReadingsCount}
+          onPress={onViewClinicalReadings}
+        />
+      </View>
+
+      {/* Divisor: separa el bloque clínico del bloque de medidas corporales */}
+      <View className="px-4">
+        <View className="h-px bg-zinc-800" />
       </View>
 
       <View className="px-4">

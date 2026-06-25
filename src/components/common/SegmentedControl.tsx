@@ -2,11 +2,12 @@ import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 /** Acento del segmento activo. */
-export type SegmentedAccent = 'lime' | 'amber' | 'mono';
+export type SegmentedAccent = 'lime' | 'amber' | 'rose' | 'mono';
 
 const ACTIVE_TEXT: Record<SegmentedAccent, string> = {
   lime: 'text-lime-400',
   amber: 'text-amber-400',
+  rose: 'text-rose-400',
   mono: 'text-white',
 };
 
@@ -14,6 +15,7 @@ const ACTIVE_TEXT: Record<SegmentedAccent, string> = {
 const ACTIVE_FILL: Record<SegmentedAccent, string> = {
   lime: 'bg-lime-400',
   amber: 'bg-amber-400',
+  rose: 'bg-rose-400',
   mono: 'bg-zinc-50',
 };
 

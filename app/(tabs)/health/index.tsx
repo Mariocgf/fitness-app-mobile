@@ -1,6 +1,8 @@
 import { HealthDashboard } from '@/src/components/features/health/HealthDashboard';
 import { useBodyEvolutionDashboard } from '@/src/hooks/useBodyEvolutionDashboard';
 import { useBodyMeasurements } from '@/src/hooks/useBodyMeasurements';
+import { useClinicalProfile } from '@/src/hooks/useClinicalProfile';
+import { useClinicalReadings } from '@/src/hooks/useClinicalReadings';
 import { BodyMeasurementDto } from '@/src/types/health';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
@@ -18,11 +20,23 @@ export default function HealthScreen() {
     error: evolutionError,
     refresh: refreshEvolution,
   } = useBodyEvolutionDashboard();
+  const {
+    profile: clinicalProfile,
+    isLoading: isClinicalLoading,
+    refresh: refreshClinical,
+  } = useClinicalProfile();
+  // pageSize 1: la card de entrada solo necesita el conteo total de lecturas
+  const {
+    totalCount: clinicalReadingsCount,
+    refresh: refreshClinicalReadings,
+  } = useClinicalReadings({ pageSize: 1 });
 
   const refreshHealthData = useCallback(() => {
     refresh();
     refreshEvolution();
-  }, [refresh, refreshEvolution]);
+    refreshClinical();
+    refreshClinicalReadings();
+  }, [refresh, refreshEvolution, refreshClinical, refreshClinicalReadings]);
 
   // Evita el fetch doble: el hook ya carga en mount; solo refrescar en focuses posteriores
   const didInitialFocusRef = useRef(false);
@@ -38,6 +52,18 @@ export default function HealthScreen() {
 
   const handleRegister = useCallback(() => {
     router.push('/health/measurements' as any);
+  }, [router]);
+
+  const handleConfigureClinical = useCallback(() => {
+    router.push('/health/clinical' as any);
+  }, [router]);
+
+  const handleRegisterReading = useCallback(() => {
+    router.push('/health/clinical-reading-new' as any);
+  }, [router]);
+
+  const handleViewClinicalReadings = useCallback(() => {
+    router.push('/health/clinical-readings' as any);
   }, [router]);
 
   const handleViewDetail = useCallback(() => {
@@ -77,9 +103,15 @@ export default function HealthScreen() {
           evolutionError={evolutionError}
           isLoading={isLoading}
           error={error}
+          clinicalProfile={clinicalProfile}
+          isClinicalLoading={isClinicalLoading}
+          clinicalReadingsCount={clinicalReadingsCount}
           onRefresh={refreshHealthData}
           onRefreshEvolution={refreshEvolution}
           onRegister={handleRegister}
+          onConfigureClinical={handleConfigureClinical}
+          onRegisterReading={handleRegisterReading}
+          onViewClinicalReadings={handleViewClinicalReadings}
           onViewDetail={lastMeasurement ? handleViewDetail : undefined}
           onViewHistoryItem={handleViewHistoryItem}
           onViewMore={handleViewMore}

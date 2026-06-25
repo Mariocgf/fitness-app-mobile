@@ -11,6 +11,9 @@ export default function HealthLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="measurements" />
       <Stack.Screen name="history" />
+      <Stack.Screen name="clinical" />
+      <Stack.Screen name="clinical-reading-new" />
+      <Stack.Screen name="clinical-readings" />
       <Stack.Screen name="[id]" />
     </Stack>
   );
