@@ -3,6 +3,7 @@ import { useBodyEvolutionDashboard } from '@/src/hooks/useBodyEvolutionDashboard
 import { useBodyMeasurements } from '@/src/hooks/useBodyMeasurements';
 import { useClinicalProfile } from '@/src/hooks/useClinicalProfile';
 import { useClinicalReadings } from '@/src/hooks/useClinicalReadings';
+import { getHealthDataVersion } from '@/src/store/health-sync';
 import { BodyMeasurementDto } from '@/src/types/health';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
@@ -38,15 +39,16 @@ export default function HealthScreen() {
     refreshClinicalReadings();
   }, [refresh, refreshEvolution, refreshClinical, refreshClinicalReadings]);
 
-  // Evita el fetch doble: el hook ya carga en mount; solo refrescar en focuses posteriores
-  const didInitialFocusRef = useRef(false);
+  // Solo refrescar en focus si hubo una mutación real (registrar/editar). Volver
+  // de una vista de solo lectura no debe refetchear (ver health-sync).
+  const lastSyncedVersionRef = useRef(getHealthDataVersion());
   useFocusEffect(
     useCallback(() => {
-      if (!didInitialFocusRef.current) {
-        didInitialFocusRef.current = true;
-        return;
+      const currentVersion = getHealthDataVersion();
+      if (currentVersion !== lastSyncedVersionRef.current) {
+        lastSyncedVersionRef.current = currentVersion;
+        refreshHealthData();
       }
-      refreshHealthData();
     }, [refreshHealthData]),
   );
 
@@ -92,6 +94,10 @@ export default function HealthScreen() {
     router.push('/health/history' as any);
   }, [router]);
 
+  const handleViewEvolution = useCallback(() => {
+    router.push('/health/evolution' as any);
+  }, [router]);
+
   return (
     <SafeAreaView className="flex-1 bg-zinc-950">
       <ScrollView
@@ -120,6 +126,7 @@ export default function HealthScreen() {
           onViewDetail={lastMeasurement ? handleViewDetail : undefined}
           onViewHistoryItem={handleViewHistoryItem}
           onViewMore={handleViewMore}
+          onViewEvolution={handleViewEvolution}
         />
       </ScrollView>
     </SafeAreaView>

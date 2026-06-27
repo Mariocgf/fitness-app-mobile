@@ -35,6 +35,7 @@ interface HealthDashboardProps {
   onViewDetail?: () => void;
   onViewHistoryItem: (measurement: BodyMeasurementDto) => void;
   onViewMore: () => void;
+  onViewEvolution: () => void;
 }
 
 /**
@@ -63,6 +64,7 @@ export function HealthDashboard({
   onViewDetail,
   onViewHistoryItem,
   onViewMore,
+  onViewEvolution,
 }: HealthDashboardProps) {
   // ── Estado de carga ───────────────────────────────────────────────────────
   if (isLoading) {
@@ -156,6 +158,7 @@ export function HealthDashboard({
         isLoading={isEvolutionLoading}
         error={evolutionError}
         onRefresh={onRefreshEvolution}
+        onViewMore={onViewEvolution}
       />
 
       <MeasurementHistorySection

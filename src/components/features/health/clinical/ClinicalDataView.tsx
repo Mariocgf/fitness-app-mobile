@@ -24,18 +24,18 @@ const ROSE = "#fb7185";
 /** Track del Switch: zinc-700 apagado, rose-400 encendido. */
 const SWITCH_TRACK = { false: "#3f3f46", true: ROSE };
 
-// Las opciones del SegmentedControl usan string (el control es genérico sobre string);
-// el value numérico del enum se convierte al leer/escribir.
+// El SegmentedControl es genérico sobre string; los valores coinciden con
+// los del enum que serializa el backend ("A", "Positive", …).
 const BLOOD_TYPE_SEGMENTS = [
-  { label: "A", value: "0" },
-  { label: "B", value: "1" },
-  { label: "AB", value: "2" },
-  { label: "O", value: "3" },
+  { label: "A", value: "A" },
+  { label: "B", value: "B" },
+  { label: "AB", value: "AB" },
+  { label: "O", value: "O" },
 ];
 
 const RH_SEGMENTS = [
-  { label: "+", value: "0" },
-  { label: "−", value: "1" },
+  { label: "+", value: "Positive" },
+  { label: "−", value: "Negative" },
 ];
 
 interface ClinicalDataViewProps {
@@ -168,8 +168,8 @@ export function ClinicalDataView({
           <Text className="text-zinc-400 text-sm mb-2">Grupo sanguíneo</Text>
           <SegmentedControl
             options={BLOOD_TYPE_SEGMENTS}
-            value={bloodType === null ? "" : String(bloodType)}
-            onChange={(v) => setBloodType(Number(v) as BloodType)}
+            value={bloodType ?? ""}
+            onChange={(v) => setBloodType(v as BloodType)}
             accent="rose"
           />
 
@@ -178,8 +178,8 @@ export function ClinicalDataView({
           <Text className="text-zinc-400 text-sm mb-2">Rh</Text>
           <SegmentedControl
             options={RH_SEGMENTS}
-            value={rhFactor === null ? "" : String(rhFactor)}
-            onChange={(v) => setRhFactor(Number(v) as RhFactor)}
+            value={rhFactor ?? ""}
+            onChange={(v) => setRhFactor(v as RhFactor)}
             accent="rose"
           />
         </View>

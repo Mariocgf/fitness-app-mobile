@@ -1,25 +1,26 @@
 // Tipos del módulo de Datos Clínicos.
 // Contrato: docs/clinical-data-frontend-guide.md
-// IMPORTANTE: los enums se serializan como NÚMEROS (no strings), igual que el resto de la API.
+// IMPORTANTE: este endpoint serializa los enums clínicos como STRINGS
+// (ej. "A", "Positive"), no como números. Los tipos reflejan ese contrato real.
 
-/** Grupo sanguíneo. A=0, B=1, AB=2, O=3 (ver guía §4). */
-export type BloodType = 0 | 1 | 2 | 3;
+/** Grupo sanguíneo, tal como lo serializa el backend. */
+export type BloodType = "A" | "B" | "AB" | "O";
 
-/** Factor Rh. Positivo (+)=0, Negativo (−)=1 (ver guía §4). */
-export type RhFactor = 0 | 1;
+/** Factor Rh, tal como lo serializa el backend. */
+export type RhFactor = "Positive" | "Negative";
 
 /** Mapa de grupo sanguíneo a label legible. */
 export const BLOOD_TYPE_LABELS: Record<BloodType, string> = {
-  0: "A",
-  1: "B",
-  2: "AB",
-  3: "O",
+  A: "A",
+  B: "B",
+  AB: "AB",
+  O: "O",
 };
 
 /** Mapa de factor Rh a label legible. */
 export const RH_LABELS: Record<RhFactor, string> = {
-  0: "+",
-  1: "−",
+  Positive: "+",
+  Negative: "−",
 };
 
 // ─── Perfil clínico ──────────────────────────────────────────────────────────

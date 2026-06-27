@@ -11,6 +11,8 @@ interface BodyEvolutionDashboardSectionProps {
   isLoading: boolean;
   error: string | null;
   onRefresh: () => void;
+  /** Navega a la pantalla con todas las métricas de evolución física. */
+  onViewMore: () => void;
 }
 
 /** Ordena peso primero y luego perímetros sin hardcodear textos visibles. */
@@ -20,14 +22,21 @@ const sortMetrics = (metrics: BodyMetricTrend[]): BodyMetricTrend[] => {
   return [...weight, ...perimeters];
 };
 
-/** Sección de evolución física con gráficas de tendencia por métrica corporal. */
+/**
+ * Sección de evolución física en el dashboard de Salud.
+ * Muestra solo la métrica principal (peso); el resto vive en la pantalla "ver más".
+ */
 export function BodyEvolutionDashboardSection({
   dashboard,
   isLoading,
   error,
   onRefresh,
+  onViewMore,
 }: BodyEvolutionDashboardSectionProps) {
   const metrics = sortMetrics(dashboard?.metrics ?? []);
+  // En el dashboard solo se pinta la primera métrica (peso primero por sortMetrics)
+  const primaryMetric = metrics[0];
+  const hasMore = metrics.length > 1;
 
   return (
     <View className="gap-3">
@@ -96,9 +105,26 @@ export function BodyEvolutionDashboardSection({
           </View>
         )}
 
-        {!isLoading && error == null && metrics.map((trend) => (
-          <BodyMetricTrendCard key={trend.metric} trend={trend} />
-        ))}
+        {!isLoading && error == null && primaryMetric != null && (
+          <BodyMetricTrendCard key={primaryMetric.metric} trend={primaryMetric} />
+        )}
+
+        {!isLoading && error == null && hasMore && (
+          <TouchableOpacity
+            onPress={onViewMore}
+            activeOpacity={0.8}
+            className="bg-rose-400 rounded-2xl p-4 flex-row items-center justify-between"
+          >
+            <Text className="text-zinc-900 font-semibold text-base">
+              Ver más métricas
+            </Text>
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              className="text-zinc-900"
+            />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );

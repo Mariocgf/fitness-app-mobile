@@ -1,5 +1,6 @@
 import { ClinicalDataView } from "@/src/components/features/health/clinical/ClinicalDataView";
 import { useClinicalProfile } from "@/src/hooks/useClinicalProfile";
+import { bumpHealthData } from "@/src/store/health-sync";
 import { ClinicalProfilePayload } from "@/src/types/clinical";
 import { useRouter } from "expo-router";
 import React, { useCallback } from "react";
@@ -19,8 +20,9 @@ export default function ClinicalDataScreen() {
   const handleSave = useCallback(
     async (payload: ClinicalProfilePayload) => {
       const result = await updateProfile(payload);
-      // Si guardó bien, volver al dashboard (que refresca por useFocusEffect)
+      // Si guardó bien, marcar mutación y volver: el dashboard refresca por versión
       if (result != null) {
+        bumpHealthData();
         router.back();
       }
     },

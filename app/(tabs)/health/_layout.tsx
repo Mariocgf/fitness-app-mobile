@@ -21,6 +21,7 @@ export default function HealthLayout() {
       <Stack.Screen name="mood-detail" />
       <Stack.Screen name="measurements" />
       <Stack.Screen name="history" />
+      <Stack.Screen name="evolution" />
       <Stack.Screen name="clinical" />
       <Stack.Screen name="clinical-reading-new" />
       <Stack.Screen name="clinical-readings" />

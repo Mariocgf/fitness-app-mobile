@@ -22,10 +22,10 @@ describe("clinical.service", () => {
 
   // ─── Perfil ────────────────────────────────────────────────────────────────
 
-  it("debe obtener el perfil clínico con enums numéricos (respuesta plana)", async () => {
+  it("debe obtener el perfil clínico con enums string (respuesta plana)", async () => {
     const profile = {
-      bloodType: 3,
-      rhFactor: 0,
+      bloodType: "O",
+      rhFactor: "Positive",
       hasGlucose: true,
       hasDyslipidemia: false,
       allowAiUsage: false,
@@ -56,8 +56,8 @@ describe("clinical.service", () => {
 
   it("debe actualizar el perfil enviando el payload sin allowAiUsage", async () => {
     const payload = {
-      bloodType: 3 as const,
-      rhFactor: 0 as const,
+      bloodType: "O" as const,
+      rhFactor: "Positive" as const,
       hasGlucose: true,
       hasDyslipidemia: false,
     };

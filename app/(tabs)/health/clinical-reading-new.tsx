@@ -1,5 +1,6 @@
 import { ClinicalReadingFormView } from "@/src/components/features/health/clinical/ClinicalReadingFormView";
 import { useClinicalReadings } from "@/src/hooks/useClinicalReadings";
+import { bumpHealthData } from "@/src/store/health-sync";
 import { ClinicalReadingPayload } from "@/src/types/clinical";
 import { useRouter } from "expo-router";
 import React, { useCallback } from "react";
@@ -15,8 +16,9 @@ export default function ClinicalReadingNewScreen() {
   const handleSubmit = useCallback(
     async (payload: ClinicalReadingPayload) => {
       const result = await submit(payload);
-      // Si guardó bien, volver (al dashboard o a Lecturas clínicas, que refrescan en focus)
+      // Si guardó bien, marcar mutación y volver: el dashboard refresca por versión
       if (result != null) {
+        bumpHealthData();
         router.back();
       }
     },
