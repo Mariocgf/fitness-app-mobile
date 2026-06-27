@@ -11,6 +11,7 @@ import { ClinicalReadingsEntryCard } from './clinical/ClinicalReadingsEntryCard'
 import { RegisterReadingCard } from './clinical/RegisterReadingCard';
 import { LastMeasurementCard } from './LastMeasurementCard';
 import { MeasurementHistorySection } from './MeasurementHistorySection';
+import { WellnessEntryCard } from './wellness/WellnessEntryCard';
 
 interface HealthDashboardProps {
   lastMeasurement: BodyMeasurementDto | null;
@@ -30,6 +31,7 @@ interface HealthDashboardProps {
   onConfigureClinical: () => void;
   onRegisterReading: () => void;
   onViewClinicalReadings: () => void;
+  onOpenWellness: () => void;
   onViewDetail?: () => void;
   onViewHistoryItem: (measurement: BodyMeasurementDto) => void;
   onViewMore: () => void;
@@ -57,6 +59,7 @@ export function HealthDashboard({
   onConfigureClinical,
   onRegisterReading,
   onViewClinicalReadings,
+  onOpenWellness,
   onViewDetail,
   onViewHistoryItem,
   onViewMore,
@@ -108,6 +111,11 @@ export function HealthDashboard({
         <Text className="text-white text-4xl font-bold">
           Salud
         </Text>
+      </View>
+
+      {/* ── Acceso a Bienestar (sueño, hidratación, ánimo, meditación) ──────── */}
+      <View className="px-4">
+        <WellnessEntryCard onPress={onOpenWellness} />
       </View>
 
       {/* ── Bloque clínico ─────────────────────────────────────────────────── */}

@@ -66,6 +66,10 @@ export default function HealthScreen() {
     router.push('/health/clinical-readings' as any);
   }, [router]);
 
+  const handleOpenWellness = useCallback(() => {
+    router.push('/health/wellness' as any);
+  }, [router]);
+
   const handleViewDetail = useCallback(() => {
     if (!lastMeasurement) return;
     router.push({
@@ -112,6 +116,7 @@ export default function HealthScreen() {
           onConfigureClinical={handleConfigureClinical}
           onRegisterReading={handleRegisterReading}
           onViewClinicalReadings={handleViewClinicalReadings}
+          onOpenWellness={handleOpenWellness}
           onViewDetail={lastMeasurement ? handleViewDetail : undefined}
           onViewHistoryItem={handleViewHistoryItem}
           onViewMore={handleViewMore}

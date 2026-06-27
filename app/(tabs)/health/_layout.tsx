@@ -9,6 +9,13 @@ export default function HealthLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="wellness" />
+      <Stack.Screen name="sleep" />
+      <Stack.Screen name="sleep-new" />
+      <Stack.Screen name="sleep-detail" />
+      <Stack.Screen name="hydration" />
+      <Stack.Screen name="hydration-new" />
+      <Stack.Screen name="hydration-detail" />
       <Stack.Screen name="measurements" />
       <Stack.Screen name="history" />
       <Stack.Screen name="clinical" />
