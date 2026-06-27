@@ -26,12 +26,20 @@ export default function WellnessScreen() {
     router.push("/health/hydration" as any);
   }, [router]);
 
+  const handleOpenMood = useCallback(() => {
+    router.push("/health/mood" as any);
+  }, [router]);
+
   const handleRegisterSleep = useCallback(() => {
     router.push("/health/sleep-new" as any);
   }, [router]);
 
   const handleRegisterHydration = useCallback(() => {
     router.push("/health/hydration-new" as any);
+  }, [router]);
+
+  const handleRegisterMood = useCallback(() => {
+    router.push("/health/mood-new" as any);
   }, [router]);
 
   // Solo refresca si hubo una mutación real (registrar/eliminar) desde la última
@@ -62,8 +70,10 @@ export default function WellnessScreen() {
           onRefresh={refresh}
           onOpenSleep={handleOpenSleep}
           onOpenHydration={handleOpenHydration}
+          onOpenMood={handleOpenMood}
           onRegisterSleep={handleRegisterSleep}
           onRegisterHydration={handleRegisterHydration}
+          onRegisterMood={handleRegisterMood}
         />
       </ScrollView>
     </SafeAreaView>

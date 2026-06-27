@@ -16,6 +16,9 @@ export default function HealthLayout() {
       <Stack.Screen name="hydration" />
       <Stack.Screen name="hydration-new" />
       <Stack.Screen name="hydration-detail" />
+      <Stack.Screen name="mood" />
+      <Stack.Screen name="mood-new" />
+      <Stack.Screen name="mood-detail" />
       <Stack.Screen name="measurements" />
       <Stack.Screen name="history" />
       <Stack.Screen name="clinical" />

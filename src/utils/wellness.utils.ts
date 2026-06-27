@@ -43,6 +43,18 @@ export const MOOD_LABELS: Record<MoodLevel, string> = {
   VeryGood: "Muy bien",
 };
 
+/**
+ * Niveles de ánimo en el orden de la maqueta (peor → mejor). Compartido por el
+ * selector del formulario y la escala de solo-lectura de "Último registro"/detalle.
+ */
+export const MOOD_LEVELS_ORDERED: MoodLevel[] = [
+  "VeryBad",
+  "Bad",
+  "Neutral",
+  "Good",
+  "VeryGood",
+];
+
 /** Etiqueta legible del tipo de bebida. */
 export const BEVERAGE_LABELS: Record<BeverageType, string> = {
   Water: "Agua",

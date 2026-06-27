@@ -43,6 +43,8 @@ interface WellnessViewProps {
   onOpenSleep?: () => void;
   // Abre el detalle de Hidratación (`/health/hydration`): pantalla con registro + historial.
   onOpenHydration?: () => void;
+  // Abre el detalle de Ánimo (`/health/mood`): pantalla con registro + historial.
+  onOpenMood?: () => void;
   // Abre directamente el formulario de registro de Sueño (`/health/sleep-new`).
   onRegisterSleep?: () => void;
   // Acciones de "Registrar" de las features aún sin pantalla propia (fase futura).
@@ -65,6 +67,7 @@ export function WellnessView({
   onRefresh,
   onOpenSleep,
   onOpenHydration,
+  onOpenMood,
   onRegisterSleep,
   onRegisterHydration,
   onRegisterMood,
@@ -141,6 +144,7 @@ export function WellnessView({
           icon={KIND_ICON.mood}
           title="Ánimo"
           subtitle={moodSubtitle}
+          onPress={onOpenMood}
         />
         <WellnessLogRow
           icon={KIND_ICON.meditation}
