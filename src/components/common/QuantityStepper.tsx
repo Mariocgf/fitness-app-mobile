@@ -6,6 +6,7 @@ import { Pressable, Text, View } from 'react-native';
 const ACCENT_COLORS = {
   amber: '#fbbf24',
   lime: '#a3e635',
+  rose: '#fb7185',
   mono: '#fafafa',
 } as const;
 

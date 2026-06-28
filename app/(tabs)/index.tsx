@@ -1,146 +1,136 @@
-import { logger } from '@/src/utils/logger';
-import { ModuleCard } from '@/src/components/features/home/ModuleCard';
-import { GreetingHeader } from '@/src/components/features/home/GreetingHeader';
-import { getActiveModules } from '@/src/services/module.service';
-import { generateRoutine, getActiveRoutine } from '@/src/services/routine.service';
-import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
-import { useNutritionRoutineContext } from '@/src/store/nutrition-routine-context';
-import { Routine } from '@/src/types/routine';
-import { useAuth, useUser } from '@clerk/clerk-expo';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import { useUser } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ScrollView } from 'react-native';
+import React, { useEffect } from 'react';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-/** Devuelve el nombre del día de hoy en español */
-const getTodayNameSpanish = (): string => {
-  const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-  return days[new Date().getDay()];
-};
+import { GreetingHeader } from '@/src/components/features/home/GreetingHeader';
+import { HealthAccessCard } from '@/src/components/features/home/HealthAccessCard';
+import { HydrationQuickAddCard } from '@/src/components/features/home/HydrationQuickAddCard';
+import { MoodQuickCard } from '@/src/components/features/home/MoodQuickCard';
+import { NutritionTodayCard } from '@/src/components/features/home/NutritionTodayCard';
+import { RoutineTodayCard } from '@/src/components/features/home/RoutineTodayCard';
+import { SleepQuickCard } from '@/src/components/features/home/SleepQuickCard';
+import { useHomeDashboard } from '@/src/hooks/useHomeDashboard';
+import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
+import { getTodayDateKey } from '@/src/utils/nutrition.utils';
+
+/** Encabezado de sección del Home (eyebrow en mayúsculas). */
+function SectionTitle({ children }: { children: string }) {
+  return (
+    <Text className="text-zinc-500 text-xs font-semibold uppercase tracking-widest px-4 mt-2 mb-1">
+      {children}
+    </Text>
+  );
+}
 
 export default function HomeScreen() {
   const { user } = useUser();
-  const { getToken } = useAuth();
   const router = useRouter();
-
-  const [routine, setRoutine] = useState<Routine | null>(null);
-  const [isFetchingRoutine, setIsFetchingRoutine] = useState(true);
-  const [isGeneratingRoutine, setIsGeneratingRoutine] = useState(false);
-
   const { setActiveRoutine } = useRoutineDetailContext();
-  const { routine: nutritionRoutine, isLoading: isLoadingNutrition } = useNutritionRoutineContext();
+
+  const {
+    routine,
+    trainedToday,
+    isLoadingRoutine,
+    wellness,
+    isLoadingWellness,
+    nutrition,
+    isSubmitting,
+    logMood,
+    logSleep,
+    logHydration,
+    refresh,
+  } = useHomeDashboard();
 
   const userName = user?.firstName ?? 'Usuario';
 
+  // Mantenemos el contexto de rutina sincronizado para que Fitness pueda abrirla.
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const stored = await AsyncStorage.getItem('@user_routine');
-        if (stored) {
-          const parsed = JSON.parse(stored) as Routine;
-          setRoutine(parsed);
-          setActiveRoutine(parsed);
-        }
+    setActiveRoutine(routine);
+  }, [routine, setActiveRoutine]);
 
-        const token = await getToken();
-        if (!token) return;
-
-        const [modulesResult, routineResult] = await Promise.allSettled([
-          getActiveModules(token),
-          getActiveRoutine(token),
-        ]);
-
-        if (modulesResult.status === 'fulfilled') {
-          await AsyncStorage.setItem('@active_modules', JSON.stringify(modulesResult.value));
-        }
-
-        if (routineResult.status === 'fulfilled') {
-          const fetched = routineResult.value;
-          if (fetched) {
-            setRoutine(fetched);
-            setActiveRoutine(fetched);
-            await AsyncStorage.setItem('@user_routine', JSON.stringify(fetched));
-          } else {
-            setRoutine(null);
-            setActiveRoutine(null);
-            await AsyncStorage.removeItem('@user_routine');
-          }
-        }
-      } catch (error) {
-        logger.error('Error cargando datos en Home:', error);
-      } finally {
-        setIsFetchingRoutine(false);
-      }
-    };
-
-    loadData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleGenerateRoutine = async () => {
-    setIsGeneratingRoutine(true);
-    try {
-      const token = await getToken();
-      const newRoutine = await generateRoutine(token);
-      setRoutine(newRoutine);
-      setActiveRoutine(newRoutine);
-      await AsyncStorage.setItem('@user_routine', JSON.stringify(newRoutine));
-    } catch (error) {
-      logger.error('Error generando rutina desde Home:', error);
-    } finally {
-      setIsGeneratingRoutine(false);
-    }
-  };
-
-  /** Resumen de la rutina activa para el card */
-  const routineTitle = routine?.name ?? 'Rutina';
-  const todayDay = getTodayNameSpanish();
-  const firstDay = routine?.days[0];
-  const exerciseCount = firstDay?.exercises.length ?? 0;
-  const approxTime = firstDay?.approxTimeSession ?? '45 min';
-  const routineMeta = exerciseCount > 0 ? `${exerciseCount} ejercicios • ${approxTime}` : undefined;
+  // ── Pendientes de hoy (binarios: se ocultan al completarse) ──
+  const pendingRoutine = routine != null && !trainedToday;
+  const pendingMood = !isLoadingWellness && wellness.mood == null;
+  const pendingSleep = !isLoadingWellness && wellness.sleep == null;
+  const hasPending = pendingRoutine || pendingMood || pendingSleep;
+  const isLoading = isLoadingRoutine || isLoadingWellness;
 
   return (
     <SafeAreaView className="flex-1 bg-zinc-950">
-      <ScrollView contentContainerClassName="pt-8 pb-10">
+      <ScrollView
+        contentContainerClassName="pt-8 pb-10 gap-3"
+        refreshControl={
+          <RefreshControl
+            refreshing={false}
+            onRefresh={refresh}
+            tintColor="#a1a1aa"
+          />
+        }
+      >
         <GreetingHeader userName={userName} avatarUrl={user?.imageUrl} />
 
-        {/* Card: Rutina */}
-        <ModuleCard
-          title={routineTitle}
-          subtitle={routine ? todayDay : undefined}
-          meta={routine ? routineMeta : undefined}
-          description={!routine && !isFetchingRoutine ? 'No tenés una rutina activa.' : undefined}
-          actionLabel={routine ? 'Ver rutina' : 'Generar rutina'}
-          onAction={() =>
-            routine
-              ? router.navigate({ pathname: '/(tabs)/fitness', params: { openRoutineId: routine.id } })
-              : handleGenerateRoutine()
-          }
-          isLoading={isFetchingRoutine || isGeneratingRoutine}
-        />
+        {/* ── Zona 1: Para hoy ── */}
+        {hasPending ? <SectionTitle>Para hoy</SectionTitle> : null}
 
-        {/* Card: Nutrición */}
-        <ModuleCard
-          title="Nutrición"
-          description={
-            !isLoadingNutrition && !nutritionRoutine
-              ? 'No tenés un plan nutricional activo.'
-              : nutritionRoutine?.name
-          }
-          actionLabel={nutritionRoutine ? 'Ver plan' : 'Crear plan'}
-          onAction={() => router.navigate('/(tabs)/nutrition')}
-          isLoading={isLoadingNutrition}
-        />
+        <View className="px-4 gap-3">
+          {pendingRoutine && routine ? (
+            <RoutineTodayCard
+              routine={routine}
+              onPress={() =>
+                router.navigate({
+                  pathname: '/(tabs)/fitness',
+                  params: { openRoutineId: routine.id },
+                })
+              }
+            />
+          ) : null}
 
-        {/* Card: Salud */}
-        <ModuleCard
-          title="Salud"
-          description="No tenés objetivos configurados."
-          actionLabel="Configurar"
-          onAction={() => router.navigate('/(tabs)/health')}
-        />
+          {pendingMood ? (
+            <MoodQuickCard
+              onSelect={(mood) => logMood({ date: getTodayDateKey(), mood })}
+              isSubmitting={isSubmitting}
+            />
+          ) : null}
+
+          {pendingSleep ? (
+            <SleepQuickCard onSubmit={logSleep} isSubmitting={isSubmitting} />
+          ) : null}
+        </View>
+
+        {/* Estado "todo al día" cuando no queda nada pendiente */}
+        {!hasPending && !isLoading ? (
+          <View className="mx-4 bg-zinc-900 border border-zinc-800 rounded-3xl p-6 items-center gap-2">
+            <Ionicons name="checkmark-circle" size={40} color="#a3e635" />
+            <Text className="text-white text-lg font-bold">Todo al día</Text>
+            <Text className="text-zinc-400 text-sm text-center">
+              Ya registraste lo importante de hoy. Seguí abajo con el resto.
+            </Text>
+          </View>
+        ) : null}
+
+        {/* ── Zona 2: Tu día (siempre accesible) ── */}
+        <SectionTitle>Tu día</SectionTitle>
+
+        <View className="px-4 gap-3">
+          <NutritionTodayCard
+            consumedCalories={nutrition.consumedCalories}
+            targetCalories={nutrition.targetCalories}
+            onPress={() => router.navigate('/(tabs)/nutrition')}
+          />
+
+          <HydrationQuickAddCard
+            todayMl={wellness.hydrationMl}
+            onAdd={(amountMl) =>
+              logHydration({ date: getTodayDateKey(), amountMl, beverageType: 'Water' })
+            }
+            isSubmitting={isSubmitting}
+          />
+
+          <HealthAccessCard onPress={() => router.navigate('/(tabs)/health')} />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

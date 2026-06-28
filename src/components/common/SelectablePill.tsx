@@ -2,12 +2,13 @@ import React from 'react';
 import { Text, TouchableOpacity } from 'react-native';
 
 /** Acento visual del estado seleccionado. */
-export type PillAccent = 'mono' | 'lime' | 'amber';
+export type PillAccent = 'mono' | 'lime' | 'amber' | 'rose';
 
 const SELECTED_STYLES: Record<PillAccent, { container: string; text: string }> = {
   mono: { container: 'bg-zinc-50 border-zinc-50', text: 'text-zinc-950' },
   lime: { container: 'bg-lime-400 border-lime-400', text: 'text-black' },
   amber: { container: 'bg-amber-400 border-amber-400', text: 'text-black' },
+  rose: { container: 'bg-rose-400 border-rose-400', text: 'text-black' },
 };
 
 const UNSELECTED = {

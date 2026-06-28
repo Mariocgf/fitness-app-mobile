@@ -8,33 +8,40 @@
 
 ## Home — `src/components/features/home/`
 
-### `ModuleCard`
+> **Rediseño (dashboard de dos zonas).** El Home se arma con `useHomeDashboard`
+> (combina rutina + si entrenó hoy, resumen de bienestar de hoy y nutrición del
+> día) y se divide en dos zonas: **"Para hoy"** (pendientes binarios que
+> DESAPARECEN al completarse) y **"Tu día"** (acumulativos siempre accesibles).
+> El viejo `ModuleCard` fue eliminado en este rediseño.
+>
+> - "Rutina realizada hoy" se deriva de que exista una sesión en el historial de
+>   entrenamiento con `trainedAt` = hoy (la rutina NO tiene día de la semana).
+> - Sueño/ánimo son binarios por día → registro rápido y se ocultan al guardar.
+> - Hidratación/nutrición son acumulativos → siempre visibles con su progreso.
 
-Card de módulo para el dashboard home. Muestra un título, info contextual opcional, un divisor y una acción de navegación.
+### `RoutineTodayCard`
 
-**Props:**
-| Prop | Tipo | Requerido | Descripción |
-|------|------|-----------|-------------|
-| `title` | `string` | ✅ | Nombre principal de la sección (ej. "Fuerza Pro", "Nutrición") |
-| `subtitle` | `string` | ❌ | Texto secundario bajo el título (ej. día de la semana) |
-| `meta` | `string` | ❌ | Info de detalle en una línea (ej. "6 ejercicios • 45 min") |
-| `description` | `string` | ❌ | Texto de estado cuando no hay datos activos |
-| `actionLabel` | `string` | ✅ | Texto del CTA (ej. "Continuar rutina", "Crear plan") |
-| `onAction` | `() => void` | ✅ | Callback al presionar el CTA |
-| `isLoading` | `boolean` | ❌ | Muestra indicador de carga en lugar del contenido |
+Card "Entrená hoy" (acento `lime-400`). Solo se renderiza cuando hay rutina activa y NO se entrenó hoy. `IconTile` lime + eyebrow + nombre + meta (`N ejercicios · tiempo` del `days[0]`) + CTA sólido "Comenzar rutina →". Props: `routine`, `onPress`.
 
-**Uso:**
-```tsx
-<ModuleCard
-  title="Fuerza Pro"
-  subtitle="Lunes"
-  meta="6 ejercicios • 45 min"
-  actionLabel="Continuar rutina"
-  onAction={() => router.navigate('/(tabs)/fitness')}
-/>
-```
+### `MoodQuickCard`
 
-**Cuándo usar:** En el dashboard home para mostrar el estado resumido de cada módulo (Rutina, Nutrición, Salud).
+Registro rápido de ánimo (acento `rose-400`). Cinco emojis de **un toque**: al tocar uno persiste el ánimo de hoy (la card la oculta el padre según `wellness.mood`). Usa `MOOD_LEVELS_ORDERED`/`MOOD_LABELS`; el emoji es etiqueta visual local (no dato del backend). El form completo (con nota) vive en Salud. Props: `onSelect(mood)`, `isSubmitting`.
+
+### `SleepQuickCard`
+
+Registro rápido de sueño (acento `rose-400`), **expandible**. Colapsada = acceso; expandida = duración (`QuantityStepper` de horas) + calidad (`SelectablePill` rose) + CTA. **No usa `WheelPicker`** a propósito (pelea con el scroll del home). El form completo (nota, minutos finos) vive en Salud. Props: `onSubmit(payload)`, `isSubmitting`.
+
+### `NutritionTodayCard`
+
+Card "Nutrición" de "Tu día" (acento `amber-400`), siempre accesible. kcal consumidas (`getConsumedCalories`) vs objetivo + `FillBar` amber + kcal restantes. Si no hay objetivo (sin perfil), invita a configurar el plan. Props: `consumedCalories`, `targetCalories`, `onPress`.
+
+### `HydrationQuickAddCard`
+
+Registro rápido de hidratación de "Tu día" (acento `rose-400`), acumulativo y siempre visible. Muestra ml de hoy y atajos +250/+500 (bebida = Agua) de un toque. Otros tipos de bebida → form de Salud. Props: `todayMl`, `onAdd(amountMl)`, `isSubmitting`.
+
+### `HealthAccessCard`
+
+Puerta de entrada al módulo de Salud (acento `rose-400`): `IconTile` corazón + descripción + chevron. No muestra datos derivados (grasa/masa magra los calcula el backend). Props: `onPress`.
 
 ---
 
@@ -215,7 +222,7 @@ Reutilizar SIEMPRE en vez de copiar `TouchableOpacity` con ternarios de fondo.
 
 **Átomo.** Selector de cantidad `−  valor unidad  +`: dos botones circulares con borde del acento y el valor centrado. **No usa gestos propios** (solo toques), así que puede vivir dentro de un `Pressable`/`ScrollView` sin pelearse con el responder system — a diferencia del `RulerPicker`, que sí necesita aislarse del `Pressable` padre. Reutilizar SIEMPRE para ajustar gramos/cantidades en vez de copiar dos botones con un número en medio.
 
-**Props:** `value: number`, `onChange: (value: number) => void`, `step?` (default 5), `min?` (default 0), `max?` (default 9999), `unit?` (default `'g'`), `accent?: 'amber' | 'lime' | 'mono'` (default `amber`). El `onChange` ya llega acotado a `[min, max]`.
+**Props:** `value: number`, `onChange: (value: number) => void`, `step?` (default 5), `min?` (default 0), `max?` (default 9999), `unit?` (default `'g'`), `accent?: 'amber' | 'lime' | 'rose' | 'mono'` (default `amber`). El `onChange` ya llega acotado a `[min, max]`. El `rose` se agregó para la duración de sueño del Home (`SleepQuickCard`).
 
 **En uso:** `ConsumedFoodCard` (gramos del alimento, `step` 5, `min` 1, `max` 2000); `EquipmentSelectedList` (cantidad de equipamiento, `step` 1, `min` 1, sin unidad, `accent="lime"`).
 
@@ -249,7 +256,7 @@ Reutilizar SIEMPRE en vez de copiar `TouchableOpacity` con ternarios de fondo.
 
 Chip seleccionable (píldora) dark-only: `rounded-full border` + texto. Estructura fija, acento del estado activo configurable. Estado no seleccionado en `zinc` (`bg-zinc-800 border-zinc-700 text-zinc-300`, sin azulado). **Reutilizar SIEMPRE en filtros horizontales y selectores de día** en vez de copiar el `TouchableOpacity rounded-full border` con su ternario.
 
-**Props:** `label: string`, `selected: boolean`, `onPress: () => void`, `accent?: 'mono' | 'lime' | 'amber'` (default `mono`), `className?` (default `px-4 py-2`).
+**Props:** `label: string`, `selected: boolean`, `onPress: () => void`, `accent?: 'mono' | 'lime' | 'amber' | 'rose'` (default `mono`), `className?` (default `px-4 py-2`). El `rose` se agregó para los registros de Salud del Home (`SleepQuickCard`).
 
 **En uso:** `AddExerciseSheet` (filtros músculo/equipamiento, `lime`), `NutritionDaySelector` (`amber`).
 
@@ -353,6 +360,26 @@ Header de la sesión activa (dark-only `zinc`): botón back circular (`border-zi
 - En lectura las cards muestran Sets/Reps/Rest estáticos; el handle de 6 puntos (drag) y el wheel picker aparecen al entrar en `RoutineEditMode` (menú `···` → "Editar rutina").
 - El menú `···` incluye: Regenerar, Cambiar ejercicios, Adaptar con IA, Editar (modo edición in-place), Activar y Eliminar según el estado de la rutina.
 - El posicionamiento del botón inferior usa `TAB_BAR_HEIGHT` (49/56) + `insets.bottom` para convivir con el tab bar nativo.
+
+#### `RoutineEditorView` — editor compartido (crear + editar)
+
+Vista presentacional **compartida** entre crear (`CreateRoutineView`) y editar (`RoutineEditMode`) una rutina manual. Diseño oscuro `zinc`, acento `lime-400`. Es el resultado de unificar dos pantallas casi gemelas (mismo error que `FilterPill` si se forkean): header con nombre editable, navegación de días con cross-fade (`DaySlot` + swipe), lista reordenable de `EditExerciseCard`, wheel picker de stats (`StatPickerSheet`), selector de día (`EditDayPickerModal`), `AddExerciseSheet` (agregar/reemplazar) y botón de guardar flotante sobre el tab bar nativo (`TAB_BAR_HEIGHT + insets.bottom`).
+
+**La lógica de estado vive en el hook `useRoutineEditor`** (`src/hooks/useRoutineEditor.ts`): días, día activo, CRUD de ejercicios por id (robusto al reordenar), `isValid` y `buildPayload(activate)`. Los helpers puros (`DAYS_MAP`, `calcDayApproxTime`, `routineToDraftDays`, `buildRoutinePayload`) están en `src/utils/routine-editor.utils.ts`. Las diferencias entre crear y editar (init, acción de guardado, animación de entrada, menú del día) las inyectan los wrappers por props.
+
+**Props:**
+| Prop | Tipo | Requerido | Descripción |
+|------|------|-----------|-------------|
+| `editor` | `RoutineEditor` | ✅ | Instancia de `useRoutineEditor` (el wrapper la crea con su init) |
+| `weightOptionsFor` | `(ex) => WeightOption[]` | ✅ | Opciones de peso por ejercicio (crear filtra por equipamiento; editar usa genéricas) |
+| `onBack` | `() => void` | ✅ | Retroceso (crear guarda borrador + anima cierre; editar sale del modo) |
+| `backIcon` | `'chevron-back' \| 'close'` | ❌ | Ícono del back (default `chevron-back`; crear usa `close`) |
+| `onDayOptions` | `(day) => void` | ✅ | Abre el menú del día (crear: copiar/eliminar; editar: eliminar) |
+| `saveLabel` | `string` | ✅ | Texto del botón guardar (`"Guardar rutina"` / `"Guardar cambios"`) |
+| `onSave` | `() => void` | ✅ | Acción de guardado (crear abre diálogo activar; editar hace `updateRoutine`) |
+| `isSaving` | `boolean` | ✅ | Estado de carga del botón |
+
+> **Wrappers:** `CreateRoutineView` aporta zoom desde la card del FAB, autoguardado de borrador (`useRoutineDraft`), copiar día→día y diálogo "Guardar y activar" (`createRoutine`). `RoutineEditMode` aporta fade de entrada, confirm de eliminar día y `updateRoutine` (activa según `routine.isActive`). Ambos son archivos finos: solo wiring, sin UI propia.
 
 #### `AddExerciseSheet` — detalles
 
