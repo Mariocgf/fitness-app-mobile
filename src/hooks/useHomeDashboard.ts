@@ -18,6 +18,13 @@ import {
 } from '../types/wellness';
 import { logger } from '../utils/logger';
 import { getConsumedCalories } from '../utils/nutrition.utils';
+import {
+  abortRequest,
+  beginAbortableRequest,
+  endAbortableRequest,
+  isCurrentRequest,
+  isRequestCanceled,
+} from '../utils/request-cancellation';
 import { toDateKey } from '../utils/wellness.utils';
 import { useNutritionDay } from './useNutritionDay';
 import { useWellnessDashboard } from './useWellnessDashboard';
@@ -68,6 +75,7 @@ export function useHomeDashboard(): UseHomeDashboardReturn {
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
   const mountedRef = useRef(true);
+  const routineRequestRef = useRef<AbortController | null>(null);
 
   const wellness = useWellnessDashboard();
   const nutritionDay = useNutritionDay();
@@ -78,6 +86,9 @@ export function useHomeDashboard(): UseHomeDashboardReturn {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadRoutine = useCallback(async () => {
+    const controller = beginAbortableRequest(routineRequestRef);
+    const { signal } = controller;
+
     setIsLoadingRoutine(true);
     try {
       // Hidratamos rápido desde SQLite solo si el usuario descargó la rutina offline.
@@ -87,10 +98,11 @@ export function useHomeDashboard(): UseHomeDashboardReturn {
       }
 
       const token = await getTokenRef.current();
+      if (signal.aborted) return;
       if (!token) return;
 
       const [routineResult, historyResult] = await Promise.allSettled([
-        getActiveRoutine(token),
+        getActiveRoutine(token, signal),
         // Las 5 sesiones más recientes alcanzan para saber si entrenó hoy
         // (más robusto que filtrar por fecha en el backend por zona horaria).
         fetchTrainingHistory(
@@ -98,10 +110,11 @@ export function useHomeDashboard(): UseHomeDashboardReturn {
           1,
           5,
           token,
+          signal,
         ),
       ]);
 
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || !isCurrentRequest(routineRequestRef, controller)) return;
 
       if (routineResult.status === 'fulfilled') {
         const fetched = routineResult.value;
@@ -117,9 +130,13 @@ export function useHomeDashboard(): UseHomeDashboardReturn {
         );
       }
     } catch (error) {
+      if (signal.aborted || isRequestCanceled(error)) return;
       logger.error('[useHomeDashboard] Error cargando rutina:', error);
     } finally {
-      if (mountedRef.current) setIsLoadingRoutine(false);
+      if (mountedRef.current && isCurrentRequest(routineRequestRef, controller)) {
+        setIsLoadingRoutine(false);
+      }
+      endAbortableRequest(routineRequestRef, controller);
     }
   }, []);
 
@@ -128,6 +145,7 @@ export function useHomeDashboard(): UseHomeDashboardReturn {
     loadRoutine();
     return () => {
       mountedRef.current = false;
+      abortRequest(routineRequestRef);
     };
   }, [loadRoutine]);
 

@@ -6,6 +6,7 @@ import {
   submitFitnessProfile,
 } from '@/src/services/fitness.service';
 import { Equipment, EquipmentSelection, SubGoal } from '@/src/types/fitness';
+import { isRequestCanceled } from '@/src/utils/request-cancellation';
 import { useAuth } from '@clerk/clerk-expo';
 import { useEffect, useState } from 'react';
 
@@ -82,20 +83,28 @@ export function useFitnessConfigStep({
    */
   useEffect(() => {
     if (subStep === 1 && subGoals.length === 0) {
+      const controller = new AbortController();
+      const { signal } = controller;
+
       const fetchSubGoals = async () => {
         setIsLoadingSubGoals(true);
         try {
           const token = await getToken();
-          const data = await getSubGoals(moduleId, token);
-          setSubGoals(Array.isArray(data) ? data : []);
+          if (signal.aborted) return;
+          const data = await getSubGoals(moduleId, token, signal);
+          if (!signal.aborted) setSubGoals(Array.isArray(data) ? data : []);
         } catch (e) {
+          if (signal.aborted || isRequestCanceled(e)) return;
           logger.error('Error cargando sub-objetivos:', e);
           alert('No se pudieron cargar los sub-objetivos.');
         } finally {
-          setIsLoadingSubGoals(false);
+          if (!signal.aborted) setIsLoadingSubGoals(false);
         }
       };
       fetchSubGoals();
+      return () => {
+        controller.abort();
+      };
     }
   }, [subStep]);
 
@@ -104,20 +113,28 @@ export function useFitnessConfigStep({
    */
   useEffect(() => {
     if (subStep === 3 && equipmentList.length === 0) {
+      const controller = new AbortController();
+      const { signal } = controller;
+
       const fetchEquipments = async () => {
         setIsLoadingEquipment(true);
         try {
           const token = await getToken();
-          const data = await getEquipments(token);
-          setEquipmentList(Array.isArray(data) ? data : []);
+          if (signal.aborted) return;
+          const data = await getEquipments(token, signal);
+          if (!signal.aborted) setEquipmentList(Array.isArray(data) ? data : []);
         } catch (e) {
+          if (signal.aborted || isRequestCanceled(e)) return;
           logger.error('Error cargando equipamiento:', e);
           alert('No se pudo cargar el equipamiento.');
         } finally {
-          setIsLoadingEquipment(false);
+          if (!signal.aborted) setIsLoadingEquipment(false);
         }
       };
       fetchEquipments();
+      return () => {
+        controller.abort();
+      };
     }
   }, [subStep]);
 

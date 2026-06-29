@@ -5,6 +5,13 @@ import {
   getTargetMuscles,
   searchExercises,
 } from '@/src/services/exercise.service';
+import {
+  abortRequest,
+  beginAbortableRequest,
+  endAbortableRequest,
+  isCurrentRequest,
+  isRequestCanceled,
+} from '@/src/utils/request-cancellation';
 import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -47,6 +54,9 @@ export function useExerciseSearch(visible: boolean) {
     muscle: null as string | null,
     equipment: null as string | null,
   });
+  const filtersRequestRef = useRef<AbortController | null>(null);
+  const searchRequestRef = useRef<AbortController | null>(null);
+  const loadMoreRequestRef = useRef<AbortController | null>(null);
 
   /* ── Debounce para búsqueda ────────────────────────────────────────────── */
   useEffect(() => {
@@ -54,33 +64,54 @@ export function useExerciseSearch(visible: boolean) {
     return () => clearTimeout(timeout);
   }, [searchTerm]);
 
+  useEffect(() => {
+    if (visible) return;
+    abortRequest(filtersRequestRef);
+    abortRequest(searchRequestRef);
+    abortRequest(loadMoreRequestRef);
+  }, [visible]);
+
+  useEffect(() => () => {
+    abortRequest(filtersRequestRef);
+    abortRequest(searchRequestRef);
+    abortRequest(loadMoreRequestRef);
+  }, []);
+
   /* ── Cargar filtros al abrir ───────────────────────────────────────────── */
   useEffect(() => {
     if (!visible) return;
 
-    let cancelled = false;
-
     const loadFilters = async () => {
+      const controller = beginAbortableRequest(filtersRequestRef);
+      const { signal } = controller;
+
       setLoadingFilters(true);
       try {
         const token = await getTokenRef.current();
+        if (signal.aborted) return;
         const [musclesRes, equipmentsRes] = await Promise.all([
-          getTargetMuscles(token),
-          getExerciseEquipments(token),
+          getTargetMuscles(token, signal),
+          getExerciseEquipments(token, signal),
         ]);
-        if (!cancelled) {
+        if (isCurrentRequest(filtersRequestRef, controller)) {
           setMuscles(musclesRes.map((m) => m.name));
           setEquipments(equipmentsRes.map((e) => e.name));
         }
       } catch (error) {
+        if (signal.aborted || isRequestCanceled(error)) return;
         logger.error('[AddExerciseSheet] Error cargando filtros:', error);
       } finally {
-        if (!cancelled) setLoadingFilters(false);
+        if (isCurrentRequest(filtersRequestRef, controller)) {
+          setLoadingFilters(false);
+        }
+        endAbortableRequest(filtersRequestRef, controller);
       }
     };
 
     loadFilters();
-    return () => { cancelled = true; };
+    return () => {
+      abortRequest(filtersRequestRef);
+    };
   }, [visible]);
 
   /* ── Buscar ejercicios cuando cambian filtros/búsqueda ─────────────────── */
@@ -106,9 +137,11 @@ export function useExerciseSearch(visible: boolean) {
       equipment: currentEquipment,
     };
 
-    let cancelled = false;
-
     const doSearch = async () => {
+      abortRequest(loadMoreRequestRef);
+      const controller = beginAbortableRequest(searchRequestRef);
+      const { signal } = controller;
+
       setLoadingExercises(true);
       setExercises([]);
       setPage(1);
@@ -117,6 +150,7 @@ export function useExerciseSearch(visible: boolean) {
 
       try {
         const token = await getTokenRef.current();
+        if (signal.aborted) return;
         const res = await searchExercises(
           {
             searchTerm: currentSearch || undefined,
@@ -126,29 +160,40 @@ export function useExerciseSearch(visible: boolean) {
             pageSize: PAGE_SIZE,
           },
           token,
+          signal,
         );
-        if (!cancelled) {
+        if (isCurrentRequest(searchRequestRef, controller)) {
           setExercises(res.items);
           setHasNextPage(res.hasNextPage);
         }
       } catch (error) {
+        if (signal.aborted || isRequestCanceled(error)) return;
         logger.error('[AddExerciseSheet] Error buscando ejercicios:', error);
       } finally {
-        if (!cancelled) setLoadingExercises(false);
+        if (isCurrentRequest(searchRequestRef, controller)) {
+          setLoadingExercises(false);
+        }
+        endAbortableRequest(searchRequestRef, controller);
       }
     };
 
     doSearch();
-    return () => { cancelled = true; };
+    return () => {
+      abortRequest(searchRequestRef);
+    };
   }, [debouncedSearch, selectedMuscle, selectedEquipment, visible]);
 
   /* ── Cargar más ejercicios (paginación) ────────────────────────────────── */
   const handleLoadMore = useCallback(async () => {
     if (loadingExercises || !hasNextPage) return;
 
+    const controller = beginAbortableRequest(loadMoreRequestRef);
+    const { signal } = controller;
+
     setLoadingExercises(true);
     try {
       const token = await getTokenRef.current();
+      if (signal.aborted) return;
       const res = await searchExercises(
         {
           searchTerm: debouncedSearch || undefined,
@@ -158,14 +203,20 @@ export function useExerciseSearch(visible: boolean) {
           pageSize: PAGE_SIZE,
         },
         token,
+        signal,
       );
+      if (!isCurrentRequest(loadMoreRequestRef, controller)) return;
       setExercises((prev) => [...prev, ...res.items]);
       setHasNextPage(res.hasNextPage);
       setPage((p) => p + 1);
     } catch (error) {
+      if (signal.aborted || isRequestCanceled(error)) return;
       logger.error('[AddExerciseSheet] Error cargando más ejercicios:', error);
     } finally {
-      setLoadingExercises(false);
+      if (isCurrentRequest(loadMoreRequestRef, controller)) {
+        setLoadingExercises(false);
+      }
+      endAbortableRequest(loadMoreRequestRef, controller);
     }
   }, [debouncedSearch, selectedMuscle, selectedEquipment, loadingExercises, hasNextPage, page]);
 
@@ -184,6 +235,8 @@ export function useExerciseSearch(visible: boolean) {
 
   /* ── Reset de toda la búsqueda (para próxima apertura) ─────────────────── */
   const reset = useCallback(() => {
+    abortRequest(searchRequestRef);
+    abortRequest(loadMoreRequestRef);
     setSearchTerm('');
     setDebouncedSearch('');
     setSelectedMuscle(null);

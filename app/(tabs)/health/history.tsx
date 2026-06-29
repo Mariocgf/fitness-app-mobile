@@ -1,9 +1,11 @@
 import { MeasurementHistoryCard } from '@/src/components/features/health/MeasurementHistoryCard';
 import { useMeasurementHistory } from '@/src/hooks/useMeasurementHistory';
+import { getHealthDataVersion } from '@/src/store/health-sync';
 import { BodyMeasurementDto } from '@/src/types/health';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -34,6 +36,17 @@ export default function MeasurementHistoryScreen() {
       });
     },
     [router],
+  );
+
+  const lastSyncedVersionRef = useRef(getHealthDataVersion());
+  useFocusEffect(
+    useCallback(() => {
+      const currentVersion = getHealthDataVersion();
+      if (currentVersion !== lastSyncedVersionRef.current) {
+        lastSyncedVersionRef.current = currentVersion;
+        refresh();
+      }
+    }, [refresh]),
   );
 
   return (

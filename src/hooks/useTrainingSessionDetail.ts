@@ -1,8 +1,15 @@
 import { logger } from '@/src/utils/logger';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTrainingSessionById } from '../services/training-history.service';
 import { getSession, setSession } from '../store/training-history-cache';
 import { TrainingHistorySession } from '../types/training-history';
+import {
+  abortRequest,
+  beginAbortableRequest,
+  endAbortableRequest,
+  isCurrentRequest,
+  isRequestCanceled,
+} from '../utils/request-cancellation';
 import { mapHttpErrorToFriendlyMessage } from '../utils/training-history.utils';
 
 interface UseTrainingSessionDetailReturn {
@@ -25,8 +32,11 @@ export function useTrainingSessionDetail(
   const [session, setSessionState] = useState<TrainingHistorySession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadRequestRef = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
+    abortRequest(loadRequestRef);
+
     if (!id || !token) {
       setIsLoading(false);
       return;
@@ -41,11 +51,15 @@ export function useTrainingSessionDetail(
     }
 
     // 2. Fetch al backend
+    const controller = beginAbortableRequest(loadRequestRef);
+    const { signal } = controller;
+
     setIsLoading(true);
     setError(null);
 
     try {
-      const fetched = await getTrainingSessionById(id, token);
+      const fetched = await getTrainingSessionById(id, token, signal);
+      if (!isCurrentRequest(loadRequestRef, controller)) return;
       if (fetched) {
         setSession(fetched);
         setSessionState(fetched);
@@ -53,15 +67,22 @@ export function useTrainingSessionDetail(
         setError('No encontramos esta sesión de entrenamiento.');
       }
     } catch (err) {
+      if (signal.aborted || isRequestCanceled(err)) return;
       setError(mapHttpErrorToFriendlyMessage(err));
       logger.error('[useTrainingSessionDetail] Error:', err);
     } finally {
-      setIsLoading(false);
+      if (isCurrentRequest(loadRequestRef, controller)) {
+        setIsLoading(false);
+      }
+      endAbortableRequest(loadRequestRef, controller);
     }
   }, [id, token]);
 
   useEffect(() => {
     load();
+    return () => {
+      abortRequest(loadRequestRef);
+    };
   }, [load]);
 
   const refresh = useCallback(() => {

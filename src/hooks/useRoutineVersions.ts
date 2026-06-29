@@ -2,6 +2,13 @@ import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getRoutineVersions } from '../services/routine.service';
 import { RoutineVersionsResponse } from '../types/routine';
+import {
+  abortRequest,
+  beginAbortableRequest,
+  endAbortableRequest,
+  isCurrentRequest,
+  isRequestCanceled,
+} from '../utils/request-cancellation';
 
 /**
  * Carga (perezosamente) el historial de versiones de una rutina.
@@ -17,23 +24,36 @@ export function useRoutineVersions(routineId: string, enabled: boolean) {
   const [data, setData] = useState<RoutineVersionsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadRequestRef = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
+    const controller = beginAbortableRequest(loadRequestRef);
+    const { signal } = controller;
+
     setIsLoading(true);
     setError(null);
     try {
       const token = await getTokenRef.current();
-      const res = await getRoutineVersions(routineId, token);
+      if (signal.aborted) return;
+      const res = await getRoutineVersions(routineId, token, signal);
+      if (!isCurrentRequest(loadRequestRef, controller)) return;
       setData(res);
-    } catch {
+    } catch (err) {
+      if (signal.aborted || isRequestCanceled(err)) return;
       setError('No se pudieron cargar las versiones.');
     } finally {
-      setIsLoading(false);
+      if (isCurrentRequest(loadRequestRef, controller)) {
+        setIsLoading(false);
+      }
+      endAbortableRequest(loadRequestRef, controller);
     }
   }, [routineId]);
 
   useEffect(() => {
     if (enabled) load();
+    return () => {
+      abortRequest(loadRequestRef);
+    };
   }, [enabled, load]);
 
   return { data, isLoading, error, reload: load };

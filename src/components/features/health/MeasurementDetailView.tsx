@@ -1,6 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { TAB_BAR_HEIGHT } from "@/src/components/features/routine/routine-detail-shared";
@@ -72,14 +78,18 @@ const PERIMETER_FIELDS: { key: keyof BodyMeasurementDto; label: string }[] = [
 
 interface MeasurementDetailViewProps {
   measurement: BodyMeasurementDto;
+  isDeleting?: boolean;
   onBack: () => void;
   onPressCompare?: () => void;
+  onDelete?: () => void;
 }
 
 export function MeasurementDetailView({
   measurement,
+  isDeleting = false,
   onBack,
   onPressCompare,
+  onDelete,
 }: MeasurementDetailViewProps) {
   const insets = useSafeAreaInsets();
 
@@ -177,6 +187,26 @@ export function MeasurementDetailView({
                 />
               ))}
             </View>
+          )}
+
+          {onDelete != null && (
+            <TouchableOpacity
+              onPress={onDelete}
+              disabled={isDeleting}
+              activeOpacity={0.7}
+              className="flex-row items-center justify-center gap-2 py-4 mt-2"
+            >
+              {isDeleting ? (
+                <ActivityIndicator size="small" color="#f87171" />
+              ) : (
+                <>
+                  <Ionicons name="trash-outline" size={20} color="#f87171" />
+                  <Text className="text-red-400 text-base font-semibold">
+                    Eliminar registro
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
           )}
         </View>
       </ScrollView>

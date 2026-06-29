@@ -7,6 +7,13 @@ import {
   updateClinicalProfile,
 } from "../services/clinical.service";
 import { ClinicalProfileDto, ClinicalProfilePayload } from "../types/clinical";
+import {
+  abortRequest,
+  beginAbortableRequest,
+  endAbortableRequest,
+  isCurrentRequest,
+  isRequestCanceled,
+} from "../utils/request-cancellation";
 
 interface UseClinicalProfileOptions {
   /** Si es true (por defecto), carga el perfil al montar el componente. */
@@ -48,21 +55,31 @@ export function useClinicalProfile(
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const loadRequestRef = useRef<AbortController | null>(null);
 
   /** Carga el perfil clínico desde el backend. */
   const load = useCallback(async () => {
+    const controller = beginAbortableRequest(loadRequestRef);
+    const { signal } = controller;
+
     setIsLoading(true);
     setError(null);
     try {
       const token = await getTokenRef.current();
-      const result = await getClinicalProfile(token);
+      if (signal.aborted) return;
+      const result = await getClinicalProfile(token, signal);
+      if (!isCurrentRequest(loadRequestRef, controller)) return;
       setProfile(result);
-    } catch {
+    } catch (err) {
+      if (signal.aborted || isRequestCanceled(err)) return;
       setError(
         "No pudimos cargar tu perfil clínico. Revisá tu conexión e intentá de nuevo.",
       );
     } finally {
-      setIsLoading(false);
+      if (isCurrentRequest(loadRequestRef, controller)) {
+        setIsLoading(false);
+      }
+      endAbortableRequest(loadRequestRef, controller);
     }
   }, []);
 
@@ -71,6 +88,9 @@ export function useClinicalProfile(
     if (autoLoad) {
       load();
     }
+    return () => {
+      abortRequest(loadRequestRef);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

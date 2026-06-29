@@ -3,6 +3,13 @@ import { useMyRoutines } from '@/src/hooks/useMyRoutines';
 import { activateRoutine, deleteRoutine, getRoutineById } from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { Routine, RoutineSummary } from '@/src/types/routine';
+import {
+  abortRequest,
+  beginAbortableRequest,
+  endAbortableRequest,
+  isCurrentRequest,
+  isRequestCanceled,
+} from '@/src/utils/request-cancellation';
 import { useAuth } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -52,6 +59,7 @@ export function useRoutinesScreen() {
   const [selectedRoutine, setSelectedRoutine] = useState<Routine | null>(null);
   const [selectedRoutineSummary, setSelectedRoutineSummary] = useState<RoutineSummary | null>(null);
   const [isLoadingRoutine, setIsLoadingRoutine] = useState(false);
+  const detailRequestRef = React.useRef<AbortController | null>(null);
 
   /* ── Rutina activa primero, luego el resto ────────────────────────────── */
   const sortedRoutines = useMemo(
@@ -88,6 +96,7 @@ export function useRoutinesScreen() {
   }, [router]);
 
   const handleCloseDetail = useCallback(() => {
+    abortRequest(detailRequestRef);
     setSelectedRoutine(null);
     setSelectedRoutineSummary(null);
     setDetailVisible(false);
@@ -146,6 +155,7 @@ export function useRoutinesScreen() {
   }, [refresh]);
 
   const handleRoutinePress = useCallback(async (routineSummary: RoutineSummary) => {
+    abortRequest(detailRequestRef);
     setSelectedRoutineSummary(routineSummary);
     setDetailVisible(true);
 
@@ -153,21 +163,35 @@ export function useRoutinesScreen() {
     if (isActiveRoutine && activeRoutine) {
       setViewingActiveRoutine(true);
       setSelectedRoutine(activeRoutine);
+      setIsLoadingRoutine(false);
       return;
     }
+
+    const controller = beginAbortableRequest(detailRequestRef);
+    const { signal } = controller;
 
     setIsLoadingRoutine(true);
     try {
       const token = await getToken();
-      const fullRoutine = await getRoutineById(routineSummary.id, token);
+      if (signal.aborted) return;
+      const fullRoutine = await getRoutineById(routineSummary.id, token, signal);
+      if (!isCurrentRequest(detailRequestRef, controller)) return;
       setSelectedRoutine(fullRoutine);
     } catch (error) {
+      if (signal.aborted || isRequestCanceled(error)) return;
       logger.error('[RoutinesScreen] Error fetching routine:', error);
       Alert.alert('Error', 'No se pudo cargar la rutina. Intentá de nuevo.');
     } finally {
-      setIsLoadingRoutine(false);
+      if (isCurrentRequest(detailRequestRef, controller)) {
+        setIsLoadingRoutine(false);
+      }
+      endAbortableRequest(detailRequestRef, controller);
     }
   }, [getToken, activeRoutine, setDetailVisible, setViewingActiveRoutine]);
+
+  React.useEffect(() => () => {
+    abortRequest(detailRequestRef);
+  }, []);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);

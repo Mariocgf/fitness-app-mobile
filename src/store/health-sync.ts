@@ -6,7 +6,7 @@
  * era una llamada al pedo a la API.
  *
  * En vez de refrescar en cada focus, mantenemos una "versión" que solo se
- * incrementa cuando hay una MUTACIÓN real (registrar medición, registrar
+ * incrementa cuando hay una MUTACIÓN real (registrar/eliminar medición, registrar
  * lectura clínica, editar perfil clínico). El dashboard recuerda la última
  * versión que cargó y solo refetchea si cambió. Así:
  *  - navegar a una vista de lectura y volver → no refetchea.
@@ -18,7 +18,7 @@
  */
 let version = 0;
 
-/** Marca que los datos de Salud cambiaron (tras registrar o editar). */
+/** Marca que los datos de Salud cambiaron (tras registrar, eliminar o editar). */
 export const bumpHealthData = (): void => {
   version += 1;
 };

@@ -8,6 +8,7 @@ import {
   MedicalCondition,
   PagedBodyMeasurementsResponseDto,
 } from "../types/health";
+import { withRequestSignal } from "../utils/request-cancellation";
 
 interface BodyEvolutionDashboardFilters {
   fromDate?: string;
@@ -18,9 +19,13 @@ interface BodyEvolutionDashboardFilters {
  * Obtiene la lista de lesiones disponibles.
  * @param token El token de autenticación de Clerk.
  */
-export const getInjuries = async (token: string | null): Promise<Injury[]> => {
+export const getInjuries = async (
+  token: string | null,
+  signal?: AbortSignal,
+): Promise<Injury[]> => {
   const { data } = await apiClient.get<Injury[]>("/api/Health/injuries", {
     headers: { Authorization: `Bearer ${token}` },
+    ...(signal ? { signal } : {}),
   });
   return data;
 };
@@ -31,12 +36,13 @@ export const getInjuries = async (token: string | null): Promise<Injury[]> => {
  */
 export const getMedicalConditions = async (
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<MedicalCondition[]> => {
   const { data } = await apiClient.get<MedicalCondition[]>(
     "/api/Health/medical-conditions",
-    {
+    withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    },
+    }, signal),
   );
   return data;
 };
@@ -90,13 +96,14 @@ export const getBodyMeasurements = async (
   token: string | null,
   page = 1,
   pageSize = 4,
+  signal?: AbortSignal,
 ): Promise<PagedBodyMeasurementsResponseDto> => {
   const { data } = await apiClient.get<PagedBodyMeasurementsResponseDto>(
     "/api/health/body-measurements",
-    {
+    withRequestSignal({
       params: { page, pageSize },
       headers: { Authorization: `Bearer ${token}` },
-    },
+    }, signal),
   );
   // Defensa: si el backend envuelve la respuesta en { data: ... }, extraerla
   const raw = (data as any)?.items != null ? data : ((data as any)?.data ?? data);
@@ -116,6 +123,7 @@ export const getBodyMeasurements = async (
 export const getBodyEvolutionDashboard = async (
   token: string | null,
   filters: BodyEvolutionDashboardFilters = {},
+  signal?: AbortSignal,
 ): Promise<BodyEvolutionDashboardDto> => {
   const params: BodyEvolutionDashboardFilters = {};
   if (filters.fromDate != null) params.fromDate = filters.fromDate;
@@ -123,10 +131,10 @@ export const getBodyEvolutionDashboard = async (
 
   const { data } = await apiClient.get<BodyEvolutionDashboardDto>(
     "/api/health/body-measurements/dashboard",
-    {
+    withRequestSignal({
       params,
       headers: { Authorization: `Bearer ${token}` },
-    },
+    }, signal),
   );
 
   // Defensa: si el backend envuelve la respuesta en { data: ... }, extraerla
@@ -147,10 +155,26 @@ export const getBodyEvolutionDashboard = async (
 export const getBodyMeasurementById = async (
   id: string,
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<BodyMeasurementDto> => {
   const { data } = await apiClient.get<BodyMeasurementDto>(
     `/api/health/body-measurements/${id}`,
-    { headers: { Authorization: `Bearer ${token}` } },
+    withRequestSignal({ headers: { Authorization: `Bearer ${token}` } }, signal),
   );
   return (data as any)?.id != null ? data : ((data as any)?.data ?? data);
+};
+
+/**
+ * Elimina una medición corporal por su ID.
+ * El backend responde 204 si borra correctamente y 404 si no existe o no pertenece al usuario.
+ * @param id UUID de la medición.
+ * @param token Token de autenticación de Clerk.
+ */
+export const deleteBodyMeasurement = async (
+  id: string,
+  token: string | null,
+): Promise<void> => {
+  await apiClient.delete(`/api/health/body-measurements/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 };

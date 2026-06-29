@@ -12,6 +12,13 @@ import {
   WellnessTodaySummary,
 } from "../types/wellness";
 import { getTodayDateKey } from "../utils/nutrition.utils";
+import {
+  abortRequest,
+  beginAbortableRequest,
+  endAbortableRequest,
+  isCurrentRequest,
+  isRequestCanceled,
+} from "../utils/request-cancellation";
 
 // Página única que pedimos por feature: alcanza para el resumen de hoy + actividad reciente.
 const PAGE_SIZE = 20;
@@ -50,18 +57,25 @@ export function useWellnessDashboard(): UseWellnessDashboardReturn {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadRequestRef = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
+    const controller = beginAbortableRequest(loadRequestRef);
+    const { signal } = controller;
+
     setIsLoading(true);
     setError(null);
     try {
       const token = await getTokenRef.current();
+      if (signal.aborted) return;
+
       const [sleep, hydration, mood, meditation] = await Promise.all([
-        getSleepLogs(token, 1, PAGE_SIZE),
-        getHydrationLogs(token, 1, PAGE_SIZE),
-        getMoodLogs(token, 1, PAGE_SIZE),
-        getMeditationSessions(token, 1, PAGE_SIZE),
+        getSleepLogs(token, 1, PAGE_SIZE, signal),
+        getHydrationLogs(token, 1, PAGE_SIZE, signal),
+        getMoodLogs(token, 1, PAGE_SIZE, signal),
+        getMeditationSessions(token, 1, PAGE_SIZE, signal),
       ]);
+      if (!isCurrentRequest(loadRequestRef, controller)) return;
 
       const todayKey = getTodayDateKey();
 
@@ -124,18 +138,25 @@ export function useWellnessDashboard(): UseWellnessDashboardReturn {
 
       merged.sort((a, b) => b.capturedAt.localeCompare(a.capturedAt));
       setRecentActivity(merged.slice(0, RECENT_LIMIT));
-    } catch {
+    } catch (err) {
+      if (signal.aborted || isRequestCanceled(err)) return;
       setError(
         "No pudimos cargar tu bienestar. Revisá tu conexión e intentá de nuevo.",
       );
     } finally {
-      setIsLoading(false);
+      if (isCurrentRequest(loadRequestRef, controller)) {
+        setIsLoading(false);
+      }
+      endAbortableRequest(loadRequestRef, controller);
     }
   }, []);
 
   // Carga inicial al montar.
   useEffect(() => {
     load();
+    return () => {
+      abortRequest(loadRequestRef);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

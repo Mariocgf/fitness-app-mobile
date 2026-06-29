@@ -14,6 +14,7 @@ import {
 } from '../types/routine';
 import { SessionLog } from '../types/session';
 import { ExerciseLoadType, capitalize } from '../utils/format.utils';
+import { withRequestSignal } from '../utils/request-cancellation';
 
 export interface OfflineRequestOptions {
   clientOperationId?: string | null;
@@ -124,16 +125,17 @@ export const regenerateRoutine = async (
  * @param token Token de autenticación de Clerk.
  */
 export const getActiveRoutine = async (
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<Routine | null> => {
   try {
     const { data } = await apiClient.get<Routine>(
       '/api/Routine/active-routine',
-      {
+      withRequestSignal({
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      }
+      }, signal),
     );
     return capitalizeRoutineNames(data);
   } catch (error) {
@@ -349,14 +351,15 @@ export const confirmSwapExercises = async (
 export const fetchMyRoutines = async (
   token: string | null,
   page: number = 1,
-  pageSize: number = 10
+  pageSize: number = 10,
+  signal?: AbortSignal,
 ): Promise<PagedRoutinesResponse> => {
   const url = '/api/Routine/my-routines';
   try {
-    const { data } = await apiClient.get<PagedRoutinesResponse>(url, {
+    const { data } = await apiClient.get<PagedRoutinesResponse>(url, withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
       params: { page, pageSize },
-    });
+    }, signal));
     return data;
   } catch (error) {
     if (error instanceof AxiosError) {
@@ -375,13 +378,14 @@ export const fetchMyRoutines = async (
  * @param token Token de autenticación de Clerk.
  */
 export const fetchRoutinePreview = async (
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<RoutinePreviewResponse> => {
   const url = '/api/Routine/routine-preview';
   try {
-    const { data } = await apiClient.get<RoutinePreviewResponse>(url, {
+    const { data } = await apiClient.get<RoutinePreviewResponse>(url, withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    });
+    }, signal));
     return data;
   } catch (error) {
     if (error instanceof AxiosError) {
@@ -402,13 +406,14 @@ export const fetchRoutinePreview = async (
  */
 export const getRoutineById = async (
   routineId: string,
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<Routine> => {
   const url = `/api/Routine/${routineId}`;
   try {
-    const { data } = await apiClient.get<Routine>(url, {
+    const { data } = await apiClient.get<Routine>(url, withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    });
+    }, signal));
     return capitalizeRoutineNames(data);
   } catch (error) {
     if (error instanceof AxiosError) {
@@ -515,13 +520,14 @@ export const rejectRoutineAdaptation = async (
  */
 export const getRoutineVersions = async (
   routineId: string,
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<RoutineVersionsResponse> => {
   const url = `/api/Routine/${routineId}/versions`;
   try {
-    const { data } = await apiClient.get<RoutineVersionsResponse>(url, {
+    const { data } = await apiClient.get<RoutineVersionsResponse>(url, withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    });
+    }, signal));
     return data;
   } catch (error) {
     if (error instanceof AxiosError) {
@@ -541,13 +547,14 @@ export const getRoutineVersions = async (
 export const getRoutineVersionDetail = async (
   routineId: string,
   versionId: string,
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<RoutineVersionDetail> => {
   const url = `/api/Routine/${routineId}/versions/${versionId}`;
   try {
-    const { data } = await apiClient.get<RoutineVersionDetail>(url, {
+    const { data } = await apiClient.get<RoutineVersionDetail>(url, withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    });
+    }, signal));
     return capitalizeVersionDetail(data);
   } catch (error) {
     if (error instanceof AxiosError) {

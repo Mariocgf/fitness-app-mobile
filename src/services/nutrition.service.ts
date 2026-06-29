@@ -12,6 +12,7 @@ import {
   ReplaceMealItemsPayload,
   SubGoal,
 } from '../types/nutrition';
+import { withRequestSignal } from '../utils/request-cancellation';
 
 const unwrapApiData = <T>(value: T | { data: T }): T => {
   if (
@@ -33,13 +34,14 @@ const unwrapApiData = <T>(value: T | { data: T }): T => {
  */
 export const getSubGoals = async (
   moduleId: string,
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<SubGoal[]> => {
   const { data } = await apiClient.get<SubGoal[]>(
     `/api/Goals/sub-goals/${moduleId}`,
-    {
+    withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    }
+    }, signal),
   );
   return data;
 };
@@ -49,13 +51,14 @@ export const getSubGoals = async (
  * @param token El token de autenticación de Clerk.
  */
 export const getFoodAllergies = async (
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<NutritionItem[]> => {
   const { data } = await apiClient.get<NutritionItem[]>(
     '/api/Nutrition/food-allergies',
-    {
+    withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    }
+    }, signal),
   );
   return data;
 };
@@ -65,13 +68,14 @@ export const getFoodAllergies = async (
  * @param token El token de autenticación de Clerk.
  */
 export const getDietaryPreferences = async (
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<NutritionItem[]> => {
   const { data } = await apiClient.get<NutritionItem[]>(
     '/api/Nutrition/type-of-diets',
-    {
+    withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    }
+    }, signal),
   );
   return data;
 };
@@ -100,12 +104,13 @@ export const submitNutritionProfile = async (
  */
 export const getNutritionProfile = async (
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<NutritionProfileDto> => {
   const { data } = await apiClient.get<NutritionProfileDto>(
     '/api/Nutrition/profile',
-    {
+    withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    },
+    }, signal),
   );
   return unwrapApiData(data);
 };
@@ -117,13 +122,14 @@ export const getNutritionTargets = async (
   from: string,
   to: string,
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<NutritionTargetDto[]> => {
   const { data } = await apiClient.get<NutritionTargetDto[] | { data: NutritionTargetDto[] }>(
     '/api/nutrition/targets',
-    {
+    withRequestSignal({
       params: { from, to },
       headers: { Authorization: `Bearer ${token}` },
-    },
+    }, signal),
   );
   return unwrapApiData(data);
 };
@@ -134,12 +140,13 @@ export const getNutritionTargets = async (
 export const getNutritionDay = async (
   date: string,
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<NutritionDayDto> => {
   const { data } = await apiClient.get<NutritionDayDto | { data: NutritionDayDto }>(
     `/api/nutrition/days/${date}`,
-    {
+    withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    },
+    }, signal),
   );
   return unwrapApiData(data);
 };
@@ -152,13 +159,14 @@ export const searchFoods = async (
   page: number,
   pageSize: number,
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<FoodSearchResultDto> => {
   const { data } = await apiClient.get<FoodSearchResultDto | FoodCatalogItemDto[] | { data: FoodSearchResultDto | FoodCatalogItemDto[] }>(
     '/api/nutrition/foods',
-    {
+    withRequestSignal({
       params: { query, page, pageSize },
       headers: { Authorization: `Bearer ${token}` },
-    },
+    }, signal),
   );
   
   const unwrapped = unwrapApiData(data);
@@ -182,12 +190,13 @@ export const searchFoods = async (
 export const getFoodByBarcode = async (
   code: string,
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<FoodCatalogItemDto> => {
   const { data } = await apiClient.get<FoodCatalogItemDto | { data: FoodCatalogItemDto }>(
     `/api/nutrition/foods/barcode/${code}`,
-    {
+    withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    },
+    }, signal),
   );
   
   

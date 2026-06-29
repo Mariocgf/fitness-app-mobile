@@ -11,6 +11,7 @@ import {
   PagedResponseDto,
   SleepLogDto,
 } from "../types/wellness";
+import { withRequestSignal } from "../utils/request-cancellation";
 
 /**
  * Defensa: algunos endpoints pueden envolver el DTO en { data: ... }.
@@ -61,10 +62,11 @@ export const getSleepLogs = async (
   token: string | null,
   page = 1,
   pageSize = 10,
+  signal?: AbortSignal,
 ): Promise<PagedResponseDto<SleepLogDto>> => {
   const { data } = await apiClient.get<PagedResponseDto<SleepLogDto>>(
     "/api/sleep",
-    { params: { page, pageSize }, ...authHeader(token) },
+    withRequestSignal({ params: { page, pageSize }, ...authHeader(token) }, signal),
   );
   return unwrapPaged<SleepLogDto>(data, page, pageSize);
 };
@@ -73,10 +75,11 @@ export const getSleepLogs = async (
 export const getSleepLogById = async (
   id: string,
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<SleepLogDto> => {
   const { data } = await apiClient.get<SleepLogDto>(
     `/api/sleep/${id}`,
-    authHeader(token),
+    withRequestSignal(authHeader(token), signal),
   );
   return unwrap<SleepLogDto>(data, "id");
 };
@@ -109,10 +112,11 @@ export const getHydrationLogs = async (
   token: string | null,
   page = 1,
   pageSize = 10,
+  signal?: AbortSignal,
 ): Promise<PagedResponseDto<HydrationLogDto>> => {
   const { data } = await apiClient.get<PagedResponseDto<HydrationLogDto>>(
     "/api/hydration",
-    { params: { page, pageSize }, ...authHeader(token) },
+    withRequestSignal({ params: { page, pageSize }, ...authHeader(token) }, signal),
   );
   return unwrapPaged<HydrationLogDto>(data, page, pageSize);
 };
@@ -121,10 +125,11 @@ export const getHydrationLogs = async (
 export const getHydrationLogById = async (
   id: string,
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<HydrationLogDto> => {
   const { data } = await apiClient.get<HydrationLogDto>(
     `/api/hydration/${id}`,
-    authHeader(token),
+    withRequestSignal(authHeader(token), signal),
   );
   return unwrap<HydrationLogDto>(data, "id");
 };
@@ -157,10 +162,11 @@ export const getMoodLogs = async (
   token: string | null,
   page = 1,
   pageSize = 10,
+  signal?: AbortSignal,
 ): Promise<PagedResponseDto<MoodLogDto>> => {
   const { data } = await apiClient.get<PagedResponseDto<MoodLogDto>>(
     "/api/mood",
-    { params: { page, pageSize }, ...authHeader(token) },
+    withRequestSignal({ params: { page, pageSize }, ...authHeader(token) }, signal),
   );
   return unwrapPaged<MoodLogDto>(data, page, pageSize);
 };
@@ -169,10 +175,11 @@ export const getMoodLogs = async (
 export const getMoodLogById = async (
   id: string,
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<MoodLogDto> => {
   const { data } = await apiClient.get<MoodLogDto>(
     `/api/mood/${id}`,
-    authHeader(token),
+    withRequestSignal(authHeader(token), signal),
   );
   return unwrap<MoodLogDto>(data, "id");
 };
@@ -192,10 +199,11 @@ export const getMeditationGuides = async (
   token: string | null,
   page = 1,
   pageSize = 10,
+  signal?: AbortSignal,
 ): Promise<PagedResponseDto<MeditationGuideDto>> => {
   const { data } = await apiClient.get<PagedResponseDto<MeditationGuideDto>>(
     "/api/meditation/guides",
-    { params: { page, pageSize }, ...authHeader(token) },
+    withRequestSignal({ params: { page, pageSize }, ...authHeader(token) }, signal),
   );
   return unwrapPaged<MeditationGuideDto>(data, page, pageSize);
 };
@@ -204,10 +212,11 @@ export const getMeditationGuides = async (
 export const getMeditationGuideById = async (
   id: string,
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<MeditationGuideDto> => {
   const { data } = await apiClient.get<MeditationGuideDto>(
     `/api/meditation/guides/${id}`,
-    authHeader(token),
+    withRequestSignal(authHeader(token), signal),
   );
   return unwrap<MeditationGuideDto>(data, "id");
 };
@@ -232,10 +241,11 @@ export const getMeditationSessions = async (
   token: string | null,
   page = 1,
   pageSize = 10,
+  signal?: AbortSignal,
 ): Promise<PagedResponseDto<MeditationSessionDto>> => {
   const { data } = await apiClient.get<PagedResponseDto<MeditationSessionDto>>(
     "/api/meditation",
-    { params: { page, pageSize }, ...authHeader(token) },
+    withRequestSignal({ params: { page, pageSize }, ...authHeader(token) }, signal),
   );
   return unwrapPaged<MeditationSessionDto>(data, page, pageSize);
 };
@@ -244,10 +254,11 @@ export const getMeditationSessions = async (
 export const getMeditationSessionById = async (
   id: string,
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<MeditationSessionDto> => {
   const { data } = await apiClient.get<MeditationSessionDto>(
     `/api/meditation/${id}`,
-    authHeader(token),
+    withRequestSignal(authHeader(token), signal),
   );
   return unwrap<MeditationSessionDto>(data, "id");
 };

@@ -1,5 +1,12 @@
 import { logger } from '@/src/utils/logger';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  abortRequest,
+  beginAbortableRequest,
+  endAbortableRequest,
+  isCurrentRequest,
+  isRequestCanceled,
+} from '@/src/utils/request-cancellation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { deleteTrainingSession, fetchTrainingHistory } from '../services/training-history.service';
 import { remove, setMany } from '../store/training-history-cache';
 import { TrainingHistoryFilters, TrainingHistorySession } from '../types/training-history';
@@ -44,29 +51,42 @@ export function useTrainingHistoryList(
     routineId: null,
     targetMuscle: null,
   });
+  const firstPageRequestRef = useRef<AbortController | null>(null);
+  const loadMoreRequestRef = useRef<AbortController | null>(null);
 
   /** Carga la primera página con los filtros activos */
   const loadFirstPage = useCallback(
     async (activeFilters: TrainingHistoryFilters) => {
+      abortRequest(loadMoreRequestRef);
+      abortRequest(firstPageRequestRef);
+
       if (!token) {
         setIsLoading(false);
         return;
       }
+
+      const controller = beginAbortableRequest(firstPageRequestRef);
+      const { signal } = controller;
 
       setIsLoading(true);
       setError(null);
       setPage(1);
 
       try {
-        const data = await fetchTrainingHistory(activeFilters, 1, PAGE_SIZE, token);
+        const data = await fetchTrainingHistory(activeFilters, 1, PAGE_SIZE, token, signal);
+        if (!isCurrentRequest(firstPageRequestRef, controller)) return;
         setSessions(data.items);
         setTotalCount(data.totalCount);
         setMany(data.items);
       } catch (err) {
+        if (signal.aborted || isRequestCanceled(err)) return;
         setError(mapHttpErrorToFriendlyMessage(err));
         logger.error('[useTrainingHistoryList] Error:', err);
       } finally {
-        setIsLoading(false);
+        if (isCurrentRequest(firstPageRequestRef, controller)) {
+          setIsLoading(false);
+        }
+        endAbortableRequest(firstPageRequestRef, controller);
       }
     },
     [token],
@@ -76,18 +96,26 @@ export function useTrainingHistoryList(
   const loadMore = useCallback(async () => {
     if (!token || isLoadingMore || page * PAGE_SIZE >= totalCount) return;
 
+    const controller = beginAbortableRequest(loadMoreRequestRef);
+    const { signal } = controller;
+
     setIsLoadingMore(true);
     const nextPage = page + 1;
 
     try {
-      const data = await fetchTrainingHistory(filters, nextPage, PAGE_SIZE, token);
+      const data = await fetchTrainingHistory(filters, nextPage, PAGE_SIZE, token, signal);
+      if (!isCurrentRequest(loadMoreRequestRef, controller)) return;
       setSessions((prev) => [...prev, ...data.items]);
       setPage(nextPage);
       setMany(data.items);
     } catch (err) {
+      if (signal.aborted || isRequestCanceled(err)) return;
       logger.error('[useTrainingHistoryList] loadMore Error:', err);
     } finally {
-      setIsLoadingMore(false);
+      if (isCurrentRequest(loadMoreRequestRef, controller)) {
+        setIsLoadingMore(false);
+      }
+      endAbortableRequest(loadMoreRequestRef, controller);
     }
   }, [token, isLoadingMore, page, totalCount, filters]);
 
@@ -162,6 +190,10 @@ export function useTrainingHistoryList(
 
   useEffect(() => {
     loadFirstPage(filters);
+    return () => {
+      abortRequest(firstPageRequestRef);
+      abortRequest(loadMoreRequestRef);
+    };
     // Solo al montar (token cambia)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);

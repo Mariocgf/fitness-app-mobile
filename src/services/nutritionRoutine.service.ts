@@ -2,6 +2,7 @@ import apiClient from '../api/client';
 import type { OfflineRequestOptions } from './routine.service';
 import { NutritionDayDto } from '../types/nutrition';
 import { NutritionRoutineDto, RoutineMealDetailDto } from '../types/nutritionRoutine';
+import { withRequestSignal } from '../utils/request-cancellation';
 
 export interface OfflineNutritionRoutineBundleDto {
   routine: NutritionRoutineDto;
@@ -42,11 +43,12 @@ const unwrapApiData = <T>(value: T | { data: T }): T => {
  */
 export const getActiveNutritionRoutine = async (
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<NutritionRoutineDto | null> => {
   try {
     const { data } = await apiClient.get<NutritionRoutineDto | { data: NutritionRoutineDto }>(
       '/api/nutrition-routine/active',
-      { headers: { Authorization: `Bearer ${token}` } },
+      withRequestSignal({ headers: { Authorization: `Bearer ${token}` } }, signal),
     );
     return unwrapApiData(data);
   } catch (err: any) {
@@ -62,13 +64,14 @@ export const getActiveNutritionRoutine = async (
  */
 export const getOfflineNutritionRoutineBundle = async (
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<OfflineNutritionRoutineBundleDto | null> => {
   try {
     const { data } = await apiClient.get<
       OfflineNutritionRoutineBundleDto | { data: OfflineNutritionRoutineBundleDto }
-    >('/api/offline/nutrition/active-routine', {
+    >('/api/offline/nutrition/active-routine', withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    });
+    }, signal));
     return unwrapApiData(data);
   } catch (err: any) {
     const status = err?.response?.status;
@@ -182,11 +185,12 @@ export const rejectNutritionRoutine = async (
 export const getRoutineMealDetail = async (
   mealId: string,
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<RoutineMealDetailDto> => {
   try {
     const { data } = await apiClient.get<RoutineMealDetailDto | { data: RoutineMealDetailDto }>(
       `/api/nutrition-routine/meals/${mealId}`,
-      { headers: { Authorization: `Bearer ${token}` } },
+      withRequestSignal({ headers: { Authorization: `Bearer ${token}` } }, signal),
     );
     return unwrapApiData(data);
   } catch (err: any) {

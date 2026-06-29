@@ -17,6 +17,13 @@ import {
   createTargetFromProfile,
   getTodayDateKey,
 } from '../utils/nutrition.utils';
+import {
+  abortRequest,
+  beginAbortableRequest,
+  endAbortableRequest,
+  isCurrentRequest,
+  isRequestCanceled,
+} from '../utils/request-cancellation';
 
 interface UseNutritionDayReturn {
   date: string;
@@ -38,6 +45,7 @@ export function useNutritionDay(requestedDate?: string): UseNutritionDayReturn {
   const date = requestedDate ?? defaultDateRef.current;
   const getTokenRef = useRef(getToken);
   const mountedRef = useRef(true);
+  const refreshRequestRef = useRef<AbortController | null>(null);
 
   getTokenRef.current = getToken;
 
@@ -48,18 +56,23 @@ export function useNutritionDay(requestedDate?: string): UseNutritionDayReturn {
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
+    const controller = beginAbortableRequest(refreshRequestRef);
+    const { signal } = controller;
+
     setIsLoading(true);
     setError(null);
 
     try {
       const token = await getTokenRef.current();
+      if (signal.aborted) return;
+
       const [profileResult, targetsResult, dayResult] = await Promise.allSettled([
-        getNutritionProfile(token),
-        getNutritionTargets(date, date, token),
-        getNutritionDay(date, token),
+        getNutritionProfile(token, signal),
+        getNutritionTargets(date, date, token, signal),
+        getNutritionDay(date, token, signal),
       ]);
 
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || !isCurrentRequest(refreshRequestRef, controller)) return;
 
       if (profileResult.status === 'rejected') {
         throw profileResult.reason;
@@ -86,14 +99,16 @@ export function useNutritionDay(requestedDate?: string): UseNutritionDayReturn {
       setTarget(targetData);
       setDay(dayData);
     } catch (err) {
+      if (signal.aborted || isRequestCanceled(err)) return;
       logger.error('[useNutritionDay] Error:', err);
       if (mountedRef.current) {
         setError('No pudimos cargar tu nutrición. Intentá de nuevo.');
       }
     } finally {
-      if (mountedRef.current) {
+      if (mountedRef.current && isCurrentRequest(refreshRequestRef, controller)) {
         setIsLoading(false);
       }
+      endAbortableRequest(refreshRequestRef, controller);
     }
   }, [date]);
 
@@ -102,6 +117,7 @@ export function useNutritionDay(requestedDate?: string): UseNutritionDayReturn {
     refresh();
     return () => {
       mountedRef.current = false;
+      abortRequest(refreshRequestRef);
     };
   }, [refresh]);
 

@@ -1,5 +1,12 @@
 import { logger } from '@/src/utils/logger';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  abortRequest,
+  beginAbortableRequest,
+  endAbortableRequest,
+  isCurrentRequest,
+  isRequestCanceled,
+} from '@/src/utils/request-cancellation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RoutineSummary, RoutineSource } from '../types/routine';
 import { fetchMyRoutines } from '../services/routine.service';
 
@@ -42,28 +49,41 @@ export function useMyRoutines(token: string | null): UseMyRoutinesReturn {
 
   const [dateRange, setDateRange] = useState<DateRange>({ from: null, to: null });
   const [sourceFilter, setSourceFilter] = useState<'all' | RoutineSource>('all');
+  const firstPageRequestRef = useRef<AbortController | null>(null);
+  const loadMoreRequestRef = useRef<AbortController | null>(null);
 
   /** Carga inicial de rutinas */
   const loadRoutines = useCallback(async () => {
+    abortRequest(loadMoreRequestRef);
+    abortRequest(firstPageRequestRef);
+
     if (!token) {
       setIsLoading(false);
       return;
     }
+
+    const controller = beginAbortableRequest(firstPageRequestRef);
+    const { signal } = controller;
 
     setIsLoading(true);
     setError(null);
     setPage(1);
 
     try {
-      const data = await fetchMyRoutines(token, 1, PAGE_SIZE);
+      const data = await fetchMyRoutines(token, 1, PAGE_SIZE, signal);
+      if (!isCurrentRequest(firstPageRequestRef, controller)) return;
       setAllRoutines(data.items);
       setTotalCount(data.totalCount);
       setDisplayedRoutines(data.items);
     } catch (err) {
+      if (signal.aborted || isRequestCanceled(err)) return;
       setError('No se pudieron cargar las rutinas. Intentá de nuevo.');
       logger.error('[useMyRoutines] Error:', err);
     } finally {
-      setIsLoading(false);
+      if (isCurrentRequest(firstPageRequestRef, controller)) {
+        setIsLoading(false);
+      }
+      endAbortableRequest(firstPageRequestRef, controller);
     }
   }, [token]);
 
@@ -71,11 +91,15 @@ export function useMyRoutines(token: string | null): UseMyRoutinesReturn {
   const loadMore = useCallback(async () => {
     if (!token || isLoadingMore || !hasMore) return;
 
+    const controller = beginAbortableRequest(loadMoreRequestRef);
+    const { signal } = controller;
+
     setIsLoadingMore(true);
     const nextPage = page + 1;
 
     try {
-      const data = await fetchMyRoutines(token, nextPage, PAGE_SIZE);
+      const data = await fetchMyRoutines(token, nextPage, PAGE_SIZE, signal);
+      if (!isCurrentRequest(loadMoreRequestRef, controller)) return;
       const newRoutines = [...allRoutines, ...data.items];
       setAllRoutines(newRoutines);
       setPage(nextPage);
@@ -84,9 +108,13 @@ export function useMyRoutines(token: string | null): UseMyRoutinesReturn {
       const filtered = applyFiltersToData(newRoutines, dateRange, sourceFilter);
       setDisplayedRoutines(filtered.slice(0, nextPage * PAGE_SIZE));
     } catch (err) {
+      if (signal.aborted || isRequestCanceled(err)) return;
       logger.error('[useMyRoutines] Error loading more:', err);
     } finally {
-      setIsLoadingMore(false);
+      if (isCurrentRequest(loadMoreRequestRef, controller)) {
+        setIsLoadingMore(false);
+      }
+      endAbortableRequest(loadMoreRequestRef, controller);
     }
   }, [token, page, isLoadingMore, allRoutines, dateRange, sourceFilter]);
 
@@ -145,6 +173,10 @@ export function useMyRoutines(token: string | null): UseMyRoutinesReturn {
   /** Carga inicial */
   useEffect(() => {
     loadRoutines();
+    return () => {
+      abortRequest(firstPageRequestRef);
+      abortRequest(loadMoreRequestRef);
+    };
   }, [loadRoutines]);
 
   /** Re-aplicar filtros cuando cambian */

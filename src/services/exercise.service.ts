@@ -1,6 +1,7 @@
 import apiClient from '../api/client';
 import { ExerciseInfo, ExerciseInstructions } from '../types/exercise';
 import { ExerciseLoadType, capitalize } from '../utils/format.utils';
+import { withRequestSignal } from '../utils/request-cancellation';
 
 /**
  * Obtiene la información detallada de un ejercicio.
@@ -9,15 +10,16 @@ import { ExerciseLoadType, capitalize } from '../utils/format.utils';
  */
 export const getExerciseInfo = async (
   exerciseId: string,
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<ExerciseInfo> => {
   const { data } = await apiClient.get<ExerciseInfo>(
     `/api/Exercise/${exerciseId}/info`,
-    {
+    withRequestSignal({
       headers: {
         Authorization: `Bearer ${token}`,
       },
-    }
+    }, signal),
   );
   return data;
 };
@@ -29,15 +31,16 @@ export const getExerciseInfo = async (
  */
 export const getExerciseInstructions = async (
   exerciseId: string,
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<ExerciseInstructions> => {
   const { data } = await apiClient.get<ExerciseInstructions>(
     `/api/Exercise/${exerciseId}/instructions`,
-    {
+    withRequestSignal({
       headers: {
         Authorization: `Bearer ${token}`,
       },
-    }
+    }, signal),
   );
   return data;
 };
@@ -81,13 +84,14 @@ export const adjustExerciseLoad = async (
  * @param token Token de autenticación de Clerk.
  */
 export const getTargetMuscles = async (
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<{ name: string }[]> => {
   const { data } = await apiClient.get<{ name: string }[]>(
     '/api/Exercise/target-muscles',
-    {
+    withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    }
+    }, signal),
   );
   return data;
 };
@@ -97,13 +101,14 @@ export const getTargetMuscles = async (
  * @param token Token de autenticación de Clerk.
  */
 export const getExerciseEquipments = async (
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<{ name: string }[]> => {
   const { data } = await apiClient.get<{ name: string }[]>(
     '/api/Exercise/equipments',
-    {
+    withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    }
+    }, signal),
   );
   return data;
 };
@@ -136,7 +141,8 @@ export const searchExercises = async (
     page?: number;
     pageSize?: number;
   },
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<ExerciseSearchResponse> => {
   const searchParams = new URLSearchParams();
   if (params.searchTerm) searchParams.set('SearchTerm', params.searchTerm);
@@ -151,9 +157,9 @@ export const searchExercises = async (
 
   const { data } = await apiClient.get<ExerciseSearchResponse>(
     `/api/Exercise/search?${searchParams.toString()}`,
-    {
+    withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    }
+    }, signal),
   );
   return {
     ...data,

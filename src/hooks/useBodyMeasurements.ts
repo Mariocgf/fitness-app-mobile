@@ -6,6 +6,13 @@ import {
   postBodyMeasurement,
 } from '../services/health.service';
 import { BodyMeasurementDto, BodyMeasurementPayload } from '../types/health';
+import {
+  abortRequest,
+  beginAbortableRequest,
+  endAbortableRequest,
+  isCurrentRequest,
+  isRequestCanceled,
+} from '../utils/request-cancellation';
 
 interface UseBodyMeasurementsOptions {
   /** Si es true (por defecto), carga el historial al montar el componente. */
@@ -51,20 +58,30 @@ export function useBodyMeasurements(
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const loadRequestRef = useRef<AbortController | null>(null);
 
   /** Carga la primera página de mediciones desde el backend. */
   const load = useCallback(async () => {
+    const controller = beginAbortableRequest(loadRequestRef);
+    const { signal } = controller;
+
     setIsLoading(true);
     setError(null);
     try {
       const token = await getTokenRef.current();
-      const paged = await getBodyMeasurements(token, 1, pageSize);
+      if (signal.aborted) return;
+      const paged = await getBodyMeasurements(token, 1, pageSize, signal);
+      if (!isCurrentRequest(loadRequestRef, controller)) return;
       setMeasurements(paged.items);
       setTotalCount(paged.totalCount);
-    } catch {
+    } catch (err) {
+      if (signal.aborted || isRequestCanceled(err)) return;
       setError('No pudimos cargar las mediciones. Revisá tu conexión e intentá de nuevo.');
     } finally {
-      setIsLoading(false);
+      if (isCurrentRequest(loadRequestRef, controller)) {
+        setIsLoading(false);
+      }
+      endAbortableRequest(loadRequestRef, controller);
     }
   }, [pageSize]);
 
@@ -73,6 +90,9 @@ export function useBodyMeasurements(
     if (autoLoad) {
       load();
     }
+    return () => {
+      abortRequest(loadRequestRef);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

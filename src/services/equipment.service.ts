@@ -1,4 +1,5 @@
 import apiClient from '../api/client';
+import { withRequestSignal } from '../utils/request-cancellation';
 
 /** Combinación de pesos alcanzables para un tipo de equipo de carga por placas */
 export interface PlateCombination {
@@ -20,13 +21,14 @@ export interface WeightInventoryResponse {
  * @param token Token de autenticación de Clerk.
  */
 export const getWeightInventory = async (
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<WeightInventoryResponse> => {
   const { data } = await apiClient.get<WeightInventoryResponse>(
     '/api/equipment/weight-inventory',
-    {
+    withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    }
+    }, signal),
   );
   return data;
 };

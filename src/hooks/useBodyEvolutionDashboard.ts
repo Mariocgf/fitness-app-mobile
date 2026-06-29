@@ -3,6 +3,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getBodyEvolutionDashboard } from '../services/health.service';
 import { BodyEvolutionDashboardDto } from '../types/health';
+import {
+  abortRequest,
+  beginAbortableRequest,
+  endAbortableRequest,
+  isCurrentRequest,
+  isRequestCanceled,
+} from '../utils/request-cancellation';
 
 interface UseBodyEvolutionDashboardOptions {
   /** Fecha inicial opcional en formato YYYY-MM-DD. */
@@ -36,24 +43,37 @@ export function useBodyEvolutionDashboard(
   const [dashboard, setDashboard] = useState<BodyEvolutionDashboardDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadRequestRef = useRef<AbortController | null>(null);
 
   /** Carga las métricas de evolución corporal desde el backend. */
   const load = useCallback(async () => {
+    const controller = beginAbortableRequest(loadRequestRef);
+    const { signal } = controller;
+
     setIsLoading(true);
     setError(null);
     try {
       const token = await getTokenRef.current();
-      const result = await getBodyEvolutionDashboard(token, filtersRef.current);
+      if (signal.aborted) return;
+      const result = await getBodyEvolutionDashboard(token, filtersRef.current, signal);
+      if (!isCurrentRequest(loadRequestRef, controller)) return;
       setDashboard(result);
-    } catch {
+    } catch (err) {
+      if (signal.aborted || isRequestCanceled(err)) return;
       setError('No pudimos cargar la evolución física. Intentá nuevamente.');
     } finally {
-      setIsLoading(false);
+      if (isCurrentRequest(loadRequestRef, controller)) {
+        setIsLoading(false);
+      }
+      endAbortableRequest(loadRequestRef, controller);
     }
   }, []);
 
   useEffect(() => {
     load();
+    return () => {
+      abortRequest(loadRequestRef);
+    };
   }, [load]);
 
   return {

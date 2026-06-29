@@ -10,6 +10,7 @@ import {
     TrainingHistorySessionDto,
     TrainingHistorySetDto,
 } from '../types/training-history';
+import { withRequestSignal } from '../utils/request-cancellation';
 
 /** Convierte "HH:mm:ss" o "H:mm:ss" a segundos totales */
 const parseHmsToSeconds = (hms: string): number => {
@@ -64,6 +65,7 @@ export const fetchTrainingHistory = async (
   page: number = 1,
   pageSize: number = 10,
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<PagedTrainingHistoryResponse> => {
   const url = '/api/Routine/training-history';
 
@@ -75,10 +77,10 @@ export const fetchTrainingHistory = async (
   if (filters.targetMuscle) params.TargetMuscle = filters.targetMuscle;
 
   try {
-    const { data } = await apiClient.get<PagedTrainingHistoryResponseDto>(url, {
+    const { data } = await apiClient.get<PagedTrainingHistoryResponseDto>(url, withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
       params,
-    });
+    }, signal));
 
     return {
       page: parseInt(data.page, 10) || page,
@@ -105,6 +107,7 @@ export const fetchTrainingHistory = async (
 export const getTrainingSessionById = async (
   id: string,
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<TrainingHistorySession | null> => {
   try {
     const response = await fetchTrainingHistory(
@@ -112,6 +115,7 @@ export const getTrainingSessionById = async (
       1,
       50,
       token,
+      signal,
     );
     return response.items.find((s) => s.id === id) ?? null;
   } catch (error) {

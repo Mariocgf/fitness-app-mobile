@@ -7,17 +7,19 @@ import {
   UpdateFitnessSubGoalRequest,
   UpdateFitnessTrainingPreferencesRequest,
 } from '../types/fitness';
+import { withRequestSignal } from '../utils/request-cancellation';
 
 /**
  * Obtiene la lista de equipamiento disponible.
  * @param token El token de autenticación de Clerk.
  */
 export const getEquipments = async (
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<Equipment[]> => {
-  const { data } = await apiClient.get<Equipment[]>('/api/Fitness/equipments', {
+  const { data } = await apiClient.get<Equipment[]>('/api/Fitness/equipments', withRequestSignal({
     headers: { Authorization: `Bearer ${token}` },
-  });
+  }, signal));
   return data;
 };
 
@@ -28,13 +30,14 @@ export const getEquipments = async (
  */
 export const getSubGoals = async (
   moduleId: string,
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<{ id: string; name: string; description: string }[]> => {
   const { data } = await apiClient.get<{ id: string; name: string; description: string }[]>(
     `/api/Goals/sub-goals/${moduleId}`,
-    {
+    withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    }
+    }, signal),
   );
   return data;
 };
@@ -44,13 +47,14 @@ export const getSubGoals = async (
  * @param token El token de autenticación.
  */
 export const getTrainingPreferences = async (
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<FitnessTrainingPreferences> => {
   const { data } = await apiClient.get<FitnessTrainingPreferences>(
     '/api/fitness/training-preferences',
-    {
+    withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-    }
+    }, signal),
   );
   return data;
 };
@@ -74,14 +78,15 @@ export const updateTrainingPreferences = async (
  * @param token El token de autenticación.
  */
 export const getFitnessSubGoal = async (
-  token: string | null
+  token: string | null,
+  signal?: AbortSignal,
 ): Promise<FitnessSubGoal | null> => {
   const response = await apiClient.get<FitnessSubGoal | ''>(
     '/api/fitness/sub-goal',
-    {
+    withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
-      validateStatus: (status) => status === 200 || status === 204,
-    }
+      validateStatus: (status: number) => status === 200 || status === 204,
+    }, signal),
   );
 
   if (response.status === 204 || !response.data) return null;

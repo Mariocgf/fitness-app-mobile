@@ -6,6 +6,7 @@ import {
   ClinicalReadingPayload,
   PagedClinicalReadingsResponseDto,
 } from "../types/clinical";
+import { withRequestSignal } from "../utils/request-cancellation";
 
 /**
  * Defensa: algunos endpoints pueden envolver el DTO en { data: ... }.
@@ -25,10 +26,11 @@ const unwrap = <T>(data: unknown, marker: keyof T): T => {
  */
 export const getClinicalProfile = async (
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<ClinicalProfileDto> => {
   const { data } = await apiClient.get<ClinicalProfileDto>(
     "/api/clinical/profile",
-    { headers: { Authorization: `Bearer ${token}` } },
+    withRequestSignal({ headers: { Authorization: `Bearer ${token}` } }, signal),
   );
   return unwrap<ClinicalProfileDto>(data, "hasGlucose");
 };
@@ -98,13 +100,14 @@ export const getClinicalReadings = async (
   token: string | null,
   page = 1,
   pageSize = 10,
+  signal?: AbortSignal,
 ): Promise<PagedClinicalReadingsResponseDto> => {
   const { data } = await apiClient.get<PagedClinicalReadingsResponseDto>(
     "/api/clinical/readings",
-    {
+    withRequestSignal({
       params: { page, pageSize },
       headers: { Authorization: `Bearer ${token}` },
-    },
+    }, signal),
   );
   const raw = unwrap<PagedClinicalReadingsResponseDto>(data, "items");
   return {
@@ -123,10 +126,11 @@ export const getClinicalReadings = async (
 export const getClinicalReadingById = async (
   id: string,
   token: string | null,
+  signal?: AbortSignal,
 ): Promise<ClinicalReadingDto> => {
   const { data } = await apiClient.get<ClinicalReadingDto>(
     `/api/clinical/readings/${id}`,
-    { headers: { Authorization: `Bearer ${token}` } },
+    withRequestSignal({ headers: { Authorization: `Bearer ${token}` } }, signal),
   );
   return unwrap<ClinicalReadingDto>(data, "id");
 };
