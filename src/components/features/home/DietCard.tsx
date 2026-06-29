@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 
+import { confirm } from '@/src/components/ui/feedback';
 import { useNutritionRoutineContext } from '@/src/store/nutrition-routine-context';
 
 /**
@@ -26,15 +27,15 @@ export function DietCard() {
     goToPlanTab();
   };
 
-  const handleRegenerate = () => {
-    Alert.alert(
-      'Generar nuevo plan',
-      'Se generará un nuevo borrador para revisar. Tu plan activo no cambia hasta que lo aceptes.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Generar', onPress: handleGenerate },
-      ],
-    );
+  const handleRegenerate = async () => {
+    const confirmed = await confirm({
+      title: 'Generar nuevo plan',
+      message:
+        'Se generará un nuevo borrador para revisar. Tu plan activo no cambia hasta que lo aceptes.',
+      confirmText: 'Generar',
+      cancelText: 'Cancelar',
+    });
+    if (confirmed) handleGenerate();
   };
 
   /** Hay un draft pendiente de revisión */

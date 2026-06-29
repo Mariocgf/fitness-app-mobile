@@ -10,6 +10,8 @@ export default function NutritionLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="register" />
       <Stack.Screen name="meal/[id]" />
+      <Stack.Screen name="routines" />
+      <Stack.Screen name="routine/[id]" />
     </Stack>
   );
 }

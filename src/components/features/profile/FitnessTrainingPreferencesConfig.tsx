@@ -2,9 +2,10 @@ import { logger } from '@/src/utils/logger';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { toast } from '@/src/components/ui/feedback';
 import RulerPicker from '@/src/components/common/RulerPicker';
 import SectionCard from '@/src/components/common/SectionCard';
 import WeekDayPicker from '@/src/components/common/WeekDayPicker';
@@ -93,7 +94,7 @@ export default function FitnessTrainingPreferencesConfig({
         setInitialSessionDuration(duration);
       } catch (error) {
         logger.error('Error cargando preferencias de entrenamiento:', error);
-        Alert.alert('Error', 'No se pudieron cargar tus preferencias de entrenamiento.');
+        toast.error('No se pudieron cargar tus preferencias de entrenamiento.');
       } finally {
         setIsLoading(false);
       }
@@ -118,12 +119,12 @@ export default function FitnessTrainingPreferencesConfig({
     const preferredWorkoutDays = toFitnessDays(selectedDays);
 
     if (preferredWorkoutDays.length === 0) {
-      Alert.alert('Falta información', 'Seleccioná al menos un día para entrenar.');
+      toast.warning('Seleccioná al menos un día para entrenar.', { title: 'Falta información' });
       return;
     }
 
     if (sessionDuration <= 0) {
-      Alert.alert('Falta información', 'La duración debe ser mayor a 0 minutos.');
+      toast.warning('La duración debe ser mayor a 0 minutos.', { title: 'Falta información' });
       return;
     }
 
@@ -140,12 +141,11 @@ export default function FitnessTrainingPreferencesConfig({
 
       setInitialDays([...selectedDays]);
       setInitialSessionDuration(sessionDuration);
-      Alert.alert('Éxito', 'Preferencias de entrenamiento actualizadas correctamente.', [
-        { text: 'OK', onPress: onBack },
-      ]);
+      toast.success('Preferencias de entrenamiento actualizadas correctamente.');
+      onBack();
     } catch (error) {
       logger.error('Error guardando preferencias de entrenamiento:', error);
-      Alert.alert('Error', 'No se pudieron actualizar tus preferencias de entrenamiento.');
+      toast.error('No se pudieron actualizar tus preferencias de entrenamiento.');
     } finally {
       setIsSaving(false);
     }

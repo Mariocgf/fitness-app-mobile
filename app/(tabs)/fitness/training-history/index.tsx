@@ -11,7 +11,6 @@ import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     FlatList,
     RefreshControl,
     Text,
@@ -19,6 +18,8 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { confirm, toast } from '@/src/components/ui/feedback';
 
 const LIME = '#a3e635';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -101,29 +102,21 @@ export default function TrainingHistoryScreen() {
   );
 
   const handleDeleteRequest = useCallback(
-    (session: TrainingHistorySession) => {
-      Alert.alert(
-        '¿Eliminar sesión?',
-        `¿Estás seguro de que quieres eliminar la sesión "${session.routineName}" del ${session.trainedAt.toLocaleDateString()}?`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Eliminar',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await deleteSession(session.id);
-              } catch (err) {
-                Alert.alert(
-                  'Error',
-                  err instanceof Error ? err.message : 'No se pudo eliminar la sesión',
-                );
-              }
-            },
-          },
-        ],
-        { cancelable: true },
-      );
+    async (session: TrainingHistorySession) => {
+      const confirmed = await confirm({
+        title: '¿Eliminar sesión?',
+        message: `¿Estás seguro de que quieres eliminar la sesión "${session.routineName}" del ${session.trainedAt.toLocaleDateString()}?`,
+        confirmText: 'Eliminar',
+        cancelText: 'Cancelar',
+        destructive: true,
+      });
+      if (!confirmed) return;
+
+      try {
+        await deleteSession(session.id);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'No se pudo eliminar la sesión');
+      }
     },
     [deleteSession],
   );

@@ -19,7 +19,7 @@ import { calcDayApproxTime, routineToDraftDays } from '@/src/utils/routine-edito
 import { getWeightOptions } from '@/src/utils/weight.utils';
 import { useAuth } from '@clerk/clerk-expo';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
+import { confirm, toast } from '@/src/components/ui/feedback';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 interface RoutineEditModeProps {
@@ -104,11 +104,15 @@ export const RoutineEditMode: React.FC<RoutineEditModeProps> = ({
 
   /* ── Menú del día (solo eliminar) ─────────────────────────────────────── */
 
-  const handleDayOptions = useCallback((day: CreateRoutineDay) => {
-    Alert.alert(day.label, '¿Eliminar este día de la rutina?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: () => editor.removeDay(day.id) },
-    ]);
+  const handleDayOptions = useCallback(async (day: CreateRoutineDay) => {
+    const confirmed = await confirm({
+      title: day.label,
+      message: '¿Eliminar este día de la rutina?',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      destructive: true,
+    });
+    if (confirmed) editor.removeDay(day.id);
   }, [editor.removeDay]);
 
   /* ── Guardar ──────────────────────────────────────────────────────────── */
@@ -127,9 +131,9 @@ export const RoutineEditMode: React.FC<RoutineEditModeProps> = ({
           baseVersionId: routine.activeVersionId ?? null,
         });
         await downloadFitnessRoutineOffline(null, optimisticRoutine);
-        Alert.alert(
-          'Guardado offline',
+        toast.success(
           'Los cambios quedaron pendientes y se sincronizarán cuando vuelvas a tener conexión.',
+          { title: 'Guardado offline' },
         );
         onRoutineUpdated(optimisticRoutine);
         return;
@@ -139,7 +143,7 @@ export const RoutineEditMode: React.FC<RoutineEditModeProps> = ({
       const updated = await updateRoutine(routine.id, editor.buildPayload(routine.isActive), token);
       onRoutineUpdated(updated);
     } catch {
-      Alert.alert('Error al actualizar', 'No se pudo guardar la rutina. Revisá tu conexión e intentá nuevamente.');
+      toast.error('No se pudo guardar la rutina. Revisá tu conexión e intentá nuevamente.', { title: 'Error al actualizar' });
       setIsSaving(false);
     }
   }, [

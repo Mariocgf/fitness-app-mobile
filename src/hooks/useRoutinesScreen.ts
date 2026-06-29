@@ -13,7 +13,7 @@ import {
 import { useAuth } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
+import { confirm, toast } from '@/src/components/ui/feedback';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
@@ -106,32 +106,28 @@ export function useRoutinesScreen() {
   const handleDeleteRoutine = useCallback(async () => {
     if (!selectedRoutine) return;
 
-    Alert.alert(
-      'Eliminar rutina',
-      '¿Eliminar esta rutina? Esta acción no se puede deshacer.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const token = await getToken();
-              if (!token) {
-                Alert.alert('Error', 'Usuario no autenticado');
-                return;
-              }
-              await deleteRoutine(selectedRoutine.id, token);
-              handleCloseDetail();
-              Alert.alert('Éxito', 'La rutina fue eliminada correctamente');
-              refresh();
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'No se pudo eliminar la rutina');
-            }
-          },
-        },
-      ],
-    );
+    const confirmed = await confirm({
+      title: 'Eliminar rutina',
+      message: '¿Eliminar esta rutina? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        toast.error('Usuario no autenticado');
+        return;
+      }
+      await deleteRoutine(selectedRoutine.id, token);
+      handleCloseDetail();
+      toast.success('La rutina fue eliminada correctamente');
+      refresh();
+    } catch (error: any) {
+      toast.error(error.message || 'No se pudo eliminar la rutina');
+    }
   }, [selectedRoutine, getToken, handleCloseDetail, refresh]);
 
   const handleActivateRoutine = useCallback(async (r: Routine) => {
@@ -141,7 +137,7 @@ export function useRoutinesScreen() {
       setSelectedRoutine(activated);
       await refresh();
     } catch {
-      Alert.alert('Error', 'No se pudo activar la rutina. Intentá de nuevo.');
+      toast.error('No se pudo activar la rutina. Intentá de nuevo.');
     }
   }, [getToken, refresh]);
 
@@ -180,7 +176,7 @@ export function useRoutinesScreen() {
     } catch (error) {
       if (signal.aborted || isRequestCanceled(error)) return;
       logger.error('[RoutinesScreen] Error fetching routine:', error);
-      Alert.alert('Error', 'No se pudo cargar la rutina. Intentá de nuevo.');
+      toast.error('No se pudo cargar la rutina. Intentá de nuevo.');
     } finally {
       if (isCurrentRequest(detailRequestRef, controller)) {
         setIsLoadingRoutine(false);

@@ -3,9 +3,10 @@ import { useOAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import { Alert, Platform, Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { toast } from '@/src/components/ui/feedback';
 import AppleIcon from '@/assets/svg/Apple_dark.svg';
 import GoogleIcon from '@/assets/svg/google.svg';
 import { GradientText } from '@/src/components/common/GradientText';
@@ -57,7 +58,7 @@ export default function LoginScreen() {
       if (err?.e?.toUpperCase() === "You're already signed in".toUpperCase()) {
         Linking.createURL('/(tabs)');
       }
-      Alert.alert('Interrumpido', 'No se pudo iniciar sesión con esta red.');
+      toast.error('No se pudo iniciar sesión con esta red.', { title: 'Interrumpido' });
     }
   };
 

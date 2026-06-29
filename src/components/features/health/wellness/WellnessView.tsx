@@ -8,7 +8,6 @@ import {
   WellnessTodaySummary,
 } from "@/src/types/wellness";
 import {
-  formatMinutes,
   formatMl,
   formatSleepDuration,
   getActivitySubtitle,
@@ -111,10 +110,6 @@ export function WellnessView({
   const hydrationSubtitle =
     today.hydrationMl > 0 ? formatMl(today.hydrationMl) : SIN_REGISTRO;
   const moodSubtitle = today.mood ? MOOD_LABELS[today.mood.mood] : SIN_REGISTRO;
-  const meditationSubtitle =
-    today.meditationMinutes > 0
-      ? formatMinutes(today.meditationMinutes)
-      : SIN_REGISTRO;
 
   return (
     <View className="pt-8 pb-32 px-4 gap-7">
@@ -146,11 +141,7 @@ export function WellnessView({
           subtitle={moodSubtitle}
           onPress={onOpenMood}
         />
-        <WellnessLogRow
-          icon={KIND_ICON.meditation}
-          title="Meditación"
-          subtitle={meditationSubtitle}
-        />
+        {/* Meditación: oculta por ahora (fase futura). */}
       </WellnessGroupCard>
 
       {/* ── Registrar ───────────────────────────────────────────────────────── */}
@@ -177,12 +168,7 @@ export function WellnessView({
             subtitle="Cómo te sientes"
             onPress={onRegisterMood}
           />
-          <WellnessRegisterCard
-            icon={KIND_ICON.meditation}
-            title="Meditación"
-            subtitle="Sesión o guía"
-            onPress={onRegisterMeditation}
-          />
+          {/* Meditación: oculta por ahora (fase futura). */}
         </View>
       </View>
 

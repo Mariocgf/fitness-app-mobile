@@ -3,7 +3,6 @@ import { useAuth } from '@clerk/clerk-expo';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     DeviceEventEmitter,
     Pressable,
     ScrollView,
@@ -12,6 +11,7 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { toast } from '@/src/components/ui/feedback';
 
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import { useUnsavedChangesGuard } from '@/src/hooks/useUnsavedChangesGuard';
@@ -57,7 +57,7 @@ export default function InjuriesConfig({ onBack }: InjuriesConfigProps) {
         setInitialInjuryIds(uInjIds);
       } catch (e) {
         logger.error('Error cargando lesiones:', e);
-        Alert.alert('Error', 'No se pudieron cargar los datos de salud.');
+        toast.error('No se pudieron cargar los datos de salud.');
       } finally {
         setIsLoading(false);
       }
@@ -80,12 +80,11 @@ export default function InjuriesConfig({ onBack }: InjuriesConfigProps) {
       const token = await getToken();
       await updateUserInjuries(selectedInjuryIds, token);
       setInitialInjuryIds([...selectedInjuryIds]);
-      Alert.alert('Éxito', 'Lesiones actualizadas correctamente.', [
-        { text: 'OK', onPress: onBack },
-      ]);
+      toast.success('Lesiones actualizadas correctamente.');
+      onBack();
     } catch (error) {
       logger.error('Error guardando lesiones:', error);
-      Alert.alert('Error', 'No se pudieron actualizar las lesiones.');
+      toast.error('No se pudieron actualizar las lesiones.');
     } finally {
       setIsSaving(false);
     }
@@ -166,7 +165,7 @@ export function ConditionsConfig({ onBack }: InjuriesConfigProps) {
         setInitialConditionIds(uCondIds);
       } catch (e) {
         logger.error('Error cargando afecciones:', e);
-        Alert.alert('Error', 'No se pudieron cargar los datos de salud.');
+        toast.error('No se pudieron cargar los datos de salud.');
       } finally {
         setIsLoading(false);
       }
@@ -189,12 +188,11 @@ export function ConditionsConfig({ onBack }: InjuriesConfigProps) {
       const token = await getToken();
       await updateUserMedicalConditions(selectedConditionIds, token);
       setInitialConditionIds([...selectedConditionIds]);
-      Alert.alert('Éxito', 'Afecciones médicas actualizadas correctamente.', [
-        { text: 'OK', onPress: onBack },
-      ]);
+      toast.success('Afecciones médicas actualizadas correctamente.');
+      onBack();
     } catch (error) {
       logger.error('Error guardando afecciones:', error);
-      Alert.alert('Error', 'No se pudieron actualizar las afecciones médicas.');
+      toast.error('No se pudieron actualizar las afecciones médicas.');
     } finally {
       setIsSaving(false);
     }

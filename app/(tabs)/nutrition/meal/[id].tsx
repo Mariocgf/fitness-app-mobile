@@ -7,6 +7,7 @@ import { useRoutineMealDetail } from '@/src/hooks/useRoutineMealDetail';
 import { useNetworkStatus } from '@/src/hooks/useNetworkStatus';
 import { enqueueNutritionPlanMealLogOffline } from '@/src/offline/service';
 import { logRoutineMeal } from '@/src/services/nutritionRoutine.service';
+import { bumpNutritionData } from '@/src/store/nutrition-sync';
 import { useNutritionRoutineContext } from '@/src/store/nutrition-routine-context';
 
 function getTodayIso(): string {
@@ -54,6 +55,9 @@ export default function RoutineMealDetailScreen() {
 
       const token = await getToken();
       await logRoutineMeal(id, getTodayIso(), token);
+      // Avisamos al Home que la nutrición de hoy cambió para que refresque
+      // las calorías en su próximo focus.
+      bumpNutritionData();
       if (mountedRef.current) router.back();
     } catch (err: any) {
       if (mountedRef.current) {

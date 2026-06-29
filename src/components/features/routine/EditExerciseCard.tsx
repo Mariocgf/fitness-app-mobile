@@ -1,8 +1,9 @@
 import { ExerciseThumbnail } from '@/src/components/features/routine/ExerciseThumbnail';
 import { CreateRoutineExercise } from '@/src/types/create-routine';
+import { useActionSheet } from '@expo/react-native-action-sheet';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useRef } from 'react';
-import { Alert, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 
 interface EditExerciseCardProps {
@@ -51,14 +52,33 @@ export const EditExerciseCard: React.FC<EditExerciseCardProps> = ({
   exercise, index, weightLabel, onOpenPicker, onRemove, onReplace, canReplace = true, onToggleRepMode, onDrag, isActive,
 }) => {
   const swipeableRef = useRef<Swipeable>(null);
+  const { showActionSheetWithOptions } = useActionSheet();
 
   const openMenu = () => {
-    Alert.alert(exercise.name, undefined, [
-      ...(canReplace ? [{ text: 'Cambiar ejercicio', onPress: () => onReplace(exercise.id) }] : []),
-      { text: `Peso: ${weightLabel}`, onPress: () => onOpenPicker('weight') },
-      { text: 'Eliminar', style: 'destructive', onPress: () => onRemove(exercise.id) },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
+    const actions: { label: string; onPress: () => void; destructive?: boolean }[] = [
+      ...(canReplace ? [{ label: 'Cambiar ejercicio', onPress: () => onReplace(exercise.id) }] : []),
+      { label: `Peso: ${weightLabel}`, onPress: () => onOpenPicker('weight') },
+      { label: 'Eliminar', onPress: () => onRemove(exercise.id), destructive: true },
+    ];
+    const options = [...actions.map((a) => a.label), 'Cancelar'];
+
+    showActionSheetWithOptions(
+      {
+        title: exercise.name,
+        options,
+        cancelButtonIndex: options.length - 1,
+        destructiveButtonIndex: actions.findIndex((a) => a.destructive),
+        containerStyle: { backgroundColor: '#18181b' },
+        textStyle: { color: '#f4f4f5' },
+        titleTextStyle: { color: '#a1a1aa' },
+        destructiveColor: '#f87171',
+      },
+      (selectedIndex) => {
+        if (selectedIndex != null && selectedIndex < actions.length) {
+          actions[selectedIndex].onPress();
+        }
+      },
+    );
   };
 
   const renderRightActions = () => (

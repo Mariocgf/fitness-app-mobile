@@ -1,8 +1,9 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 
+import { confirm, toast } from "@/src/components/ui/feedback";
 import { MeasurementComparePicker } from "@/src/components/features/health/MeasurementComparePicker";
 import { MeasurementComparisonSheet } from "@/src/components/features/health/MeasurementComparisonSheet";
 import { MeasurementDetailView } from "@/src/components/features/health/MeasurementDetailView";
@@ -55,35 +56,32 @@ export default function MeasurementDetailScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (!id) return;
 
-    Alert.alert(
-      "Eliminar registro",
-      "¿Querés eliminar esta medición corporal? Esta acción no se puede deshacer.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: async () => {
-            setIsDeleting(true);
-            try {
-              const token = await getToken();
-              await deleteBodyMeasurement(id, token);
-              bumpHealthData();
-              router.back();
-            } catch {
-              setIsDeleting(false);
-              Alert.alert(
-                "No se pudo eliminar",
-                "La medición ya no existe o no pudimos completar la operación. Intentá de nuevo.",
-              );
-            }
-          },
-        },
-      ],
-    );
+    const confirmed = await confirm({
+      title: "Eliminar registro",
+      message:
+        "¿Querés eliminar esta medición corporal? Esta acción no se puede deshacer.",
+      confirmText: "Eliminar",
+      cancelText: "Cancelar",
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      const token = await getToken();
+      await deleteBodyMeasurement(id, token);
+      bumpHealthData();
+      router.back();
+    } catch {
+      setIsDeleting(false);
+      toast.error(
+        "La medición ya no existe o no pudimos completar la operación. Intentá de nuevo.",
+        { title: "No se pudo eliminar" },
+      );
+    }
   }, [id, getToken, router]);
 
   if (isFetching && !measurement) {

@@ -2,9 +2,10 @@ import { logger } from '@/src/utils/logger';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { toast } from '@/src/components/ui/feedback';
 import CheckableCard from '@/src/components/common/CheckableCard';
 import SectionCard from '@/src/components/common/SectionCard';
 import { useUnsavedChangesGuard } from '@/src/hooks/useUnsavedChangesGuard';
@@ -60,7 +61,7 @@ export default function FitnessSubGoalConfig({ onBack }: FitnessSubGoalConfigPro
         setSubGoals(Array.isArray(availableSubGoals) ? availableSubGoals : []);
       } catch (error) {
         logger.error('Error cargando subobjetivo de fitness:', error);
-        Alert.alert('Error', 'No se pudo cargar el subobjetivo de Fitness.');
+        toast.error('No se pudo cargar el subobjetivo de Fitness.');
       } finally {
         setIsLoading(false);
       }
@@ -81,7 +82,7 @@ export default function FitnessSubGoalConfig({ onBack }: FitnessSubGoalConfigPro
 
   const handleSave = async () => {
     if (!selectedSubGoalId) {
-      Alert.alert('Falta información', 'Seleccioná un subobjetivo para Fitness.');
+      toast.warning('Seleccioná un subobjetivo para Fitness.', { title: 'Falta información' });
       return;
     }
 
@@ -90,12 +91,11 @@ export default function FitnessSubGoalConfig({ onBack }: FitnessSubGoalConfigPro
       const token = await getTokenRef.current();
       await updateFitnessSubGoal({ subGoalId: selectedSubGoalId }, token);
       setInitialSubGoalId(selectedSubGoalId);
-      Alert.alert('Éxito', 'Subobjetivo de Fitness actualizado correctamente.', [
-        { text: 'OK', onPress: onBack },
-      ]);
+      toast.success('Subobjetivo de Fitness actualizado correctamente.');
+      onBack();
     } catch (error) {
       logger.error('Error guardando subobjetivo de fitness:', error);
-      Alert.alert('Error', 'No se pudo actualizar el subobjetivo de Fitness.');
+      toast.error('No se pudo actualizar el subobjetivo de Fitness.');
     } finally {
       setIsSaving(false);
     }

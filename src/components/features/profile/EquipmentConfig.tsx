@@ -4,7 +4,6 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     DeviceEventEmitter,
     Pressable,
     ScrollView,
@@ -13,6 +12,7 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { toast } from '@/src/components/ui/feedback';
 
 import EquipmentSelect from '@/src/components/common/EquipmentSelect';
 import EquipmentSelectedList from '@/src/components/common/EquipmentSelectedList';
@@ -66,7 +66,7 @@ export default function EquipmentConfig({ onBack }: EquipmentConfigProps) {
         }
       } catch (e) {
         logger.error('Error cargando equipamiento:', e);
-        Alert.alert('Error', 'No se pudo cargar el equipamiento.');
+        toast.error('No se pudo cargar el equipamiento.');
       } finally {
         setIsLoading(false);
       }
@@ -113,12 +113,11 @@ export default function EquipmentConfig({ onBack }: EquipmentConfigProps) {
         token
       );
       setInitialEquipment([...selectedEquipment]);
-      Alert.alert('Éxito', 'Equipamiento actualizado correctamente.', [
-        { text: 'OK', onPress: onBack },
-      ]);
+      toast.success('Equipamiento actualizado correctamente.');
+      onBack();
     } catch (error) {
       logger.error('Error guardando equipamiento:', error);
-      Alert.alert('Error', 'No se pudo actualizar el equipamiento.');
+      toast.error('No se pudo actualizar el equipamiento.');
     } finally {
       setIsSaving(false);
     }

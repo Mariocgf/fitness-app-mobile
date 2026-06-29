@@ -3,9 +3,9 @@ import { useFoodRegister } from '@/src/hooks/useFoodRegister';
 import { useNutritionDay } from '@/src/hooks/useNutritionDay';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback } from 'react';
-import { Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { toast } from '@/src/components/ui/feedback';
 import { normalizeMealType } from '@/src/utils/nutrition.utils';
 
 export default function FoodRegisterScreen() {
@@ -48,10 +48,7 @@ export default function FoodRegisterScreen() {
     const saved = await saveFoods();
     if (!saved) return;
 
-    Alert.alert(
-      'Registro guardado',
-      'Los alimentos se guardaron correctamente.',
-    );
+    toast.success('Los alimentos se guardaron correctamente.');
   }, [saveFoods]);
 
   return (

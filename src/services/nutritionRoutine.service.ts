@@ -1,7 +1,11 @@
 import apiClient from '../api/client';
 import type { OfflineRequestOptions } from './routine.service';
 import { NutritionDayDto } from '../types/nutrition';
-import { NutritionRoutineDto, RoutineMealDetailDto } from '../types/nutritionRoutine';
+import {
+  NutritionRoutineDto,
+  PagedNutritionRoutinesResponse,
+  RoutineMealDetailDto,
+} from '../types/nutritionRoutine';
 import { withRequestSignal } from '../utils/request-cancellation';
 
 export interface OfflineNutritionRoutineBundleDto {
@@ -78,6 +82,83 @@ export const getOfflineNutritionRoutineBundle = async (
     if (status === 404) return null;
     if (status === 401) throw new Error('Sesión expirada. Iniciá sesión nuevamente.');
     throw new Error('No pudimos descargar el plan offline. Intentá de nuevo.');
+  }
+};
+
+/**
+ * Lista paginada de las rutinas alimenticias del usuario (resumen, sin días/comidas).
+ * El backend ordena la activa primero y luego las más recientes.
+ */
+export const fetchMyNutritionRoutines = async (
+  token: string | null,
+  page: number = 1,
+  pageSize: number = 10,
+  signal?: AbortSignal,
+): Promise<PagedNutritionRoutinesResponse> => {
+  try {
+    const { data } = await apiClient.get<
+      PagedNutritionRoutinesResponse | { data: PagedNutritionRoutinesResponse }
+    >(
+      '/api/nutrition-routine/my-routines',
+      withRequestSignal(
+        { headers: { Authorization: `Bearer ${token}` }, params: { page, pageSize } },
+        signal,
+      ),
+    );
+    return unwrapApiData(data);
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if (status === 401) throw new Error('Sesión expirada. Iniciá sesión nuevamente.');
+    throw new Error('No pudimos cargar tus planes de nutrición. Intentá de nuevo.');
+  }
+};
+
+/**
+ * Activa una rutina alimenticia por id. Idempotente: si ya estaba activa, no falla.
+ * No devuelve cuerpo (204); tras activar conviene refrescar la rutina activa.
+ */
+export const activateNutritionRoutine = async (
+  routineId: string,
+  token: string | null,
+): Promise<void> => {
+  try {
+    await apiClient.post(
+      `/api/nutrition-routine/${routineId}/activate`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if (status === 401) throw new Error('Sesión expirada. Iniciá sesión nuevamente.');
+    if (status === 404) throw new Error('No se pudo activar este plan. Intentá de nuevo.');
+    throw new Error('No pudimos activar tu plan. Intentá de nuevo.');
+  }
+};
+
+/**
+ * Obtiene una rutina alimenticia por id con días y comidas resumidas.
+ * `GET /api/nutrition-routine/{id}` devuelve la misma forma que `/active`, pero para
+ * cualquier rutina del usuario (Draft/Active/Saved). Payload liviano: las macros y la
+ * receta de cada comida se piden bajo demanda con `getRoutineMealDetail`.
+ * Para la rutina activa/draft conviene usar el snapshot del contexto y reservar esta
+ * llamada a las rutinas históricas.
+ */
+export const getNutritionRoutineById = async (
+  routineId: string,
+  token: string | null,
+  signal?: AbortSignal,
+): Promise<NutritionRoutineDto> => {
+  try {
+    const { data } = await apiClient.get<NutritionRoutineDto | { data: NutritionRoutineDto }>(
+      `/api/nutrition-routine/${routineId}`,
+      withRequestSignal({ headers: { Authorization: `Bearer ${token}` } }, signal),
+    );
+    return unwrapApiData(data);
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if (status === 401) throw new Error('Sesión expirada. Iniciá sesión nuevamente.');
+    if (status === 404) throw new Error('Este plan no existe o no te pertenece.');
+    throw new Error('No pudimos cargar el plan. Intentá de nuevo.');
   }
 };
 

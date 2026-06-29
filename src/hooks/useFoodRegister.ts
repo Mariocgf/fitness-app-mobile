@@ -3,6 +3,7 @@ import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { replaceMealItems } from '../services/nutrition.service';
+import { bumpNutritionData } from '../store/nutrition-sync';
 import {
   ConsumedFoodItemDto,
   FoodCatalogItemDto,
@@ -178,6 +179,9 @@ export function useFoodRegister({
         : optimisticDay;
 
       onDayUpdatedRef.current(updatedDay);
+      // Avisamos al resto de la app (Home) que la nutrición de hoy cambió, para
+      // que refresque en su próximo focus sin recargar la vista a mano.
+      bumpNutritionData();
       return true;
     } catch (err) {
       logger.error('[useFoodRegister] Error saving foods:', err);

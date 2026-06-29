@@ -1,9 +1,10 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { confirm, toast } from "@/src/components/ui/feedback";
 import { MoodDetailView } from "@/src/components/features/health/wellness/mood/MoodDetailView";
 import { deleteMoodLog, getMoodLogById } from "@/src/services/wellness.service";
 import { bumpWellnessData } from "@/src/store/wellness-sync";
@@ -47,35 +48,31 @@ export default function MoodDetailScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (!id) return;
-    Alert.alert(
-      "Eliminar registro",
-      "¿Querés eliminar este registro de ánimo? Esta acción no se puede deshacer.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: async () => {
-            setIsDeleting(true);
-            try {
-              const token = await getToken();
-              await deleteMoodLog(id, token);
-              // Mutación: avanza la versión para que Bienestar/Ánimo refresquen al volver.
-              bumpWellnessData();
-              router.back();
-            } catch {
-              setIsDeleting(false);
-              Alert.alert(
-                "No se pudo eliminar",
-                "Revisá tu conexión e intentá de nuevo.",
-              );
-            }
-          },
-        },
-      ],
-    );
+    const confirmed = await confirm({
+      title: "Eliminar registro",
+      message:
+        "¿Querés eliminar este registro de ánimo? Esta acción no se puede deshacer.",
+      confirmText: "Eliminar",
+      cancelText: "Cancelar",
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      const token = await getToken();
+      await deleteMoodLog(id, token);
+      // Mutación: avanza la versión para que Bienestar/Ánimo refresquen al volver.
+      bumpWellnessData();
+      router.back();
+    } catch {
+      setIsDeleting(false);
+      toast.error("Revisá tu conexión e intentá de nuevo.", {
+        title: "No se pudo eliminar",
+      });
+    }
   }, [id, getToken, router]);
 
   if (isFetching && !log) {

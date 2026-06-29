@@ -57,6 +57,8 @@ interface UseHomeDashboardReturn {
   logSleep: (payload: AddSleepLogDto) => Promise<void>;
   /** Registra hidratación y refresca el bienestar. */
   logHydration: (payload: AddHydrationLogDto) => Promise<void>;
+  /** Refresca solo la nutrición del día (para focus tras registrar comida). */
+  refreshNutrition: () => void;
   /** Refresca todas las fuentes del home. */
   refresh: () => void;
 }
@@ -210,6 +212,7 @@ export function useHomeDashboard(): UseHomeDashboardReturn {
     logMood,
     logSleep,
     logHydration,
+    refreshNutrition: nutritionDay.refresh,
     refresh,
   };
 }

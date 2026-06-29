@@ -30,7 +30,6 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -40,6 +39,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { toast } from '@/src/components/ui/feedback';
 import Animated, {
   Easing,
   Extrapolation,
@@ -377,7 +377,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
       const detail = await getRoutineVersionDetail(routine.id, summary.id, token);
       setPreviewVersion(detail);
     } catch {
-      Alert.alert('Error', 'No se pudo cargar la versión. Intentá de nuevo.');
+      toast.error('No se pudo cargar la versión. Intentá de nuevo.');
     } finally {
       setIsLoadingVersion(false);
     }
@@ -407,7 +407,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
       onRoutineUpdated(updated);
       setPreviewVersion(null);
     } catch {
-      Alert.alert('Error', 'No se pudo activar la versión. Intentá de nuevo.');
+      toast.error('No se pudo activar la versión. Intentá de nuevo.');
     } finally {
       setVersionAction(null);
     }
@@ -430,7 +430,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
       onRoutineUpdated(updated);
       setPreviewVersion(null);
     } catch {
-      Alert.alert('Error', 'No se pudo restaurar la versión. Intentá de nuevo.');
+      toast.error('No se pudo restaurar la versión. Intentá de nuevo.');
     } finally {
       setVersionAction(null);
     }

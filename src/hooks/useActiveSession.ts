@@ -2,7 +2,7 @@ import { adjustExerciseLoad } from '@/src/services/exercise.service';
 import { ExerciseLog, SessionDay, SessionExercise, SessionExerciseEntry, SessionLog, SessionSet } from '@/src/types/session';
 import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { confirm, toast } from '@/src/components/ui/feedback';
 import { useNetworkStatus } from './useNetworkStatus';
 import { useSessionAudio } from './useSessionAudio';
 
@@ -394,9 +394,9 @@ export function useActiveSession({
 
   const handleSaveRpe = useCallback(async () => {
     if (!isOnline) {
-      Alert.alert(
-        'Sin conexión',
+      toast.info(
         'El ajuste dinámico de carga necesita conexión. Podés completar la sesión y se guardará offline.',
+        { title: 'Sin conexión' },
       );
       return;
     }
@@ -413,7 +413,7 @@ export function useActiveSession({
       const adjustment = await adjustExerciseLoad(currentExercise.id, day.id, rpe, token);
 
       if (!adjustment.loadType && adjustment.plannedWeightKg == null && !adjustment.currentRep && !adjustment.durationSeconds) {
-        Alert.alert('Aviso', 'No se pudo ajustar la carga para este ejercicio.');
+        toast.warning('No se pudo ajustar la carga para este ejercicio.', { title: 'Aviso' });
       } else {
         setExercises((prev) => {
           const newEx = [...prev];
@@ -431,25 +431,21 @@ export function useActiveSession({
         setRpeSaved(true);
       }
     } catch {
-      Alert.alert('Error', 'No se pudo ajustar la carga. Intente nuevamente.');
+      toast.error('No se pudo ajustar la carga. Intente nuevamente.');
     } finally {
       setIsAdjustingLoad(false);
     }
   }, [isOnline, rpe, currentExercise.id, day.id, getToken, exerciseIndex, saveCurrentLog]);
 
-  const handleFinishSessionEarly = useCallback(() => {
-    Alert.alert(
-      'Finalizar Sesión',
-      '¿Estás seguro que deseas finalizar la sesión antes de tiempo?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Finalizar',
-          style: 'destructive',
-          onPress: () => setPhase('SUMMARY'),
-        },
-      ]
-    );
+  const handleFinishSessionEarly = useCallback(async () => {
+    const confirmed = await confirm({
+      title: 'Finalizar Sesión',
+      message: '¿Estás seguro que deseas finalizar la sesión antes de tiempo?',
+      confirmText: 'Finalizar',
+      cancelText: 'Cancelar',
+      destructive: true,
+    });
+    if (confirmed) setPhase('SUMMARY');
   }, []);
 
   const handleSaveSession = useCallback(() => {

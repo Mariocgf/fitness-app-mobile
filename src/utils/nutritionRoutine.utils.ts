@@ -1,5 +1,5 @@
 import { MealType } from '../types/nutrition';
-import { RoutineDayName } from '../types/nutritionRoutine';
+import { RoutineDayName, RoutineStatus } from '../types/nutritionRoutine';
 import { MEAL_LABELS } from './nutrition.utils';
 
 export { MEAL_LABELS };
@@ -85,6 +85,20 @@ export const parseInstructionsToSteps = (instructions: string | undefined | null
 export const computeMacroPercent = (macroKcal: number, totalKcal: number): number => {
   if (totalKcal <= 0) return 0;
   return Math.round((macroKcal / totalKcal) * 100);
+};
+
+/** Etiqueta en español para el estado de una rutina nutricional. */
+export const ROUTINE_STATUS_LABELS: Record<RoutineStatus, string> = {
+  Active: 'Activo',
+  Draft: 'Borrador',
+  Saved: 'Guardado',
+};
+
+/** Formatea la fecha de creación de un plan a un texto corto en es-UY. */
+export const formatRoutineDate = (iso: string): string => {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('es-UY', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
 /** Color de acento por tipo de comida (amber-400 para todo el módulo de Nutrición) */

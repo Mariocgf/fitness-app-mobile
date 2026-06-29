@@ -3,7 +3,6 @@ import { useAuth } from '@clerk/clerk-expo';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     DeviceEventEmitter,
     Pressable,
     ScrollView,
@@ -11,6 +10,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { toast } from '@/src/components/ui/feedback';
 import TagSelect from '@/src/components/common/TagSelect';
 import { useUnsavedChangesGuard } from '@/src/hooks/useUnsavedChangesGuard';
 import {
@@ -77,7 +77,7 @@ export default function DietaryConfig({ onBack }: DietaryConfigProps) {
         setInitialDietIds(uDietIds);
       } catch (e) {
         logger.error('Error cargando datos de nutrición:', e);
-        Alert.alert('Error', 'No se pudieron cargar los datos de nutrición.');
+        toast.error('No se pudieron cargar los datos de nutrición.');
       } finally {
         setIsLoading(false);
       }
@@ -120,12 +120,11 @@ export default function DietaryConfig({ onBack }: DietaryConfigProps) {
       setInitialAllergyIds([...selectedAllergyIds]);
       setInitialDietIds([...selectedDietIds]);
 
-      Alert.alert('Éxito', 'Restricciones alimenticias actualizadas correctamente.', [
-        { text: 'OK', onPress: onBack },
-      ]);
+      toast.success('Restricciones alimenticias actualizadas correctamente.');
+      onBack();
     } catch (error) {
       logger.error('Error guardando restricciones:', error);
-      Alert.alert('Error', 'No se pudieron actualizar las restricciones.');
+      toast.error('No se pudieron actualizar las restricciones.');
     } finally {
       setIsSaving(false);
     }

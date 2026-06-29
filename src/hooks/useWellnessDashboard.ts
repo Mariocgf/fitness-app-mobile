@@ -58,12 +58,17 @@ export function useWellnessDashboard(): UseWellnessDashboardReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadRequestRef = useRef<AbortController | null>(null);
+  // Solo la PRIMERA carga marca isLoading: los refresh posteriores (registrar
+  // hidratación, volver con mutación) actualizan en sitio sin colapsar la UI.
+  // Si isLoading volviera a true en un refresh, el Home esconde sus secciones
+  // condicionales y el scroll salta arriba.
+  const hasLoadedRef = useRef(false);
 
   const load = useCallback(async () => {
     const controller = beginAbortableRequest(loadRequestRef);
     const { signal } = controller;
 
-    setIsLoading(true);
+    if (!hasLoadedRef.current) setIsLoading(true);
     setError(null);
     try {
       const token = await getTokenRef.current();
@@ -138,6 +143,7 @@ export function useWellnessDashboard(): UseWellnessDashboardReturn {
 
       merged.sort((a, b) => b.capturedAt.localeCompare(a.capturedAt));
       setRecentActivity(merged.slice(0, RECENT_LIMIT));
+      hasLoadedRef.current = true;
     } catch (err) {
       if (signal.aborted || isRequestCanceled(err)) return;
       setError(

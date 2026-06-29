@@ -1,9 +1,10 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { confirm, toast } from "@/src/components/ui/feedback";
 import { SleepDetailView } from "@/src/components/features/health/wellness/sleep/SleepDetailView";
 import {
   deleteSleepLog,
@@ -50,35 +51,31 @@ export default function SleepDetailScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (!id) return;
-    Alert.alert(
-      "Eliminar registro",
-      "¿Querés eliminar este registro de sueño? Esta acción no se puede deshacer.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: async () => {
-            setIsDeleting(true);
-            try {
-              const token = await getToken();
-              await deleteSleepLog(id, token);
-              // Mutación: avanza la versión para que Bienestar/Sueño refresquen al volver.
-              bumpWellnessData();
-              router.back();
-            } catch {
-              setIsDeleting(false);
-              Alert.alert(
-                "No se pudo eliminar",
-                "Revisá tu conexión e intentá de nuevo.",
-              );
-            }
-          },
-        },
-      ],
-    );
+    const confirmed = await confirm({
+      title: "Eliminar registro",
+      message:
+        "¿Querés eliminar este registro de sueño? Esta acción no se puede deshacer.",
+      confirmText: "Eliminar",
+      cancelText: "Cancelar",
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      const token = await getToken();
+      await deleteSleepLog(id, token);
+      // Mutación: avanza la versión para que Bienestar/Sueño refresquen al volver.
+      bumpWellnessData();
+      router.back();
+    } catch {
+      setIsDeleting(false);
+      toast.error("Revisá tu conexión e intentá de nuevo.", {
+        title: "No se pudo eliminar",
+      });
+    }
   }, [id, getToken, router]);
 
   if (isFetching && !log) {

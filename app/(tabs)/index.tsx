@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '@clerk/clerk-expo';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -13,6 +15,7 @@ import { NutritionTodayCard } from '@/src/components/features/home/NutritionToda
 import { RoutineTodayCard } from '@/src/components/features/home/RoutineTodayCard';
 import { SleepQuickCard } from '@/src/components/features/home/SleepQuickCard';
 import { useHomeDashboard } from '@/src/hooks/useHomeDashboard';
+import { getNutritionDataVersion } from '@/src/store/nutrition-sync';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { getTodayDateKey } from '@/src/utils/nutrition.utils';
 
@@ -28,6 +31,7 @@ function SectionTitle({ children }: { children: string }) {
 export default function HomeScreen() {
   const { user } = useUser();
   const router = useRouter();
+  const tabBarHeight = useBottomTabBarHeight();
   const { setActiveRoutine } = useRoutineDetailContext();
 
   const {
@@ -41,6 +45,7 @@ export default function HomeScreen() {
     logMood,
     logSleep,
     logHydration,
+    refreshNutrition,
     refresh,
   } = useHomeDashboard();
 
@@ -50,6 +55,19 @@ export default function HomeScreen() {
   useEffect(() => {
     setActiveRoutine(routine);
   }, [routine, setActiveRoutine]);
+
+  // Refresca la nutrición al volver al Home solo si se registró comida desde
+  // otra vista (la versión avanzó). Volver de una vista de lectura no refetchea.
+  const lastNutritionVersionRef = useRef(getNutritionDataVersion());
+  useFocusEffect(
+    useCallback(() => {
+      const current = getNutritionDataVersion();
+      if (current !== lastNutritionVersionRef.current) {
+        lastNutritionVersionRef.current = current;
+        refreshNutrition();
+      }
+    }, [refreshNutrition]),
+  );
 
   // ── Pendientes de hoy (binarios: se ocultan al completarse) ──
   const pendingRoutine = routine != null && !trainedToday;
@@ -61,7 +79,9 @@ export default function HomeScreen() {
   return (
     <SafeAreaView className="flex-1 bg-zinc-950">
       <ScrollView
-        contentContainerClassName="pt-8 pb-10 gap-3"
+        showsVerticalScrollIndicator={false}
+        contentContainerClassName="pt-8 gap-3"
+        contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
         refreshControl={
           <RefreshControl
             refreshing={false}

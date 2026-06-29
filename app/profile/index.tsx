@@ -5,9 +5,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { confirm, toast } from '@/src/components/ui/feedback';
 import { ProfileIdentityHeader } from '@/src/components/features/profile/ProfileIdentityHeader';
 import { ProfileModuleCard } from '@/src/components/features/profile/ProfileModuleCard';
 import { destroyOfflineData, getOfflineOperationCounts } from '@/src/offline/repository';
@@ -55,34 +56,32 @@ export default function ProfileScreen() {
     }));
     const pendingTotal = counts.pendingCount + counts.failedCount + counts.conflictCount;
 
-    Alert.alert(
-      'Cerrar sesión',
-      pendingTotal > 0
-        ? `Tenés ${pendingTotal} cambio(s) offline sin sincronizar. Si cerrás sesión se borrarán del dispositivo.`
-        : '¿Estás seguro que querés cerrar sesión?',
-      [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Cerrar sesión',
-        style: 'destructive',
-        onPress: async () => {
-          await AsyncStorage.multiRemove([
-            '@onboarding_completed',
-            '@onboarding_draft',
-            '@onboarding_selected_modules',
-            '@onboarding_health_config',
-            '@onboarding_fitness_config',
-            '@onboarding_nutrition_config',
-            '@onboarding_module_config_step',
-            '@active_modules',
-            '@user_routine',
-            '@nutrition_routine',
-          ]);
-          await destroyOfflineData();
-          signOut();
-        },
-      },
+    const confirmed = await confirm({
+      title: 'Cerrar sesión',
+      message:
+        pendingTotal > 0
+          ? `Tenés ${pendingTotal} cambio(s) offline sin sincronizar. Si cerrás sesión se borrarán del dispositivo.`
+          : '¿Estás seguro que querés cerrar sesión?',
+      confirmText: 'Cerrar sesión',
+      cancelText: 'Cancelar',
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    await AsyncStorage.multiRemove([
+      '@onboarding_completed',
+      '@onboarding_draft',
+      '@onboarding_selected_modules',
+      '@onboarding_health_config',
+      '@onboarding_fitness_config',
+      '@onboarding_nutrition_config',
+      '@onboarding_module_config_step',
+      '@active_modules',
+      '@user_routine',
+      '@nutrition_routine',
     ]);
+    await destroyOfflineData();
+    signOut();
   };
 
   if (!isLoaded) {
@@ -132,7 +131,7 @@ export default function ProfileScreen() {
           icon="diamond-outline"
           title="Suscripción"
           subtitle="Plan Premium activo"
-          onPress={() => Alert.alert('Suscripción', 'Próximamente.')}
+          onPress={() => toast.info('Próximamente.')}
         />
 
         {/* Mis módulos — solo módulos activos */}

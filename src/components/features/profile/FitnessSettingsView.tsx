@@ -1,7 +1,7 @@
 import { ProfileModuleCard } from '@/src/components/features/profile/ProfileModuleCard';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /**
@@ -34,16 +34,7 @@ export const FitnessSettingsView: React.FC = () => {
           title="Sub objetivo"
           onPress={() => router.push('/profile/fitness-subgoal')}
         />
-        <ProfileModuleCard
-          icon="heart-outline"
-          title="Ejercicios favoritos"
-          onPress={() => Alert.alert('Ejercicios favoritos', 'Próximamente.')}
-        />
-        <ProfileModuleCard
-          icon="ban-outline"
-          title="Ejercicios no deseados"
-          onPress={() => Alert.alert('Ejercicios no deseados', 'Próximamente.')}
-        />
+        {/* Ejercicios favoritos / no deseados: ocultos por ahora (fase futura). */}
       </ScrollView>
     </View>
   );

@@ -13,9 +13,11 @@ import { createRoutine } from '@/src/services/routine.service';
 import { CreateRoutineDay, CreateRoutineExercise } from '@/src/types/create-routine';
 import { Routine } from '@/src/types/routine';
 import { getWeightOptions } from '@/src/utils/weight.utils';
+import { confirm, toast } from '@/src/components/ui/feedback';
+import { useActionSheet } from '@expo/react-native-action-sheet';
 import { useAuth } from '@clerk/clerk-expo';
 import React, { useCallback, useState } from 'react';
-import { Alert, useWindowDimensions } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 import Animated, {
   Easing,
   Extrapolation,
@@ -46,6 +48,7 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const { getToken } = useAuth();
   const { inventory } = useWeightInventory();
+  const { showActionSheetWithOptions } = useActionSheet();
 
   const editor = useRoutineEditor({
     initialName: initialDraft?.name,
@@ -113,48 +116,69 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({
       : 1,
   }));
 
+  /* ── Menús de acción (action sheet tematizado dark) ─────────────────────── */
+
+  type MenuAction = { label: string; onPress: () => void; destructive?: boolean };
+
+  /** Presenta un action sheet dark con una lista de acciones (+ Cancelar al final). */
+  const presentMenu = useCallback(
+    (title: string, actions: MenuAction[]) => {
+      const options = [...actions.map((a) => a.label), 'Cancelar'];
+      showActionSheetWithOptions(
+        {
+          title,
+          options,
+          cancelButtonIndex: options.length - 1,
+          destructiveButtonIndex: actions.findIndex((a) => a.destructive),
+          containerStyle: { backgroundColor: '#18181b' },
+          textStyle: { color: '#f4f4f5' },
+          titleTextStyle: { color: '#a1a1aa' },
+          destructiveColor: '#f87171',
+        },
+        (selectedIndex) => {
+          if (selectedIndex != null && selectedIndex < actions.length) {
+            actions[selectedIndex].onPress();
+          }
+        },
+      );
+    },
+    [showActionSheetWithOptions],
+  );
+
   /* ── Menú del día (copiar ejercicios a otro día / eliminar) ─────────────── */
 
   const handleDayOptions = useCallback((day: CreateRoutineDay) => {
     const otherDays = editor.days.filter((d) => d.id !== day.id);
-    const copyOption = day.exercises.length > 0 && otherDays.length > 0
-      ? [{
-          text: 'Copiar ejercicios a...',
-          onPress: () => {
-            Alert.alert(
-              `Copiar desde ${day.label}`,
-              'Seleccioná el día destino',
-              [
-                { text: 'Cancelar', style: 'cancel' as const },
-                ...otherDays.map((target) => ({
-                  text: target.label,
-                  onPress: () => {
-                    if (target.exercises.length > 0) {
-                      Alert.alert(
-                        'Reemplazar ejercicios',
-                        `${target.label} ya tiene ejercicios. ¿Reemplazarlos?`,
-                        [
-                          { text: 'Cancelar', style: 'cancel' as const },
-                          { text: 'Reemplazar', style: 'destructive' as const, onPress: () => editor.copyDayExercises(day, target) },
-                        ],
-                      );
-                    } else {
-                      editor.copyDayExercises(day, target);
-                    }
-                  },
-                })),
-              ],
-            );
-          },
-        }]
-      : [];
 
-    Alert.alert(day.label, '¿Qué querés hacer?', [
-      { text: 'Cancelar', style: 'cancel' },
-      ...copyOption,
-      { text: 'Eliminar día', style: 'destructive', onPress: () => editor.removeDay(day.id) },
-    ]);
-  }, [editor.days, editor.copyDayExercises, editor.removeDay]);
+    const copyToTarget = async (target: CreateRoutineDay) => {
+      if (target.exercises.length > 0) {
+        const confirmed = await confirm({
+          title: 'Reemplazar ejercicios',
+          message: `${target.label} ya tiene ejercicios. ¿Reemplazarlos?`,
+          confirmText: 'Reemplazar',
+          cancelText: 'Cancelar',
+          destructive: true,
+        });
+        if (!confirmed) return;
+      }
+      editor.copyDayExercises(day, target);
+    };
+
+    const actions: MenuAction[] = [];
+    if (day.exercises.length > 0 && otherDays.length > 0) {
+      actions.push({
+        label: 'Copiar ejercicios a...',
+        onPress: () =>
+          presentMenu(
+            `Copiar desde ${day.label}`,
+            otherDays.map((target) => ({ label: target.label, onPress: () => copyToTarget(target) })),
+          ),
+      });
+    }
+    actions.push({ label: 'Eliminar día', onPress: () => editor.removeDay(day.id), destructive: true });
+
+    presentMenu(day.label, actions);
+  }, [editor.days, editor.copyDayExercises, editor.removeDay, presentMenu]);
 
   /* ── Guardar (con opción de activar) ──────────────────────────────────── */
 
@@ -167,44 +191,37 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({
       onClearDraft?.();
       onRoutineCreated?.(routine);
     } catch {
-      Alert.alert(
-        'Error al guardar',
-        'No se pudo guardar la rutina. Revisá tu conexión e intentá nuevamente.',
-      );
+      toast.error('No se pudo guardar la rutina. Revisá tu conexión e intentá nuevamente.', {
+        title: 'Error al guardar',
+      });
       setIsSaving(false);
     }
   }, [editor.isValid, editor.buildPayload, onClearDraft, onRoutineCreated, getToken]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!editor.isValid) return;
     const emptyDays = editor.days.filter((d) => d.exercises.length === 0);
     const daysToSave = editor.days.filter((d) => d.exercises.length > 0);
 
-    const confirmAlert = () =>
-      Alert.alert(
-        '¿Cómo querés guardar?',
-        `"${editor.name.trim()}" — ${daysToSave.length} ${daysToSave.length === 1 ? 'día' : 'días'} con ejercicios.`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Solo guardar', onPress: () => doSave(false) },
-          { text: 'Guardar y activar', onPress: () => doSave(true) },
-        ],
-      );
-
     if (emptyDays.length > 0) {
       const names = emptyDays.map((d) => d.label).join(', ');
-      Alert.alert(
-        'Días sin ejercicios',
-        `${names} ${emptyDays.length === 1 ? 'no tiene' : 'no tienen'} ejercicios y ${emptyDays.length === 1 ? 'será ignorado' : 'serán ignorados'} al guardar. ¿Continuás?`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Continuar', onPress: confirmAlert },
-        ],
-      );
-    } else {
-      confirmAlert();
+      const proceed = await confirm({
+        title: 'Días sin ejercicios',
+        message: `${names} ${emptyDays.length === 1 ? 'no tiene' : 'no tienen'} ejercicios y ${emptyDays.length === 1 ? 'será ignorado' : 'serán ignorados'} al guardar. ¿Continuás?`,
+        confirmText: 'Continuar',
+        cancelText: 'Cancelar',
+      });
+      if (!proceed) return;
     }
-  }, [editor.isValid, editor.name, editor.days, doSave]);
+
+    presentMenu(
+      `"${editor.name.trim()}" — ${daysToSave.length} ${daysToSave.length === 1 ? 'día' : 'días'} con ejercicios.`,
+      [
+        { label: 'Solo guardar', onPress: () => doSave(false) },
+        { label: 'Guardar y activar', onPress: () => doSave(true) },
+      ],
+    );
+  }, [editor.isValid, editor.name, editor.days, doSave, presentMenu]);
 
   /* ── Render ────────────────────────────────────────────────────────────── */
 

@@ -1,7 +1,8 @@
 import { logger } from '@/src/utils/logger';
 import React, { useState } from 'react';
-import { View, ActivityIndicator, Alert } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { toast } from '@/src/components/ui/feedback';
 import { ActiveSessionView } from '@/src/components/features/routine/session/ActiveSessionView';
 import { useNetworkStatus } from '@/src/hooks/useNetworkStatus';
 import { enqueueTrainingSessionOffline } from '@/src/offline/service';
@@ -31,13 +32,12 @@ export default function SessionScreen() {
       await saveSession(log, token);
     },
     onSuccess: () => {
-      Alert.alert("Éxito", "Sesión guardada correctamente.", [
-        { text: "Ok", onPress: () => router.back() }
-      ]);
+      toast.success("Sesión guardada correctamente.");
+      router.back();
     },
     onError: (error) => {
       logger.error(error);
-      Alert.alert("Error", "No se pudo guardar la sesión.");
+      toast.error("No se pudo guardar la sesión.");
       setIsSaving(false);
     }
   });
@@ -47,12 +47,13 @@ export default function SessionScreen() {
     if (!isOnline) {
       try {
         await enqueueTrainingSessionOffline(log);
-        Alert.alert('Guardado offline', 'La sesión se sincronizará cuando vuelva la conexión.', [
-          { text: 'Ok', onPress: () => router.back() }
-        ]);
+        toast.success('La sesión se sincronizará cuando vuelva la conexión.', {
+          title: 'Guardado offline',
+        });
+        router.back();
       } catch (error) {
         logger.error(error);
-        Alert.alert('Error', 'No se pudo guardar la sesión offline.');
+        toast.error('No se pudo guardar la sesión offline.');
         setIsSaving(false);
       }
       return;

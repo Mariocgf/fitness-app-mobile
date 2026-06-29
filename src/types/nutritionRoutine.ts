@@ -32,6 +32,25 @@ export interface NutritionRoutineDto {
   days: RoutineDayDto[];
 }
 
+/** Resumen de una rutina nutricional para el listado "Mis planes" (sin días/comidas) */
+export interface NutritionRoutineSummaryDto {
+  id: string;
+  name: string;
+  status: RoutineStatus;
+  isActive: boolean;
+  dayCount: number;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+/** Respuesta paginada del listado de rutinas nutricionales del usuario */
+export interface PagedNutritionRoutinesResponse {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  items: NutritionRoutineSummaryDto[];
+}
+
 export interface RoutineRecipeIngredient {
   name: string;
   amount: string;

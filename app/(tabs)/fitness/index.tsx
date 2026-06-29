@@ -24,7 +24,9 @@ import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+
+import { confirm, toast } from '@/src/components/ui/feedback';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -227,11 +229,11 @@ export default function FitnessScreen() {
       const token = await getToken();
       await downloadFitnessRoutineOffline(token, current);
       await refreshOfflineStatus();
-      Alert.alert('Listo', 'Tu rutina quedó disponible para usar offline.');
+      toast.success('Tu rutina quedó disponible para usar offline.', { title: 'Listo' });
     } catch (error: any) {
       const message = error?.message ?? 'No pudimos descargar la rutina offline.';
       setOfflineError(message);
-      Alert.alert('Error', message);
+      toast.error(message);
     } finally {
       setIsDownloadingOffline(false);
     }
@@ -245,16 +247,17 @@ export default function FitnessScreen() {
       const token = await getToken();
       const result = await syncOfflineOperations(token);
       await refreshOfflineStatus();
-      Alert.alert(
-        'Sincronización',
-        result.conflicts > 0
-          ? 'Hay conflictos que necesitan revisión.'
-          : `Sincronizadas: ${result.synced}. Fallidas: ${result.failed}.`,
-      );
+      if (result.conflicts > 0) {
+        toast.warning('Hay conflictos que necesitan revisión.', { title: 'Sincronización' });
+      } else {
+        toast.success(`Sincronizadas: ${result.synced}. Fallidas: ${result.failed}.`, {
+          title: 'Sincronización',
+        });
+      }
     } catch (error: any) {
       const message = error?.message ?? 'No pudimos sincronizar ahora.';
       setOfflineError(message);
-      Alert.alert('Error', message);
+      toast.error(message);
     } finally {
       setIsSyncingOffline(false);
     }
@@ -331,50 +334,46 @@ export default function FitnessScreen() {
       setViewingActiveRoutine(false);
     } catch (err) {
       logger.error('[handleActivateRoutine] ERROR', err);
-      Alert.alert('Error', 'No se pudo activar la rutina. Intentá de nuevo.');
+      toast.error('No se pudo activar la rutina. Intentá de nuevo.');
     }
   }, [getToken, setActiveRoutine, refreshPreview, setDetailVisible, setViewingActiveRoutine]);
 
   /** Elimina una rutina tras confirmación */
-  const handleDeleteRoutine = useCallback((r: Routine) => {
-    Alert.alert(
-      'Eliminar rutina',
-      '¿Eliminar esta rutina? Esta acción no se puede deshacer.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const token = await getToken();
-              if (!token) {
-                Alert.alert('Error', 'Usuario no autenticado');
-                return;
-              }
-              await deleteRoutine(r.id, token);
-              // Si era la rutina activa, limpiar estado
-              if (r.isActive) {
-                setRoutine(null);
-                setActiveRoutine(null);
-                setCardState('initial');
-              }
-              // Cerrar vistas abiertas
-              setShowRoutineDetail(false);
-              setCreatedRoutine(null);
-              setShowPreviewDetail(false);
-              setSelectedFullRoutine(null);
-              setDetailVisible(false);
-              setViewingActiveRoutine(false);
-              refreshPreview();
-              Alert.alert('Éxito', 'La rutina fue eliminada correctamente');
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'No se pudo eliminar la rutina');
-            }
-          },
-        },
-      ],
-    );
+  const handleDeleteRoutine = useCallback(async (r: Routine) => {
+    const confirmed = await confirm({
+      title: 'Eliminar rutina',
+      message: '¿Eliminar esta rutina? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        toast.error('Usuario no autenticado');
+        return;
+      }
+      await deleteRoutine(r.id, token);
+      // Si era la rutina activa, limpiar estado
+      if (r.isActive) {
+        setRoutine(null);
+        setActiveRoutine(null);
+        setCardState('initial');
+      }
+      // Cerrar vistas abiertas
+      setShowRoutineDetail(false);
+      setCreatedRoutine(null);
+      setShowPreviewDetail(false);
+      setSelectedFullRoutine(null);
+      setDetailVisible(false);
+      setViewingActiveRoutine(false);
+      refreshPreview();
+      toast.success('La rutina fue eliminada correctamente');
+    } catch (error: any) {
+      toast.error(error.message || 'No se pudo eliminar la rutina');
+    }
   }, [getToken, setActiveRoutine, setDetailVisible, setViewingActiveRoutine, refreshPreview]);
 
   /** Cierra el creador y abre el detalle de la rutina recién guardada */
@@ -410,7 +409,7 @@ export default function FitnessScreen() {
       if (fullRoutine.isActive) setViewingActiveRoutine(true);
     } catch (error) {
       logger.error('[FitnessScreen] Error fetching routine:', error);
-      Alert.alert('Error', 'No se pudo cargar la rutina. Intentá de nuevo.');
+      toast.error('No se pudo cargar la rutina. Intentá de nuevo.');
       setDetailVisible(false);
     } finally {
       setIsLoadingPreviewRoutine(false);
@@ -425,15 +424,15 @@ export default function FitnessScreen() {
     setViewingActiveRoutine(false);
   }, [setDetailVisible, setViewingActiveRoutine]);
 
-  const handleDiscardDraft = useCallback(() => {
-    Alert.alert(
-      'Descartar borrador',
-      '¿Querés eliminar el borrador? Esta acción no se puede deshacer.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Descartar', style: 'destructive', onPress: clearDraft },
-      ],
-    );
+  const handleDiscardDraft = useCallback(async () => {
+    const confirmed = await confirm({
+      title: 'Descartar borrador',
+      message: '¿Querés eliminar el borrador? Esta acción no se puede deshacer.',
+      confirmText: 'Descartar',
+      cancelText: 'Cancelar',
+      destructive: true,
+    });
+    if (confirmed) clearDraft();
   }, [clearDraft]);
 
   /* ── Registro del handler "Crear rutina" ──────────────────────────────── */

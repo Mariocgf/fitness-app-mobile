@@ -1,8 +1,10 @@
 import { ProfileModuleCard } from '@/src/components/features/profile/ProfileModuleCard';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { toast } from '@/src/components/ui/feedback';
 
 /**
  * Lista de sub-opciones del módulo Nutrición dentro del perfil.
@@ -22,12 +24,12 @@ export const NutritionSettingsView: React.FC = () => {
         <ProfileModuleCard
           icon="flag-outline"
           title="Sub objetivo"
-          onPress={() => Alert.alert('Sub objetivo', 'Próximamente.')}
+          onPress={() => toast.info('Próximamente.')}
         />
         <ProfileModuleCard
           icon="alert-circle-outline"
           title="Alergias alimenticias"
-          onPress={() => Alert.alert('Alergias alimenticias', 'Próximamente.')}
+          onPress={() => toast.info('Próximamente.')}
         />
         <ProfileModuleCard
           icon="restaurant-outline"

@@ -15,6 +15,7 @@ import './global.css';
 import '@/src/utils/icon-interop';
 
 import { FullPageLoader } from '@/src/components/common/FullPageLoader';
+import { FeedbackHost } from '@/src/components/ui/feedback';
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
 import { getOnboardingStatus, syncAuthenticatedUser } from '@/src/services/onboarding.service';
 import { destroyOfflineData } from '@/src/offline/repository';
@@ -310,6 +311,8 @@ export default function RootLayout() {
           >
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
               <RootNavigator />
+              {/* Hosts de feedback no bloqueante (toasts + confirmaciones in-app) */}
+              <FeedbackHost />
               {/* App dark-only: íconos/texto de la status bar siempre en claro para que se vean */}
               <StatusBar style="light" />
             </ThemeProvider>
