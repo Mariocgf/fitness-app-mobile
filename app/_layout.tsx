@@ -17,6 +17,7 @@ import '@/src/utils/icon-interop';
 import { FullPageLoader } from '@/src/components/common/FullPageLoader';
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
 import { getOnboardingStatus, syncAuthenticatedUser } from '@/src/services/onboarding.service';
+import { destroyOfflineData } from '@/src/offline/repository';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -119,8 +120,12 @@ function RootNavigator() {
         '@onboarding_health_config',
         '@onboarding_fitness_config',
         '@onboarding_nutrition_config',
-        '@onboarding_module_config_step'
+        '@onboarding_module_config_step',
+        '@active_modules',
+        '@user_routine',
+        '@nutrition_routine',
       ]).catch(() => {});
+      destroyOfflineData().catch(() => {});
       return;
     }
 

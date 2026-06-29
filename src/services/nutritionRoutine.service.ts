@@ -1,6 +1,27 @@
 import apiClient from '../api/client';
+import type { OfflineRequestOptions } from './routine.service';
 import { NutritionDayDto } from '../types/nutrition';
 import { NutritionRoutineDto, RoutineMealDetailDto } from '../types/nutritionRoutine';
+
+export interface OfflineNutritionRoutineBundleDto {
+  routine: NutritionRoutineDto;
+  mealDetails: Record<string, RoutineMealDetailDto>;
+}
+
+const buildOfflineHeaders = (options?: OfflineRequestOptions): Record<string, string> => {
+  const headers: Record<string, string> = {};
+
+  if (options?.clientOperationId) {
+    headers['Idempotency-Key'] = options.clientOperationId;
+    headers['X-Client-Operation-Id'] = options.clientOperationId;
+  }
+
+  if (options?.baseVersionId) {
+    headers['X-Base-Version-Id'] = options.baseVersionId;
+  }
+
+  return headers;
+};
 
 /** Normaliza respuestas de la API que pueden venir envueltas en { data: ... } */
 const unwrapApiData = <T>(value: T | { data: T }): T => {
@@ -37,6 +58,27 @@ export const getActiveNutritionRoutine = async (
 };
 
 /**
+ * Obtiene el bundle offline del plan activo con detalle/macros/receta de todas las comidas.
+ */
+export const getOfflineNutritionRoutineBundle = async (
+  token: string | null,
+): Promise<OfflineNutritionRoutineBundleDto | null> => {
+  try {
+    const { data } = await apiClient.get<
+      OfflineNutritionRoutineBundleDto | { data: OfflineNutritionRoutineBundleDto }
+    >('/api/offline/nutrition/active-routine', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return unwrapApiData(data);
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if (status === 404) return null;
+    if (status === 401) throw new Error('Sesión expirada. Iniciá sesión nuevamente.');
+    throw new Error('No pudimos descargar el plan offline. Intentá de nuevo.');
+  }
+};
+
+/**
  * Genera una nueva rutina alimenticia semanal usando IA.
  * Reemplaza la rutina activa anterior.
  */
@@ -67,6 +109,7 @@ export const logRoutineMeal = async (
   mealId: string,
   date: string,
   token: string | null,
+  options?: OfflineRequestOptions,
 ): Promise<NutritionDayDto> => {
   try {
     const { data } = await apiClient.post<NutritionDayDto | { data: NutritionDayDto }>(
@@ -74,7 +117,10 @@ export const logRoutineMeal = async (
       {},
       {
         params: { date },
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...buildOfflineHeaders(options),
+        },
       },
     );
     return unwrapApiData(data);

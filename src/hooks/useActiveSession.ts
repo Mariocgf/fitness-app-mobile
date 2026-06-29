@@ -3,6 +3,7 @@ import { ExerciseLog, SessionDay, SessionExercise, SessionExerciseEntry, Session
 import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
+import { useNetworkStatus } from './useNetworkStatus';
 import { useSessionAudio } from './useSessionAudio';
 
 export type Phase = 'COUNTDOWN' | 'EXERCISE' | 'REST' | 'SUMMARY';
@@ -86,6 +87,7 @@ export function useActiveSession({
   onFinishSession,
 }: UseActiveSessionProps): UseActiveSessionReturn {
   const { getToken } = useAuth();
+  const { isOnline } = useNetworkStatus();
 
 
   /* ── Estados ── */
@@ -144,7 +146,7 @@ export function useActiveSession({
     [currentSet, totalSets, exerciseIndex, exercises.length]
   );
 
-  const canUpdateRpe = !rpeSaved && !isAdjustingLoad && (rpe < 4 || rpe > 6);
+  const canUpdateRpe = isOnline && !rpeSaved && !isAdjustingLoad && (rpe < 4 || rpe > 6);
 
   const summaryStats = useMemo(() => {
     const exercisesTotal = day.exercises.length;
@@ -391,6 +393,14 @@ export function useActiveSession({
   }, [advanceAfterRest]);
 
   const handleSaveRpe = useCallback(async () => {
+    if (!isOnline) {
+      Alert.alert(
+        'Sin conexión',
+        'El ajuste dinámico de carga necesita conexión. Podés completar la sesión y se guardará offline.',
+      );
+      return;
+    }
+
     if (rpe >= 4 && rpe <= 6) {
       saveCurrentLog(rpe);
       setRpeSaved(true);
@@ -425,7 +435,7 @@ export function useActiveSession({
     } finally {
       setIsAdjustingLoad(false);
     }
-  }, [rpe, currentExercise.id, day.id, getToken, exerciseIndex, saveCurrentLog]);
+  }, [isOnline, rpe, currentExercise.id, day.id, getToken, exerciseIndex, saveCurrentLog]);
 
   const handleFinishSessionEarly = useCallback(() => {
     Alert.alert(

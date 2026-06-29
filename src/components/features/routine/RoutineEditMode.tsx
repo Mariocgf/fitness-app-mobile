@@ -8,10 +8,14 @@
 import { RoutineEditorView } from '@/src/components/features/routine/RoutineEditorView';
 import { useRoutineEditor } from '@/src/hooks/useRoutineEditor';
 import { useWeightInventory } from '@/src/hooks/use-weight-inventory';
+import {
+  downloadFitnessRoutineOffline,
+  enqueueRoutineUpdateOffline,
+} from '@/src/offline/service';
 import { updateRoutine } from '@/src/services/routine.service';
-import { CreateRoutineDay } from '@/src/types/create-routine';
-import { Routine } from '@/src/types/routine';
-import { routineToDraftDays } from '@/src/utils/routine-editor.utils';
+import { CreateRoutineDay, CreateRoutineExercise } from '@/src/types/create-routine';
+import { Routine, RoutineDay, RoutineExercise } from '@/src/types/routine';
+import { calcDayApproxTime, routineToDraftDays } from '@/src/utils/routine-editor.utils';
 import { getWeightOptions } from '@/src/utils/weight.utils';
 import { useAuth } from '@clerk/clerk-expo';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -24,9 +28,58 @@ interface RoutineEditModeProps {
   onExit: () => void;
   /** Se llamó tras guardar con éxito; recibe la rutina actualizada. */
   onRoutineUpdated: (routine: Routine) => void;
+  /** Offline: permite editar solo ejercicios existentes y encola el update. */
+  offlineLimited?: boolean;
 }
 
-export const RoutineEditMode: React.FC<RoutineEditModeProps> = ({ routine, onExit, onRoutineUpdated }) => {
+const draftExerciseToRoutineExercise = (
+  exercise: CreateRoutineExercise,
+  order: number,
+): RoutineExercise => ({
+  id: exercise.id,
+  exerciseId: exercise.exerciseId,
+  order: String(order),
+  name: exercise.name,
+  gifUrl: exercise.gifUrl,
+  sets: String(exercise.sets),
+  repType: exercise.repMode === 'secs' ? 'Timed' : 'Fixed',
+  minRep: null,
+  maxRep: null,
+  currentRep: exercise.repMode === 'reps' ? String(exercise.reps) : null,
+  durationSeconds: exercise.repMode === 'secs' ? String(exercise.reps) : null,
+  rest: String(exercise.restSeconds),
+  loadType: exercise.loadType,
+  plannedWeightKg: exercise.loadType === 'ExternalWeight' ? exercise.plannedWeightKg : null,
+  primaryMuscleGroup: null,
+});
+
+const buildOptimisticRoutine = (
+  routine: Routine,
+  name: string,
+  days: CreateRoutineDay[],
+): Routine => {
+  const routineDays: RoutineDay[] = days
+    .filter((day) => day.exercises.length > 0)
+    .map((day): RoutineDay => ({
+      id: day.id,
+      day: day.value,
+      approxTimeSession: `${calcDayApproxTime(day.exercises)} min aprox.`,
+      exercises: day.exercises.map(draftExerciseToRoutineExercise),
+    }));
+
+  return {
+    ...routine,
+    name: name.trim(),
+    days: routineDays,
+  };
+};
+
+export const RoutineEditMode: React.FC<RoutineEditModeProps> = ({
+  routine,
+  onExit,
+  onRoutineUpdated,
+  offlineLimited = false,
+}) => {
   const { getToken } = useAuth();
   const { inventory } = useWeightInventory();
 
@@ -64,6 +117,24 @@ export const RoutineEditMode: React.FC<RoutineEditModeProps> = ({ routine, onExi
     if (!editor.isValid || isSaving) return;
     setIsSaving(true);
     try {
+      if (offlineLimited) {
+        const updatePayload = editor.buildPayload(routine.isActive);
+        const optimisticRoutine = buildOptimisticRoutine(routine, editor.name, editor.days);
+        await enqueueRoutineUpdateOffline({
+          routineId: routine.id,
+          updatePayload,
+          offlineRoutine: optimisticRoutine,
+          baseVersionId: routine.activeVersionId ?? null,
+        });
+        await downloadFitnessRoutineOffline(null, optimisticRoutine);
+        Alert.alert(
+          'Guardado offline',
+          'Los cambios quedaron pendientes y se sincronizarán cuando vuelvas a tener conexión.',
+        );
+        onRoutineUpdated(optimisticRoutine);
+        return;
+      }
+
       const token = await getToken();
       const updated = await updateRoutine(routine.id, editor.buildPayload(routine.isActive), token);
       onRoutineUpdated(updated);
@@ -71,7 +142,14 @@ export const RoutineEditMode: React.FC<RoutineEditModeProps> = ({ routine, onExi
       Alert.alert('Error al actualizar', 'No se pudo guardar la rutina. Revisá tu conexión e intentá nuevamente.');
       setIsSaving(false);
     }
-  }, [editor.isValid, editor.buildPayload, isSaving, routine.id, routine.isActive, getToken, onRoutineUpdated]);
+  }, [
+    editor,
+    isSaving,
+    offlineLimited,
+    routine,
+    getToken,
+    onRoutineUpdated,
+  ]);
 
   return (
     <Animated.View style={[{ flex: 1 }, fadeStyle]}>
@@ -84,6 +162,7 @@ export const RoutineEditMode: React.FC<RoutineEditModeProps> = ({ routine, onExi
         saveLabel="Guardar cambios"
         onSave={handleSave}
         isSaving={isSaving}
+        offlineLimited={offlineLimited}
       />
     </Animated.View>
   );

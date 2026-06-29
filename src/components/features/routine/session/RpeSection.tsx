@@ -9,6 +9,7 @@ interface RpeSectionProps {
   disabled?: boolean;
   isLoading?: boolean;
   canUpdate: boolean;
+  isOffline?: boolean;
 }
 
 /**
@@ -24,6 +25,7 @@ export const RpeSection: React.FC<RpeSectionProps> = ({
   disabled = false,
   isLoading = false,
   canUpdate,
+  isOffline = false,
 }) => {
   return (
     <View>
@@ -50,6 +52,11 @@ export const RpeSection: React.FC<RpeSectionProps> = ({
           </Text>
         )}
       </TouchableOpacity>
+      {isOffline ? (
+        <Text className="text-zinc-500 text-xs text-center mt-2">
+          Offline: el ajuste de carga se bloquea, pero la sesión se puede guardar.
+        </Text>
+      ) : null}
     </View>
   );
 };

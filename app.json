@@ -47,7 +47,8 @@
         {
           "cameraPermission": "Permitir a frontend usar la cámara para escanear códigos de barras de alimentos."
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@clerk/clerk-expo';
 import React, {
   createContext,
@@ -16,9 +15,8 @@ import {
   getActiveNutritionRoutine,
   rejectNutritionRoutine,
 } from '../services/nutritionRoutine.service';
+import { getOfflineNutritionRoutine } from '../offline/service';
 import { NutritionRoutineDto } from '../types/nutritionRoutine';
-
-const STORAGE_KEY = '@nutrition_routine';
 
 interface NutritionRoutineContextValue {
   /** Rutina activa confirmada por el usuario */
@@ -70,7 +68,7 @@ export function NutritionRoutineProvider({ children }: { children: React.ReactNo
   const [isRejecting, setIsRejecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /** Carga la rutina activa desde el backend. AsyncStorage actúa como cache inicial mientras llega la respuesta. */
+  /** Carga la rutina activa desde el backend. Si falla, conserva el snapshot descargado para offline. */
   const refresh = useCallback(async () => {
     setError(null);
     try {
@@ -78,11 +76,6 @@ export function NutritionRoutineProvider({ children }: { children: React.ReactNo
       const active = await getActiveNutritionRoutine(token);
       if (!mountedRef.current) return;
       setRoutine(active);
-      if (active) {
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(active));
-      } else {
-        await AsyncStorage.removeItem(STORAGE_KEY);
-      }
     } catch (err: any) {
       if (mountedRef.current) {
         setError(err?.message ?? 'No pudimos cargar tu plan. Intentá de nuevo.');
@@ -92,20 +85,14 @@ export function NutritionRoutineProvider({ children }: { children: React.ReactNo
     }
   }, []);
 
-  /** Hidratación al montar: muestra cache local al instante y luego sincroniza con el backend */
+  /** Hidratación al montar: muestra snapshot offline si existe y luego sincroniza con backend. */
   useEffect(() => {
     mountedRef.current = true;
     setIsLoading(true);
 
-    AsyncStorage.getItem(STORAGE_KEY)
+    getOfflineNutritionRoutine()
       .then((stored) => {
-        if (stored && mountedRef.current) {
-          try {
-            setRoutine(JSON.parse(stored));
-          } catch {
-            // dato corrupto — ignorar, el refresh lo limpiará
-          }
-        }
+        if (stored && mountedRef.current) setRoutine(stored);
       })
       .catch(() => {})
       .finally(() => {
@@ -148,7 +135,6 @@ export function NutritionRoutineProvider({ children }: { children: React.ReactNo
       if (!mountedRef.current) return;
       setRoutine(active);
       setDraft(null);
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(active));
     } catch (err: any) {
       if (mountedRef.current) {
         setError(err?.message ?? 'No pudimos activar tu plan. Intentá de nuevo.');
@@ -181,7 +167,6 @@ export function NutritionRoutineProvider({ children }: { children: React.ReactNo
     setRoutine(null);
     setDraft(null);
     setError(null);
-    await AsyncStorage.removeItem(STORAGE_KEY);
   }, []);
 
   const value = useMemo(

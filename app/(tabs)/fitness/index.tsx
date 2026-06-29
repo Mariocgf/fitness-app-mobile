@@ -7,15 +7,21 @@ import { RoutineLibraryCard } from '@/src/components/features/routine/RoutineLib
 import { DraftCard } from '@/src/components/features/routine/DraftCard';
 import { RecentActivityCard } from '@/src/components/features/training-history/RecentActivityCard';
 import { useRoutineDraft } from '@/src/hooks/useRoutineDraft';
+import { useOfflineModuleStatus } from '@/src/hooks/useOfflineModuleStatus';
+import { useNetworkStatus } from '@/src/hooks/useNetworkStatus';
 import { useRoutinePreview } from '@/src/hooks/useRoutinePreview';
 import { useTrainingHistoryPreview } from '@/src/hooks/useTrainingHistoryPreview';
+import {
+  downloadFitnessRoutineOffline,
+  getOfflineFitnessRoutine,
+  syncOfflineOperations,
+} from '@/src/offline/service';
 import { activateRoutine, deleteRoutine, generateRoutine, getActiveRoutine, getRoutineById, regenerateRoutine } from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { Routine, RoutineSource, RoutineSummary } from '@/src/types/routine';
 import { TrainingHistorySession } from '@/src/types/training-history';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -32,6 +38,12 @@ export default function FitnessScreen() {
   const [cardState, setCardState] = useState<CardState>('initial');
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [isFetchingData, setIsFetchingData] = useState(true);
+  const [isDownloadingOffline, setIsDownloadingOffline] = useState(false);
+  const [isSyncingOffline, setIsSyncingOffline] = useState(false);
+  const [offlineError, setOfflineError] = useState<string | null>(null);
+  const { isOnline } = useNetworkStatus();
+  const { status: offlineStatus, refresh: refreshOfflineStatus } =
+    useOfflineModuleStatus('fitness-active-routine');
 
   /* ── Estado de vistas ─────────────────────────────────────────────────── */
   const [showRoutineDetail, setShowRoutineDetail] = useState(false);
@@ -51,8 +63,6 @@ export default function FitnessScreen() {
   const [selectedFullRoutine, setSelectedFullRoutine] = useState<Routine | null>(null);
   const [isLoadingPreviewRoutine, setIsLoadingPreviewRoutine] = useState(false);
   const [showPreviewDetail, setShowPreviewDetail] = useState(false);
-  const [previewCardLayout, setPreviewCardLayout] = useState<CardLayout | null>(null);
-  const previewCardRef = useRef<View>(null);
 
   const { setOnCreateRoutine, setDetailVisible, activeRoutine, setActiveRoutine, setViewingActiveRoutine, setIsCreatingRoutine } = useRoutineDetailContext();
   const activeRoutineRef = useRef(activeRoutine);
@@ -71,7 +81,7 @@ export default function FitnessScreen() {
   // Actualizar token cuando cambia
   useEffect(() => {
     getToken().then((t) => { setPreviewToken(t); });
-  }, [getToken]);
+  }, [getToken, setActiveRoutine]);
 
   /* ── Refs para callbacks estables ─────────────────────────────────────── */
   const setShowRef = useRef(setShowCreateRoutine);
@@ -93,12 +103,11 @@ export default function FitnessScreen() {
             return;
           }
 
-          // 2. Sin contexto: carga optimista desde AsyncStorage
-          const storedRoutine = await AsyncStorage.getItem('@user_routine');
+          // 2. Sin contexto: carga optimista desde SQLite solo si el usuario descargó offline.
+          const storedRoutine = await getOfflineFitnessRoutine();
           if (storedRoutine) {
-            const parsed = JSON.parse(storedRoutine) as Routine;
-            setRoutine(parsed);
-            setActiveRoutine(parsed);
+            setRoutine(storedRoutine);
+            setActiveRoutine(storedRoutine);
             setCardState('success');
           }
 
@@ -110,10 +119,8 @@ export default function FitnessScreen() {
           if (fetched) {
             setRoutine(fetched);
             setActiveRoutine(fetched);
-            await AsyncStorage.setItem('@user_routine', JSON.stringify(fetched));
             setCardState('success');
           } else {
-            await AsyncStorage.removeItem('@user_routine');
             setRoutine(null);
             setActiveRoutine(null);
             setCardState('initial');
@@ -166,7 +173,6 @@ export default function FitnessScreen() {
       const newRoutine = await generateRoutine(token);
       setRoutine(newRoutine);
       setActiveRoutine(newRoutine);
-      await AsyncStorage.setItem('@user_routine', JSON.stringify(newRoutine));
       setCardState('success');
     } catch (error) {
       logger.error(error);
@@ -181,13 +187,12 @@ export default function FitnessScreen() {
       const newRoutine = await regenerateRoutine(token);
       setRoutine(newRoutine);
       setActiveRoutine(newRoutine);
-      await AsyncStorage.setItem('@user_routine', JSON.stringify(newRoutine));
       setCardState('success');
     } catch (error) {
       logger.error(error);
       setCardState('success');
     }
-  }, [getToken]);
+  }, [getToken, setActiveRoutine]);
 
   const handleRoutineUpdated = useCallback(async (updated: Routine) => {
     const updateIfSameRoutine = (current: Routine | null) => (
@@ -210,12 +215,50 @@ export default function FitnessScreen() {
 
     if (!isActiveRoutineUpdate) return;
 
+    refreshOfflineStatus();
+  }, [refreshOfflineStatus, refreshPreview, setActiveRoutine]);
+
+  const handleDownloadOffline = useCallback(async () => {
+    const current = routineRef.current;
+    if (!current || isDownloadingOffline) return;
+    setIsDownloadingOffline(true);
+    setOfflineError(null);
     try {
-      await AsyncStorage.setItem('@user_routine', JSON.stringify(updated));
-    } catch (error) {
-      logger.error('No se pudo cachear la rutina actualizada:', error);
+      const token = await getToken();
+      await downloadFitnessRoutineOffline(token, current);
+      await refreshOfflineStatus();
+      Alert.alert('Listo', 'Tu rutina quedó disponible para usar offline.');
+    } catch (error: any) {
+      const message = error?.message ?? 'No pudimos descargar la rutina offline.';
+      setOfflineError(message);
+      Alert.alert('Error', message);
+    } finally {
+      setIsDownloadingOffline(false);
     }
-  }, [refreshPreview, setActiveRoutine]);
+  }, [getToken, isDownloadingOffline, refreshOfflineStatus]);
+
+  const handleSyncOffline = useCallback(async () => {
+    if (isSyncingOffline) return;
+    setIsSyncingOffline(true);
+    setOfflineError(null);
+    try {
+      const token = await getToken();
+      const result = await syncOfflineOperations(token);
+      await refreshOfflineStatus();
+      Alert.alert(
+        'Sincronización',
+        result.conflicts > 0
+          ? 'Hay conflictos que necesitan revisión.'
+          : `Sincronizadas: ${result.synced}. Fallidas: ${result.failed}.`,
+      );
+    } catch (error: any) {
+      const message = error?.message ?? 'No pudimos sincronizar ahora.';
+      setOfflineError(message);
+      Alert.alert('Error', message);
+    } finally {
+      setIsSyncingOffline(false);
+    }
+  }, [getToken, isSyncingOffline, refreshOfflineStatus]);
 
   const handleOpenCreate = useCallback(() => {
     const open = (layout: CardLayout) => {
@@ -277,7 +320,6 @@ export default function FitnessScreen() {
       setActiveRoutine(activated);
       setRoutine(activated);
       setCardState('success');
-      await AsyncStorage.setItem('@user_routine', JSON.stringify(activated));
       refreshPreview();
 
       setShowPreviewDetail(false);
@@ -316,7 +358,6 @@ export default function FitnessScreen() {
                 setRoutine(null);
                 setActiveRoutine(null);
                 setCardState('initial');
-                await AsyncStorage.removeItem('@user_routine');
               }
               // Cerrar vistas abiertas
               setShowRoutineDetail(false);
@@ -341,11 +382,6 @@ export default function FitnessScreen() {
     if (routine.isActive) {
       setRoutine(routine);
       setCardState('success');
-      try {
-        await AsyncStorage.setItem('@user_routine', JSON.stringify(routine));
-      } catch (error) {
-        logger.error('Error cacheando rutina creada:', error);
-      }
     }
     setShowCreateRoutine(false);
     setCreatedRoutine(routine);
@@ -379,7 +415,7 @@ export default function FitnessScreen() {
     } finally {
       setIsLoadingPreviewRoutine(false);
     }
-  }, [getToken, setDetailVisible]);
+  }, [getToken, setDetailVisible, setViewingActiveRoutine]);
 
   const handleClosePreviewDetail = useCallback(() => {
     setShowPreviewDetail(false);
@@ -387,7 +423,7 @@ export default function FitnessScreen() {
     setSelectedFullRoutine(null);
     setDetailVisible(false);
     setViewingActiveRoutine(false);
-  }, [setDetailVisible]);
+  }, [setDetailVisible, setViewingActiveRoutine]);
 
   const handleDiscardDraft = useCallback(() => {
     Alert.alert(
@@ -569,6 +605,19 @@ export default function FitnessScreen() {
           onRoutineUpdated={handleRoutineUpdated}
           onActivate={!routineRef.current?.isActive ? () => handleActivateRoutine(routineRef.current!) : undefined}
           onDelete={() => handleDeleteRoutine(routineRef.current!)}
+          offlineInfo={{
+            isAvailable: offlineStatus.isAvailable,
+            downloadedAt: offlineStatus.downloadedAt,
+            pendingCount: offlineStatus.pendingCount,
+            failedCount: offlineStatus.failedCount,
+            conflictCount: offlineStatus.conflictCount,
+            isDownloading: isDownloadingOffline,
+            isSyncing: isSyncingOffline,
+            error: offlineError,
+            isOnline,
+          }}
+          onDownloadOffline={handleDownloadOffline}
+          onSyncOffline={handleSyncOffline}
         />
       )}
 
@@ -598,6 +647,19 @@ export default function FitnessScreen() {
           onRoutineUpdated={handleRoutineUpdated}
           onActivate={!createdRoutine.isActive ? () => handleActivateRoutine(createdRoutine) : undefined}
           onDelete={() => handleDeleteRoutine(createdRoutine)}
+          offlineInfo={{
+            isAvailable: offlineStatus.isAvailable,
+            downloadedAt: offlineStatus.downloadedAt,
+            pendingCount: offlineStatus.pendingCount,
+            failedCount: offlineStatus.failedCount,
+            conflictCount: offlineStatus.conflictCount,
+            isDownloading: isDownloadingOffline,
+            isSyncing: isSyncingOffline,
+            error: offlineError,
+            isOnline,
+          }}
+          onDownloadOffline={handleDownloadOffline}
+          onSyncOffline={handleSyncOffline}
         />
       )}
 
@@ -617,6 +679,19 @@ export default function FitnessScreen() {
           onRoutineUpdated={handleRoutineUpdated}
           onActivate={!selectedFullRoutine.isActive ? () => handleActivateRoutine(selectedFullRoutine) : undefined}
           onDelete={() => handleDeleteRoutine(selectedFullRoutine)}
+          offlineInfo={selectedFullRoutine.isActive ? {
+            isAvailable: offlineStatus.isAvailable,
+            downloadedAt: offlineStatus.downloadedAt,
+            pendingCount: offlineStatus.pendingCount,
+            failedCount: offlineStatus.failedCount,
+            conflictCount: offlineStatus.conflictCount,
+            isDownloading: isDownloadingOffline,
+            isSyncing: isSyncingOffline,
+            error: offlineError,
+            isOnline,
+          } : undefined}
+          onDownloadOffline={selectedFullRoutine.isActive ? handleDownloadOffline : undefined}
+          onSyncOffline={selectedFullRoutine.isActive ? handleSyncOffline : undefined}
         />
       )}
 

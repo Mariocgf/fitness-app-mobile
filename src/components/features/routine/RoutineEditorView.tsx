@@ -47,6 +47,7 @@ interface RoutineEditorViewProps {
   saveLabel: string;
   onSave: () => void;
   isSaving: boolean;
+  offlineLimited?: boolean;
 }
 
 export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
@@ -58,11 +59,13 @@ export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
   saveLabel,
   onSave,
   isSaving,
+  offlineLimited = false,
 }) => {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
 
   const { days, availableDays, isValid } = editor;
+  const visibleAvailableDays = offlineLimited ? [] : availableDays;
 
   const [isDayPickerOpen, setIsDayPickerOpen] = useState(false);
   const [isAddExerciseOpen, setIsAddExerciseOpen] = useState(false);
@@ -71,7 +74,7 @@ export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
 
   /* ── Días disponibles + slot "+" ─────────────────────────────────────── */
 
-  const hasAddSlot = availableDays.length > 0;
+  const hasAddSlot = visibleAvailableDays.length > 0;
   const totalSlots = days.length + (hasAddSlot ? 1 : 0);
   const maxIndex = Math.max(0, days.length - 1 + (hasAddSlot ? 1 : 0));
   const clampedIndex = Math.min(editor.activeDayIndex, maxIndex);
@@ -245,13 +248,14 @@ export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
                   onOpenPicker={(field) => setActivePicker({ exId: item.id, field })}
                   onRemove={editor.removeExercise}
                   onReplace={(id) => editor.setReplacingExerciseId(id)}
+                  canReplace={!offlineLimited}
                   onToggleRepMode={editor.toggleRepMode}
                   onDrag={drag}
                   isActive={isActive}
                 />
               </ScaleDecorator>
             )}
-            ListFooterComponent={
+            ListFooterComponent={!offlineLimited ? (
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() => setIsAddExerciseOpen(true)}
@@ -260,7 +264,14 @@ export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
                 <Ionicons name="add" size={26} className="text-lime-400" />
                 <Text className="text-zinc-400 text-sm mt-1 font-medium">Agregar ejercicio</Text>
               </TouchableOpacity>
-            }
+            ) : (
+              <View className="bg-zinc-900/70 rounded-2xl p-4 border border-white/10 items-center justify-center mt-1">
+                <Ionicons name="cloud-offline-outline" size={24} className="text-zinc-500" />
+                <Text className="text-zinc-500 text-sm mt-1 text-center">
+                  Offline: podés ajustar o quitar ejercicios existentes, pero no agregar ni reemplazar.
+                </Text>
+              </View>
+            )}
           />
         ) : (
           <View className="flex-1 items-center justify-center">
@@ -291,14 +302,14 @@ export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
       {/* Selector de día */}
       <EditDayPickerModal
         visible={isDayPickerOpen}
-        availableDays={availableDays}
+        availableDays={visibleAvailableDays}
         onSelect={(value, label) => { editor.addDay(value, label); setIsDayPickerOpen(false); }}
         onClose={() => setIsDayPickerOpen(false)}
       />
 
       {/* Agregar ejercicio */}
       <AddExerciseSheet
-        visible={isAddExerciseOpen}
+        visible={!offlineLimited && isAddExerciseOpen}
         onClose={() => setIsAddExerciseOpen(false)}
         onAdd={editor.handleAddExercise}
         excludedExerciseIds={activeDay?.exercises.map((ex) => ex.exerciseId) ?? []}
@@ -306,7 +317,7 @@ export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
 
       {/* Reemplazar ejercicio */}
       <AddExerciseSheet
-        visible={editor.replacingExerciseId !== null}
+        visible={!offlineLimited && editor.replacingExerciseId !== null}
         onClose={() => editor.setReplacingExerciseId(null)}
         onAdd={editor.handleReplaceExercise}
         confirmLabel="Cambiar"

@@ -1,7 +1,7 @@
 import { useAuth } from '@clerk/clerk-expo';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { getOfflineFitnessRoutine } from '../offline/service';
 import { getActiveRoutine } from '../services/routine.service';
 import { fetchTrainingHistory } from '../services/training-history.service';
 import {
@@ -80,10 +80,10 @@ export function useHomeDashboard(): UseHomeDashboardReturn {
   const loadRoutine = useCallback(async () => {
     setIsLoadingRoutine(true);
     try {
-      // Hidratamos rápido desde el cache local para no mostrar vacío.
-      const stored = await AsyncStorage.getItem('@user_routine');
+      // Hidratamos rápido desde SQLite solo si el usuario descargó la rutina offline.
+      const stored = await getOfflineFitnessRoutine();
       if (stored && mountedRef.current) {
-        setRoutine(JSON.parse(stored) as Routine);
+        setRoutine(stored);
       }
 
       const token = await getTokenRef.current();
@@ -106,11 +106,6 @@ export function useHomeDashboard(): UseHomeDashboardReturn {
       if (routineResult.status === 'fulfilled') {
         const fetched = routineResult.value;
         setRoutine(fetched);
-        if (fetched) {
-          await AsyncStorage.setItem('@user_routine', JSON.stringify(fetched));
-        } else {
-          await AsyncStorage.removeItem('@user_routine');
-        }
       }
 
       if (historyResult.status === 'fulfilled') {

@@ -1,5 +1,6 @@
 import { SessionHeader } from '@/src/components/common/SessionHeader';
 import { useActiveSession } from '@/src/hooks/useActiveSession';
+import { useNetworkStatus } from '@/src/hooks/useNetworkStatus';
 import { SessionDay, SessionLog } from '@/src/types/session';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
@@ -32,6 +33,7 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
   onCancel,
 }) => {
   const insets = useSafeAreaInsets();
+  const { isOnline } = useNetworkStatus();
   const session = useActiveSession({ routineId, day, onFinishSession, onCancel });
 
   if (!session.currentExercise && session.phase !== 'SUMMARY') return null;
@@ -93,6 +95,7 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
             rpeDisabled={session.rpeSaved}
             isAdjustingLoad={session.isAdjustingLoad}
             canUpdateRpe={session.canUpdateRpe}
+            isOffline={!isOnline}
             repetitionMode={session.repetitionMode}
             partialReps={session.partialReps}
             onPartialRepsChange={session.setPartialReps}

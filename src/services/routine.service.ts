@@ -15,6 +15,26 @@ import {
 import { SessionLog } from '../types/session';
 import { ExerciseLoadType, capitalize } from '../utils/format.utils';
 
+export interface OfflineRequestOptions {
+  clientOperationId?: string | null;
+  baseVersionId?: string | null;
+}
+
+const buildOfflineHeaders = (options?: OfflineRequestOptions): Record<string, string> => {
+  const headers: Record<string, string> = {};
+
+  if (options?.clientOperationId) {
+    headers['Idempotency-Key'] = options.clientOperationId;
+    headers['X-Client-Operation-Id'] = options.clientOperationId;
+  }
+
+  if (options?.baseVersionId) {
+    headers['X-Base-Version-Id'] = options.baseVersionId;
+  }
+
+  return headers;
+};
+
 /** Payload de un ejercicio para crear rutina manualmente */
 export interface CreateRoutineExercisePayload {
   exerciseId: string;
@@ -132,7 +152,8 @@ export const getActiveRoutine = async (
  */
 export const saveSession = async (
   log: SessionLog,
-  token: string | null
+  token: string | null,
+  options?: OfflineRequestOptions,
 ): Promise<void> => {
   await apiClient.post(
     '/api/Routine/sessions',
@@ -140,6 +161,7 @@ export const saveSession = async (
     {
       headers: {
         Authorization: `Bearer ${token}`,
+        ...buildOfflineHeaders(options),
       },
     }
   );
@@ -256,11 +278,15 @@ export const updateRoutine = async (
   routineId: string,
   payload: CreateRoutinePayload,
   token: string | null,
+  options?: OfflineRequestOptions,
 ): Promise<Routine> => {
   const url = `/api/Routine/${routineId}`;
   try {
     const { data } = await apiClient.put<Routine>(url, payload, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...buildOfflineHeaders(options),
+      },
     });
     return capitalizeRoutineNames(data);
   } catch (error) {

@@ -19,6 +19,7 @@ interface RestPhaseProps {
   rpeDisabled: boolean;
   isAdjustingLoad: boolean;
   canUpdateRpe: boolean;
+  isOffline?: boolean;
   repetitionMode: RepetitionMode;
   partialReps: number;
   onPartialRepsChange: (value: number) => void;
@@ -43,6 +44,7 @@ export const RestPhase: React.FC<RestPhaseProps> = ({
   rpeDisabled,
   isAdjustingLoad,
   canUpdateRpe,
+  isOffline = false,
   repetitionMode,
   partialReps,
   onPartialRepsChange,
@@ -78,9 +80,10 @@ export const RestPhase: React.FC<RestPhaseProps> = ({
           onRpeChange={onRpeChange}
           onSave={onSaveRpe}
           disabled={rpeDisabled}
-          isLoading={isAdjustingLoad}
-          canUpdate={canUpdateRpe}
-        />
+        isLoading={isAdjustingLoad}
+        canUpdate={canUpdateRpe}
+        isOffline={isOffline}
+      />
       </View>
 
       {/* Repeticiones realizadas (solo si la serie fue incompleta) */}

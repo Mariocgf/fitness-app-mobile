@@ -12,6 +12,7 @@ interface EditExerciseCardProps {
   onOpenPicker: (field: 'sets' | 'reps' | 'restSeconds' | 'weight') => void;
   onRemove: (exId: string) => void;
   onReplace: (exId: string) => void;
+  canReplace?: boolean;
   onToggleRepMode: (exId: string) => void;
   onDrag: () => void;
   isActive: boolean;
@@ -47,13 +48,13 @@ const EditStat = ({
  * derecha para cambiar/eliminar y menú de 3 puntos con las mismas acciones.
  */
 export const EditExerciseCard: React.FC<EditExerciseCardProps> = ({
-  exercise, index, weightLabel, onOpenPicker, onRemove, onReplace, onToggleRepMode, onDrag, isActive,
+  exercise, index, weightLabel, onOpenPicker, onRemove, onReplace, canReplace = true, onToggleRepMode, onDrag, isActive,
 }) => {
   const swipeableRef = useRef<Swipeable>(null);
 
   const openMenu = () => {
     Alert.alert(exercise.name, undefined, [
-      { text: 'Cambiar ejercicio', onPress: () => onReplace(exercise.id) },
+      ...(canReplace ? [{ text: 'Cambiar ejercicio', onPress: () => onReplace(exercise.id) }] : []),
       { text: `Peso: ${weightLabel}`, onPress: () => onOpenPicker('weight') },
       { text: 'Eliminar', style: 'destructive', onPress: () => onRemove(exercise.id) },
       { text: 'Cancelar', style: 'cancel' },
@@ -62,12 +63,14 @@ export const EditExerciseCard: React.FC<EditExerciseCardProps> = ({
 
   const renderRightActions = () => (
     <View className="flex-row ml-3 mb-3 gap-2">
-      <TouchableOpacity
-        onPress={() => { swipeableRef.current?.close(); onReplace(exercise.id); }}
-        className="bg-blue-500 rounded-2xl items-center justify-center px-4"
-      >
-        <Ionicons name="swap-horizontal" size={22} color="#fff" />
-      </TouchableOpacity>
+      {canReplace && (
+        <TouchableOpacity
+          onPress={() => { swipeableRef.current?.close(); onReplace(exercise.id); }}
+          className="bg-blue-500 rounded-2xl items-center justify-center px-4"
+        >
+          <Ionicons name="swap-horizontal" size={22} color="#fff" />
+        </TouchableOpacity>
+      )}
       <TouchableOpacity
         onPress={() => onRemove(exercise.id)}
         className="bg-red-500 rounded-2xl items-center justify-center px-4"

@@ -110,6 +110,19 @@ interface RoutineDetailViewProps {
   onRoutineUpdated: (routine: Routine) => void;
   onDelete?: () => void;
   onActivate?: () => void;
+  offlineInfo?: {
+    isAvailable: boolean;
+    downloadedAt: string | null;
+    pendingCount: number;
+    failedCount: number;
+    conflictCount: number;
+    isDownloading: boolean;
+    isSyncing: boolean;
+    error: string | null;
+    isOnline: boolean;
+  };
+  onDownloadOffline?: () => void;
+  onSyncOffline?: () => void;
 }
 
 /* ── Componente principal ─────────────────────────────────────────────────── */
@@ -124,6 +137,9 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
   onRoutineUpdated,
   onDelete,
   onActivate,
+  offlineInfo,
+  onDownloadOffline,
+  onSyncOffline,
 }) => {
   /* ── Estado de versionado ─────────────────────────────────────────────── */
   const [isVersionsOpen, setIsVersionsOpen] = useState(false);
@@ -132,6 +148,8 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
   const [versionAction, setVersionAction] = useState<'activate' | 'restore' | null>(null);
 
   const isPreviewing = previewVersion !== null;
+  const isOfflineActiveMode =
+    offlineInfo?.isOnline === false && offlineInfo.isAvailable && routine.isActive;
   const activeVersionId = routine.activeVersionId ?? null;
   const latestVersionId = routine.latestVersionId ?? null;
   // La versión en preview trae su propio `isActive` → no dependemos de que la rutina
@@ -503,6 +521,30 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
       destructive: boolean;
     }[] = [];
 
+    if (routine.isActive && onDownloadOffline) {
+      items.push({
+        icon: offlineInfo?.isAvailable ? 'cloud-done-outline' : 'download-outline',
+        label: offlineInfo?.isAvailable ? 'Actualizar offline' : 'Descargar offline',
+        onPress: () => { close(); onDownloadOffline(); },
+        destructive: false,
+      });
+    }
+
+    if (
+      routine.isActive &&
+      onSyncOffline &&
+      ((offlineInfo?.pendingCount ?? 0) > 0 ||
+        (offlineInfo?.failedCount ?? 0) > 0 ||
+        (offlineInfo?.conflictCount ?? 0) > 0)
+    ) {
+      items.push({
+        icon: 'sync-outline',
+        label: 'Sincronizar ahora',
+        onPress: () => { close(); onSyncOffline(); },
+        destructive: false,
+      });
+    }
+
     // Versiones: disponible para cualquier rutina (el historial es por rutina).
     items.push({
       icon: 'layers-outline',
@@ -513,7 +555,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
 
     // Acciones de entrenamiento: solo aplican sobre la rutina activa (no en la
     // vista de preview/readOnly de una rutina no activa).
-    if (!readOnly) {
+    if (!readOnly && !isOfflineActiveMode) {
       items.push({
         icon: 'refresh',
         label: 'Regenerar rutina',
@@ -529,15 +571,17 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
     }
 
     if (routine.source === 'Manual') {
-      items.push({
-        icon: 'sparkles',
-        label: 'Adaptar con IA',
-        onPress: () => { close(); openAdaptModal(); },
-        destructive: false,
-      });
+      if (!isOfflineActiveMode) {
+        items.push({
+          icon: 'sparkles',
+          label: 'Adaptar con IA',
+          onPress: () => { close(); openAdaptModal(); },
+          destructive: false,
+        });
+      }
       items.push({
         icon: 'create-outline',
-        label: 'Editar rutina',
+        label: isOfflineActiveMode ? 'Editar offline' : 'Editar rutina',
         onPress: () => { close(); setIsEditMode(true); },
         destructive: false,
       });
@@ -567,7 +611,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
     isSwapMode, selectedForSwap.size, loadingItems.size, suggestions,
     onRegenerate, enterSwapMode, requestSuggestions, exitSwapMode,
     routine.source, routine.isActive, onActivate, onDelete, openAdaptModal,
-    readOnly,
+    readOnly, isOfflineActiveMode, offlineInfo, onDownloadOffline, onSyncOffline,
   ]);
 
   /* ── Estilos animados ─────────────────────────────────────────────────── */
@@ -607,6 +651,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
           routine={routine}
           onExit={() => setIsEditMode(false)}
           onRoutineUpdated={(updated) => { onRoutineUpdated(updated); setIsEditMode(false); }}
+          offlineLimited={isOfflineActiveMode}
         />
       ) : (
       <Animated.View style={[{ flex: 1 }, contentOpacity]}>
@@ -659,6 +704,43 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
               </View>
             )
           ))}
+
+          {routine.isActive && offlineInfo ? (
+            <View className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2">
+              <View className="flex-row items-center gap-2">
+                <Ionicons
+                  name={
+                    offlineInfo.conflictCount > 0
+                      ? 'warning-outline'
+                      : offlineInfo.isAvailable
+                        ? 'cloud-done-outline'
+                        : 'cloud-download-outline'
+                  }
+                  size={17}
+                  color={offlineInfo.conflictCount > 0 ? '#f59e0b' : '#a3e635'}
+                />
+                <Text className="flex-1 text-zinc-300 text-xs font-semibold">
+                  {offlineInfo.conflictCount > 0
+                    ? 'Conflicto pendiente de revisión'
+                    : offlineInfo.isAvailable
+                      ? `Disponible offline${offlineInfo.downloadedAt ? ` · ${new Date(offlineInfo.downloadedAt).toLocaleDateString('es-UY')}` : ''}`
+                      : 'Todavía no descargada para offline'}
+                </Text>
+                {offlineInfo.pendingCount > 0 || offlineInfo.failedCount > 0 ? (
+                  <Text className="text-amber-400 text-xs font-semibold">
+                    {offlineInfo.pendingCount + offlineInfo.failedCount} pendiente
+                  </Text>
+                ) : null}
+              </View>
+              {offlineInfo.error ? (
+                <Text className="text-rose-400 text-xs mt-1">{offlineInfo.error}</Text>
+              ) : isOfflineActiveMode ? (
+                <Text className="text-zinc-500 text-xs mt-1">
+                  Modo offline: se bloquean IA, cambios de ejercicios y ajuste de carga.
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
         </View>
 
         {/* ── Sección del día (swipeable, circular) ─────────────────────── */}

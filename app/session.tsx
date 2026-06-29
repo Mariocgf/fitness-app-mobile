@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { View, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActiveSessionView } from '@/src/components/features/routine/session/ActiveSessionView';
+import { useNetworkStatus } from '@/src/hooks/useNetworkStatus';
+import { enqueueTrainingSessionOffline } from '@/src/offline/service';
 import { saveSession } from '@/src/services/routine.service';
 import { useAuth } from '@clerk/clerk-expo';
 import { SessionDay, SessionLog } from '@/src/types/session';
@@ -17,6 +19,7 @@ export default function SessionScreen() {
   }>();
   const { getToken } = useAuth();
   const router = useRouter();
+  const { isOnline } = useNetworkStatus();
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -39,8 +42,21 @@ export default function SessionScreen() {
     }
   });
 
-  const handleFinishSession = (log: SessionLog) => {
+  const handleFinishSession = async (log: SessionLog) => {
     setIsSaving(true);
+    if (!isOnline) {
+      try {
+        await enqueueTrainingSessionOffline(log);
+        Alert.alert('Guardado offline', 'La sesión se sincronizará cuando vuelva la conexión.', [
+          { text: 'Ok', onPress: () => router.back() }
+        ]);
+      } catch (error) {
+        logger.error(error);
+        Alert.alert('Error', 'No se pudo guardar la sesión offline.');
+        setIsSaving(false);
+      }
+      return;
+    }
     mutation.mutate(log);
   };
 

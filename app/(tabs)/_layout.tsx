@@ -1,4 +1,5 @@
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
+import { OfflineSyncGate } from '@/src/offline/OfflineSyncGate';
 import { NutritionRoutineProvider } from '@/src/store/nutrition-routine-context';
 import { RoutineDetailProvider } from '@/src/store/routine-detail-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +22,7 @@ export default function TabLayout() {
   return (
     <RoutineDetailProvider>
       <NutritionRoutineProvider>
+        <OfflineSyncGate />
         <Tabs
             screenOptions={{
               headerShown: false,

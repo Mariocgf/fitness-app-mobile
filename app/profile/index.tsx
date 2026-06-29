@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ProfileIdentityHeader } from '@/src/components/features/profile/ProfileIdentityHeader';
 import { ProfileModuleCard } from '@/src/components/features/profile/ProfileModuleCard';
+import { destroyOfflineData, getOfflineOperationCounts } from '@/src/offline/repository';
 import { getActiveModules } from '@/src/services/module.service';
 import { ActiveModule } from '@/src/types/module';
 
@@ -46,8 +47,20 @@ export default function ProfileScreen() {
     if (isLoaded) fetchModules();
   }, [isLoaded]);
 
-  const handleSignOut = () => {
-    Alert.alert('Cerrar sesión', '¿Estás seguro que querés cerrar sesión?', [
+  const handleSignOut = async () => {
+    const counts = await getOfflineOperationCounts().catch(() => ({
+      pendingCount: 0,
+      failedCount: 0,
+      conflictCount: 0,
+    }));
+    const pendingTotal = counts.pendingCount + counts.failedCount + counts.conflictCount;
+
+    Alert.alert(
+      'Cerrar sesión',
+      pendingTotal > 0
+        ? `Tenés ${pendingTotal} cambio(s) offline sin sincronizar. Si cerrás sesión se borrarán del dispositivo.`
+        : '¿Estás seguro que querés cerrar sesión?',
+      [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Cerrar sesión',
@@ -61,7 +74,11 @@ export default function ProfileScreen() {
             '@onboarding_fitness_config',
             '@onboarding_nutrition_config',
             '@onboarding_module_config_step',
+            '@active_modules',
+            '@user_routine',
+            '@nutrition_routine',
           ]);
+          await destroyOfflineData();
           signOut();
         },
       },

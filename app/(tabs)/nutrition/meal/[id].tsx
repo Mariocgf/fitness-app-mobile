@@ -4,6 +4,8 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 
 import { RoutineMealDetailView } from '@/src/components/features/nutrition/RoutineMealDetailView';
 import { useRoutineMealDetail } from '@/src/hooks/useRoutineMealDetail';
+import { useNetworkStatus } from '@/src/hooks/useNetworkStatus';
+import { enqueueNutritionPlanMealLogOffline } from '@/src/offline/service';
 import { logRoutineMeal } from '@/src/services/nutritionRoutine.service';
 import { useNutritionRoutineContext } from '@/src/store/nutrition-routine-context';
 
@@ -16,6 +18,7 @@ export default function RoutineMealDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { routine } = useNutritionRoutineContext();
   const { getToken } = useAuth();
+  const { isOnline } = useNetworkStatus();
 
   const { detail, isLoading, error, refetch } = useRoutineMealDetail(id ?? '');
 
@@ -37,6 +40,18 @@ export default function RoutineMealDetailScreen() {
     setIsLogging(true);
     setLogError(null);
     try {
+      if (!isOnline && summary) {
+        await enqueueNutritionPlanMealLogOffline({
+          mealId: id,
+          date: getTodayIso(),
+          routineId: routine?.id ?? null,
+          mealName: summary.name,
+          mealType: summary.type,
+        });
+        if (mountedRef.current) router.back();
+        return;
+      }
+
       const token = await getToken();
       await logRoutineMeal(id, getTodayIso(), token);
       if (mountedRef.current) router.back();
@@ -47,7 +62,7 @@ export default function RoutineMealDetailScreen() {
     } finally {
       if (mountedRef.current) setIsLogging(false);
     }
-  }, [id, isLogging, getToken, router]);
+  }, [id, isLogging, isOnline, summary, routine?.id, getToken, router]);
 
   return (
     <RoutineMealDetailView

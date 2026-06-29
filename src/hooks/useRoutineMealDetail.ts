@@ -2,6 +2,7 @@ import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getRoutineMealDetail } from '../services/nutritionRoutine.service';
+import { getOfflineRoutineMealDetail } from '../offline/service';
 import { RoutineMealDetailDto } from '../types/nutritionRoutine';
 
 interface UseRoutineMealDetailReturn {
@@ -34,6 +35,15 @@ export function useRoutineMealDetail(mealId: string): UseRoutineMealDetailReturn
       const data = await getRoutineMealDetail(mealId, token);
       if (mountedRef.current) setDetail(data);
     } catch (err: any) {
+      const offlineDetail = await getOfflineRoutineMealDetail(mealId);
+      if (offlineDetail) {
+        if (mountedRef.current) {
+          setDetail(offlineDetail);
+          setError(null);
+        }
+        return;
+      }
+
       if (mountedRef.current) {
         setError(err?.message ?? 'No pudimos cargar el detalle. Intentá de nuevo.');
       }
