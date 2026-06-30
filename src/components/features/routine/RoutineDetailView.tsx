@@ -949,7 +949,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
               )}
             </TouchableOpacity>
           </View>
-        ) : (!isGenerating && !readOnly && (
+        ) : (!isGenerating && !readOnly && (!isSwapMode || hasSwapActivity) && (
           <View
             className="absolute w-full px-4"
             style={{ bottom: insets.bottom + TAB_BAR_HEIGHT + 8 }}

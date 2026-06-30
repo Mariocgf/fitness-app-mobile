@@ -164,9 +164,18 @@ export default function FitnessScreen() {
     if (!openRoutineId || isFetchingData || !routine) return;
     // Limpiamos el parámetro para no reabrir en re-renders / navegaciones futuras
     router.setParams({ openRoutineId: undefined });
+    // Cerramos cualquier otro detalle abierto (preview de rutina X, recién creada o
+    // creador). Si no, su overlay queda ENCIMA de la activa y el usuario sigue viendo
+    // la rutina X (o su edición) hasta volver atrás.
+    setShowPreviewDetail(false);
+    setSelectedFullRoutine(null);
+    setSelectedPreviewRoutine(null);
+    setCreatedRoutine(null);
+    setShowCreateRoutine(false);
+    setIsCreatingRoutine(false);
     // Esperamos un frame para asegurar que la card esté montada y medible
     requestAnimationFrame(() => handleViewPlan());
-  }, [openRoutineId, routine, isFetchingData, handleViewPlan, router]);
+  }, [openRoutineId, routine, isFetchingData, handleViewPlan, router, setIsCreatingRoutine]);
 
   const handleGenerate = async () => {
     setCardState('loading');

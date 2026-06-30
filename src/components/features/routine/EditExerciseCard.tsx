@@ -9,6 +9,13 @@ import { Swipeable } from 'react-native-gesture-handler';
 interface EditExerciseCardProps {
   exercise: CreateRoutineExercise;
   index: number;
+  /**
+   * True si, según el equipamiento del ejercicio y el inventario del usuario,
+   * existe alguna opción de peso real (no solo "Peso corporal"). Cuando es false,
+   * la card muestra "Corporal" aunque el dato traiga plannedWeightKg, para no
+   * mostrar un peso que el picker no permite seleccionar.
+   */
+  canUseWeight?: boolean;
   onOpenPicker: (field: 'sets' | 'reps' | 'restSeconds' | 'weight') => void;
   onRemove: (exId: string) => void;
   onReplace: (exId: string) => void;
@@ -55,15 +62,17 @@ const EditStat = ({
  * Card de ejercicio del modo edición de rutina (dark zinc). Dos filas: arriba la
  * identidad (handle de drag, orden, imagen, nombre y menú) y abajo una fila de
  * stats con aire (Sets, Reps/Seg, Rest, Peso) que al tocar abren el wheel picker.
- * El peso siempre se muestra como un stat más, leído de plannedWeightKg.
+ * El peso se lee de plannedWeightKg, pero solo se muestra como kg si el ejercicio
+ * admite peso real (canUseWeight); si no, se muestra "Corporal".
  */
 export const EditExerciseCard: React.FC<EditExerciseCardProps> = ({
-  exercise, index, onOpenPicker, onRemove, onReplace, canReplace = true, onToggleRepMode, onDrag, isActive,
+  exercise, index, canUseWeight = true, onOpenPicker, onRemove, onReplace, canReplace = true, onToggleRepMode, onDrag, isActive,
 }) => {
   const swipeableRef = useRef<Swipeable>(null);
   const { showActionSheetWithOptions } = useActionSheet();
 
-  const hasWeight = exercise.loadType === 'ExternalWeight' && exercise.plannedWeightKg != null;
+  const hasWeight =
+    canUseWeight && exercise.loadType === 'ExternalWeight' && exercise.plannedWeightKg != null;
   const weightValue = hasWeight ? `${exercise.plannedWeightKg} kg` : 'Corporal';
 
   const openMenu = () => {
