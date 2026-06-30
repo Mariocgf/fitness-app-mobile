@@ -1,5 +1,6 @@
 import apiClient from "../api/client";
 import {
+  AiConsentPayload,
   ClinicalProfileDto,
   ClinicalProfilePayload,
   ClinicalReadingDto,
@@ -54,18 +55,19 @@ export const updateClinicalProfile = async (
 };
 
 /**
- * Activa o desactiva el consentimiento de uso de datos clínicos por la IA.
- * Crea el perfil si no existía. Devuelve el perfil actualizado.
- * @param enabled Nuevo estado del consentimiento.
+ * Setea el master switch y el consentimiento por parámetro de uso por la IA.
+ * Se envía el estado final completo (no incremental). Crea el perfil si no existía.
+ * Devuelve el perfil actualizado.
+ * @param payload Master switch + consentimiento por cada parámetro clínico.
  * @param token Token de autenticación de Clerk.
  */
 export const updateAiConsent = async (
-  enabled: boolean,
+  payload: AiConsentPayload,
   token: string | null,
 ): Promise<ClinicalProfileDto> => {
   const { data } = await apiClient.put<ClinicalProfileDto>(
     "/api/clinical/ai-consent",
-    { enabled },
+    payload,
     { headers: { Authorization: `Bearer ${token}` } },
   );
   return unwrap<ClinicalProfileDto>(data, "hasGlucose");

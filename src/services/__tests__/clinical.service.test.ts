@@ -22,14 +22,24 @@ describe("clinical.service", () => {
 
   // ─── Perfil ────────────────────────────────────────────────────────────────
 
+  const fullProfile = {
+    bloodType: "O" as const,
+    rhFactor: "Positive" as const,
+    hasGlucose: true,
+    hasTotalCholesterol: false,
+    hasHdl: false,
+    hasLdl: false,
+    hasTriglycerides: false,
+    allowAiUsage: false,
+    allowAiGlucose: false,
+    allowAiTotalCholesterol: false,
+    allowAiHdl: false,
+    allowAiLdl: false,
+    allowAiTriglycerides: false,
+  };
+
   it("debe obtener el perfil clínico con enums string (respuesta plana)", async () => {
-    const profile = {
-      bloodType: "O",
-      rhFactor: "Positive",
-      hasGlucose: true,
-      hasDyslipidemia: false,
-      allowAiUsage: false,
-    };
+    const profile = fullProfile;
     (apiClient.get as jest.Mock).mockResolvedValue({ data: profile });
 
     const result = await getClinicalProfile(mockToken);
@@ -41,27 +51,24 @@ describe("clinical.service", () => {
   });
 
   it("debe desenvolver el perfil cuando viene en { data }", async () => {
-    const profile = {
-      bloodType: null,
-      rhFactor: null,
-      hasGlucose: false,
-      hasDyslipidemia: false,
-      allowAiUsage: false,
-    };
+    const profile = { ...fullProfile, bloodType: null, rhFactor: null, hasGlucose: false };
     (apiClient.get as jest.Mock).mockResolvedValue({ data: { data: profile } });
 
     const result = await getClinicalProfile(mockToken);
     expect(result).toEqual(profile);
   });
 
-  it("debe actualizar el perfil enviando el payload sin allowAiUsage", async () => {
+  it("debe actualizar el perfil enviando el payload sin consentimientos", async () => {
     const payload = {
       bloodType: "O" as const,
       rhFactor: "Positive" as const,
       hasGlucose: true,
-      hasDyslipidemia: false,
+      hasTotalCholesterol: false,
+      hasHdl: false,
+      hasLdl: false,
+      hasTriglycerides: false,
     };
-    const updated = { ...payload, allowAiUsage: false };
+    const updated = { ...fullProfile };
     (apiClient.put as jest.Mock).mockResolvedValue({ data: updated });
 
     const result = await updateClinicalProfile(payload, mockToken);
@@ -74,24 +81,27 @@ describe("clinical.service", () => {
     expect(result).toEqual(updated);
   });
 
-  it("debe enviar el consentimiento de IA como { enabled }", async () => {
-    const updated = {
-      bloodType: null,
-      rhFactor: null,
-      hasGlucose: false,
-      hasDyslipidemia: false,
-      allowAiUsage: true,
+  it("debe enviar el consentimiento de IA con master + por parámetro", async () => {
+    const payload = {
+      enabled: true,
+      glucose: true,
+      totalCholesterol: false,
+      hdl: false,
+      ldl: false,
+      triglycerides: false,
     };
+    const updated = { ...fullProfile, allowAiUsage: true, allowAiGlucose: true };
     (apiClient.put as jest.Mock).mockResolvedValue({ data: updated });
 
-    const result = await updateAiConsent(true, mockToken);
+    const result = await updateAiConsent(payload, mockToken);
 
     expect(apiClient.put).toHaveBeenCalledWith(
       "/api/clinical/ai-consent",
-      { enabled: true },
+      payload,
       { headers: { Authorization: `Bearer ${mockToken}` } },
     );
     expect(result.allowAiUsage).toBe(true);
+    expect(result.allowAiGlucose).toBe(true);
   });
 
   // ─── Lecturas ────────────────────────────────────────────────────────────────

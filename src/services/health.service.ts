@@ -7,6 +7,7 @@ import {
   Injury,
   MedicalCondition,
   PagedBodyMeasurementsResponseDto,
+  UserMedicalConditionDto,
 } from "../types/health";
 import { withRequestSignal } from "../utils/request-cancellation";
 
@@ -45,6 +46,44 @@ export const getMedicalConditions = async (
     }, signal),
   );
   return data;
+};
+
+/**
+ * Obtiene las condiciones médicas asociadas al usuario, cada una con su estado de
+ * consentimiento de uso por la IA (`allowAiUsage`). El `name` ya viene traducido.
+ * @param token Token de autenticación de Clerk.
+ */
+export const getUserMedicalConditions = async (
+  token: string | null,
+  signal?: AbortSignal,
+): Promise<UserMedicalConditionDto[]> => {
+  const { data } = await apiClient.get<UserMedicalConditionDto[]>(
+    "/api/health/user-medical-conditions",
+    withRequestSignal({
+      headers: { Authorization: `Bearer ${token}` },
+    }, signal),
+  );
+  const raw = (data as any)?.data ?? data;
+  return Array.isArray(raw) ? raw : [];
+};
+
+/**
+ * Habilita o deshabilita el uso por la IA de UNA condición médica del usuario.
+ * El backend responde 204. Si la condición no pertenece al usuario, responde error.
+ * @param conditionId Id de la condición (del GET de condiciones del usuario).
+ * @param enabled Nuevo estado del consentimiento para esa condición.
+ * @param token Token de autenticación de Clerk.
+ */
+export const setMedicalConditionAiConsent = async (
+  conditionId: string,
+  enabled: boolean,
+  token: string | null,
+): Promise<void> => {
+  await apiClient.put(
+    "/api/health/user-medical-conditions/ai-consent",
+    { conditionId, enabled },
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
 };
 
 /**

@@ -2,12 +2,15 @@ import apiClient from '../../api/client';
 import {
   getBodyEvolutionDashboard,
   getInjuries,
+  getUserMedicalConditions,
+  setMedicalConditionAiConsent,
   submitHealthProfile,
 } from '../health.service';
 
 jest.mock('../../api/client', () => ({
   get: jest.fn(),
   post: jest.fn(),
+  put: jest.fn(),
 }));
 
 describe('health.service', () => {
@@ -35,6 +38,38 @@ describe('health.service', () => {
     const result = await submitHealthProfile(payload, mockToken);
     expect(apiClient.post).toHaveBeenCalledWith('/api/Onboarding/module/health', payload, expect.anything());
     expect(result).toEqual({ success: true });
+  });
+
+  it('debe obtener las condiciones médicas del usuario con allowAiUsage', async () => {
+    const conditions = [
+      { id: '1', name: 'Hipertensión', severity: 'Medium', allowAiUsage: true },
+      { id: '2', name: 'Diabetes', severity: 'High', allowAiUsage: false },
+    ];
+    (apiClient.get as jest.Mock).mockResolvedValue({ data: conditions });
+
+    const result = await getUserMedicalConditions(mockToken);
+    expect(apiClient.get).toHaveBeenCalledWith(
+      '/api/health/user-medical-conditions',
+      expect.anything(),
+    );
+    expect(result).toEqual(conditions);
+  });
+
+  it('debe devolver [] si la respuesta de condiciones no es un array', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue({ data: { data: null } });
+    const result = await getUserMedicalConditions(mockToken);
+    expect(result).toEqual([]);
+  });
+
+  it('debe togglear el consentimiento de IA de una condición', async () => {
+    (apiClient.put as jest.Mock).mockResolvedValue({ status: 204 });
+
+    await setMedicalConditionAiConsent('2', false, mockToken);
+    expect(apiClient.put).toHaveBeenCalledWith(
+      '/api/health/user-medical-conditions/ai-consent',
+      { conditionId: '2', enabled: false },
+      { headers: { Authorization: `Bearer ${mockToken}` } },
+    );
   });
 
   it('debe obtener el dashboard de evolución física con respuesta plana', async () => {

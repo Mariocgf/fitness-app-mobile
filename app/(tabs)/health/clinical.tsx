@@ -1,7 +1,8 @@
 import { ClinicalDataView } from "@/src/components/features/health/clinical/ClinicalDataView";
 import { useClinicalProfile } from "@/src/hooks/useClinicalProfile";
+import { useUserMedicalConditions } from "@/src/hooks/useUserMedicalConditions";
 import { bumpHealthData } from "@/src/store/health-sync";
-import { ClinicalProfilePayload } from "@/src/types/clinical";
+import { AiConsentPayload, ClinicalProfilePayload } from "@/src/types/clinical";
 import { useRouter } from "expo-router";
 import React, { useCallback } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,6 +17,11 @@ export default function ClinicalDataScreen() {
     updateProfile,
     setAiConsent,
   } = useClinicalProfile();
+  const {
+    conditions,
+    isLoading: conditionsLoading,
+    toggleAiConsent: toggleConditionAi,
+  } = useUserMedicalConditions();
 
   const handleSave = useCallback(
     async (payload: ClinicalProfilePayload) => {
@@ -29,11 +35,18 @@ export default function ClinicalDataScreen() {
     [updateProfile, router],
   );
 
-  const handleToggleAi = useCallback(
-    (enabled: boolean) => {
-      setAiConsent(enabled);
+  const handleSetAiConsent = useCallback(
+    (payload: AiConsentPayload) => {
+      setAiConsent(payload);
     },
     [setAiConsent],
+  );
+
+  const handleToggleConditionAi = useCallback(
+    (conditionId: string, enabled: boolean) => {
+      toggleConditionAi(conditionId, enabled);
+    },
+    [toggleConditionAi],
   );
 
   const handleBack = useCallback(() => {
@@ -47,9 +60,12 @@ export default function ClinicalDataScreen() {
         isLoading={isLoading}
         isSubmitting={isSubmitting}
         submitError={submitError}
+        conditions={conditions}
+        conditionsLoading={conditionsLoading}
         onBack={handleBack}
         onSave={handleSave}
-        onToggleAiConsent={handleToggleAi}
+        onSetAiConsent={handleSetAiConsent}
+        onToggleConditionAi={handleToggleConditionAi}
       />
     </SafeAreaView>
   );

@@ -7,6 +7,21 @@ export interface HealthItem {
 export type Injury = HealthItem;
 export type MedicalCondition = HealthItem;
 
+/**
+ * Condición médica asociada al usuario, con su consentimiento de uso por la IA.
+ * Devuelta por GET /api/health/user-medical-conditions. `allowAiUsage` arranca en
+ * true por defecto (a la IA va el hecho declarado, nunca un valor numérico).
+ */
+export interface UserMedicalConditionDto extends HealthItem {
+  allowAiUsage: boolean;
+}
+
+/** Payload de PUT /api/health/user-medical-conditions/ai-consent (toggle por condición). */
+export interface MedicalConditionAiConsentPayload {
+  conditionId: string;
+  enabled: boolean;
+}
+
 export interface HealthProfilePayload {
   injuryIds: string[];
   medicalConditionIds: string[];

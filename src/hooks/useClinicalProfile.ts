@@ -6,7 +6,11 @@ import {
   updateAiConsent,
   updateClinicalProfile,
 } from "../services/clinical.service";
-import { ClinicalProfileDto, ClinicalProfilePayload } from "../types/clinical";
+import {
+  AiConsentPayload,
+  ClinicalProfileDto,
+  ClinicalProfilePayload,
+} from "../types/clinical";
 import {
   abortRequest,
   beginAbortableRequest,
@@ -32,8 +36,8 @@ interface UseClinicalProfileReturn {
   updateProfile: (
     payload: ClinicalProfilePayload,
   ) => Promise<ClinicalProfileDto | null>;
-  /** Activa/desactiva el consentimiento de IA (PUT /ai-consent). */
-  setAiConsent: (enabled: boolean) => Promise<ClinicalProfileDto | null>;
+  /** Setea master + consentimiento por parámetro (PUT /ai-consent). */
+  setAiConsent: (payload: AiConsentPayload) => Promise<ClinicalProfileDto | null>;
 }
 
 /**
@@ -120,11 +124,11 @@ export function useClinicalProfile(
 
   /** Actualiza el consentimiento de IA. Refleja en `profile` la respuesta del backend. */
   const setAiConsent = useCallback(
-    async (enabled: boolean): Promise<ClinicalProfileDto | null> => {
+    async (payload: AiConsentPayload): Promise<ClinicalProfileDto | null> => {
       setSubmitError(null);
       try {
         const token = await getTokenRef.current();
-        const result = await updateAiConsent(enabled, token);
+        const result = await updateAiConsent(payload, token);
         setProfile(result);
         return result;
       } catch {

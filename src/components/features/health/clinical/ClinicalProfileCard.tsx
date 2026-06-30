@@ -4,6 +4,7 @@ import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 import {
   BLOOD_TYPE_LABELS,
+  CLINICAL_PARAMS,
   ClinicalProfileDto,
   RH_LABELS,
 } from "@/src/types/clinical";
@@ -39,9 +40,10 @@ export function ClinicalProfileCard({
         }`
       : null;
 
-  const conditions: string[] = [];
-  if (profile?.hasGlucose) conditions.push("Glucosa");
-  if (profile?.hasDyslipidemia) conditions.push("Lípidos");
+  // Parámetros declarados, en el orden canónico de CLINICAL_PARAMS.
+  const conditions: string[] = profile
+    ? CLINICAL_PARAMS.filter((p) => profile[p.hasKey]).map((p) => p.label)
+    : [];
 
   const isEmpty = bloodLabel === null && conditions.length === 0;
 

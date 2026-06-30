@@ -25,30 +25,124 @@ export const RH_LABELS: Record<RhFactor, string> = {
 
 // ─── Perfil clínico ──────────────────────────────────────────────────────────
 
-/** DTO del perfil clínico tal como lo devuelve el backend (GET/PUT /profile). */
+/**
+ * DTO del perfil clínico tal como lo devuelve el backend (GET/PUT /profile).
+ *
+ * Declaraciones (`hasX`): qué parámetros declara tener el usuario. Default OFF.
+ * Consentimientos (`allowAiX`): por parámetro, bajo el master `allowAiUsage`.
+ * Un parámetro llega a la IA solo si: `allowAiUsage` && `allowAiX` && `hasX`.
+ */
 export interface ClinicalProfileDto {
   bloodType: BloodType | null;
   rhFactor: RhFactor | null;
+  // Parámetros declarados (opt-in, default OFF)
   hasGlucose: boolean;
-  hasDyslipidemia: boolean;
+  hasTotalCholesterol: boolean;
+  hasHdl: boolean;
+  hasLdl: boolean;
+  hasTriglycerides: boolean;
+  // Consentimiento de IA: master + por parámetro (default OFF)
   allowAiUsage: boolean;
+  allowAiGlucose: boolean;
+  allowAiTotalCholesterol: boolean;
+  allowAiHdl: boolean;
+  allowAiLdl: boolean;
+  allowAiTriglycerides: boolean;
 }
 
 /**
- * Payload de PUT /profile. Actualiza grupo sanguíneo, Rh y flags.
- * NO incluye allowAiUsage: eso se maneja aparte en PUT /ai-consent.
+ * Payload de PUT /profile. Actualiza grupo sanguíneo, Rh y qué parámetros declara
+ * tener el usuario. NO toca consentimientos: eso se maneja en PUT /ai-consent.
  */
 export interface ClinicalProfilePayload {
   bloodType?: BloodType | null;
   rhFactor?: RhFactor | null;
   hasGlucose: boolean;
-  hasDyslipidemia: boolean;
+  hasTotalCholesterol: boolean;
+  hasHdl: boolean;
+  hasLdl: boolean;
+  hasTriglycerides: boolean;
 }
 
-/** Payload de PUT /ai-consent. Activa o desactiva el consentimiento de IA. */
+/**
+ * Payload de PUT /ai-consent (SetClinicalAiConsentDto). Master switch + consentimiento
+ * por parámetro. Se envía el estado final completo, no incremental.
+ */
 export interface AiConsentPayload {
-  enabled: boolean;
+  enabled: boolean; // master switch (allowAiUsage)
+  glucose: boolean;
+  totalCholesterol: boolean;
+  hdl: boolean;
+  ldl: boolean;
+  triglycerides: boolean;
 }
+
+// ─── Metadatos de parámetros clínicos ────────────────────────────────────────
+
+/** Claves de declaración (`hasX`) del perfil clínico. */
+export type ClinicalHasKey =
+  | "hasGlucose"
+  | "hasTotalCholesterol"
+  | "hasHdl"
+  | "hasLdl"
+  | "hasTriglycerides";
+
+/** Claves de consentimiento por parámetro (`allowAiX`) del perfil clínico. */
+export type ClinicalAllowKey =
+  | "allowAiGlucose"
+  | "allowAiTotalCholesterol"
+  | "allowAiHdl"
+  | "allowAiLdl"
+  | "allowAiTriglycerides";
+
+/** Descriptor de un parámetro clínico: enlaza declaración, consentimiento y label. */
+export interface ClinicalParamMeta {
+  /** Clave del consentimiento en AiConsentPayload (glucose, totalCholesterol, …). */
+  consentKey: keyof Omit<AiConsentPayload, "enabled">;
+  /** Flag de declaración en el perfil (hasGlucose, …). */
+  hasKey: ClinicalHasKey;
+  /** Flag de consentimiento por parámetro en el perfil (allowAiGlucose, …). */
+  allowKey: ClinicalAllowKey;
+  /** Label para la UI. */
+  label: string;
+}
+
+/**
+ * Lista canónica de parámetros clínicos. Una sola fuente de verdad para iterar
+ * las secciones de "Parámetros declarados" y "Consentimiento por parámetro".
+ */
+export const CLINICAL_PARAMS: ClinicalParamMeta[] = [
+  {
+    consentKey: "glucose",
+    hasKey: "hasGlucose",
+    allowKey: "allowAiGlucose",
+    label: "Glucosa",
+  },
+  {
+    consentKey: "totalCholesterol",
+    hasKey: "hasTotalCholesterol",
+    allowKey: "allowAiTotalCholesterol",
+    label: "Colesterol total",
+  },
+  {
+    consentKey: "hdl",
+    hasKey: "hasHdl",
+    allowKey: "allowAiHdl",
+    label: "HDL",
+  },
+  {
+    consentKey: "ldl",
+    hasKey: "hasLdl",
+    allowKey: "allowAiLdl",
+    label: "LDL",
+  },
+  {
+    consentKey: "triglycerides",
+    hasKey: "hasTriglycerides",
+    allowKey: "allowAiTriglycerides",
+    label: "Triglicéridos",
+  },
+];
 
 // ─── Lecturas clínicas ───────────────────────────────────────────────────────
 
