@@ -150,6 +150,8 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
   const isPreviewing = previewVersion !== null;
   const isOfflineActiveMode =
     offlineInfo?.isOnline === false && offlineInfo.isAvailable && routine.isActive;
+  /** Descarga offline como pill al lado de las tags (solo rutina activa, fuera de preview). */
+  const showOfflinePill = routine.isActive && !!onDownloadOffline;
   const activeVersionId = routine.activeVersionId ?? null;
   const latestVersionId = routine.latestVersionId ?? null;
   // La versión en preview trae su propio `isActive` → no dependemos de que la rutina
@@ -521,15 +523,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
       destructive: boolean;
     }[] = [];
 
-    if (routine.isActive && onDownloadOffline) {
-      items.push({
-        icon: offlineInfo?.isAvailable ? 'cloud-done-outline' : 'download-outline',
-        label: offlineInfo?.isAvailable ? 'Actualizar offline' : 'Descargar offline',
-        onPress: () => { close(); onDownloadOffline(); },
-        destructive: false,
-      });
-    }
-
+    // La descarga/actualización offline ahora vive como pill al lado de las tags.
     if (
       routine.isActive &&
       onSyncOffline &&
@@ -685,7 +679,8 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
             )}
           </View>
 
-          {/* Badge de versionado: número de versión + distintivos (En uso / Última) */}
+          {/* Badge de versionado: número de versión + distintivos (En uso / Última).
+              En la rutina activa (no preview) la descarga offline va al lado de las tags. */}
           {!isGenerating && (previewVersion ? (
             <View className="flex-row items-center justify-center gap-2 mt-2">
               <VersionBadge label={`Versión ${previewVersion.versionNumber}`} />
@@ -695,11 +690,43 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
               )}
             </View>
           ) : (
-            routine.versionNumber != null && (
+            (routine.versionNumber != null || showOfflinePill) && (
               <View className="flex-row items-center justify-center gap-2 mt-2">
-                <VersionBadge label={`Versión ${routine.versionNumber}`} />
-                {activeVersionId != null && activeVersionId === latestVersionId && (
-                  <VersionBadge label="Última" tone="lime" />
+                {routine.versionNumber != null && (
+                  <>
+                    <VersionBadge label={`Versión ${routine.versionNumber}`} />
+                    {activeVersionId != null && activeVersionId === latestVersionId && (
+                      <VersionBadge label="Última" tone="lime" />
+                    )}
+                  </>
+                )}
+                {showOfflinePill && (
+                  <TouchableOpacity
+                    onPress={onDownloadOffline}
+                    disabled={offlineInfo?.isDownloading}
+                    activeOpacity={0.7}
+                    className="flex-row items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1"
+                    style={{ opacity: offlineInfo?.isDownloading ? 0.6 : 1 }}
+                  >
+                    {offlineInfo?.isDownloading ? (
+                      <ActivityIndicator size="small" color="#a3e635" />
+                    ) : (
+                      <Ionicons
+                        name={
+                          (offlineInfo?.conflictCount ?? 0) > 0
+                            ? 'warning-outline'
+                            : offlineInfo?.isAvailable
+                              ? 'cloud-done-outline'
+                              : 'cloud-download-outline'
+                        }
+                        size={14}
+                        color={(offlineInfo?.conflictCount ?? 0) > 0 ? '#f59e0b' : '#a3e635'}
+                      />
+                    )}
+                    <Text className="text-lime-300 text-xs font-semibold">
+                      {offlineInfo?.isAvailable ? 'Actualizar' : 'Descargar'}
+                    </Text>
+                  </TouchableOpacity>
                 )}
               </View>
             )
