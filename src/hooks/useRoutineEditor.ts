@@ -35,6 +35,8 @@ export interface RoutineEditor {
   copyDayExercises: (from: CreateRoutineDay, to: CreateRoutineDay) => void;
   updateExerciseField: (exId: string, field: RoutineExerciseField, value: string) => void;
   updateExerciseWeight: (exId: string, value: number | null) => void;
+  /** Inyecta el equipamiento por exerciseId (al editar, se carga async tras montar). */
+  setExercisesEquipments: (equipmentsByExerciseId: Record<string, string[]>) => void;
   toggleRepMode: (exId: string) => void;
   removeExercise: (exId: string) => void;
   reorderExercises: (newOrder: CreateRoutineExercise[]) => void;
@@ -111,6 +113,18 @@ export function useRoutineEditor({ initialName, initialDays }: UseRoutineEditorP
       ),
     })));
   }, []);
+
+  const setExercisesEquipments = useCallback(
+    (equipmentsByExerciseId: Record<string, string[]>) => {
+      setDays((prev) => prev.map((day) => ({
+        ...day,
+        exercises: day.exercises.map((ex) =>
+          equipmentsByExerciseId[ex.exerciseId]
+            ? { ...ex, equipments: equipmentsByExerciseId[ex.exerciseId] }
+            : ex,
+        ),
+      })));
+    }, []);
 
   const toggleRepMode = useCallback((exId: string) => {
     setDays((prev) => prev.map((day) => ({
@@ -190,6 +204,7 @@ export function useRoutineEditor({ initialName, initialDays }: UseRoutineEditorP
     copyDayExercises,
     updateExerciseField,
     updateExerciseWeight,
+    setExercisesEquipments,
     toggleRepMode,
     removeExercise,
     reorderExercises,

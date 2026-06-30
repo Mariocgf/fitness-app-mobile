@@ -9,7 +9,6 @@ import { Swipeable } from 'react-native-gesture-handler';
 interface EditExerciseCardProps {
   exercise: CreateRoutineExercise;
   index: number;
-  weightLabel: string;
   onOpenPicker: (field: 'sets' | 'reps' | 'restSeconds' | 'weight') => void;
   onRemove: (exId: string) => void;
   onReplace: (exId: string) => void;
@@ -19,45 +18,57 @@ interface EditExerciseCardProps {
   isActive: boolean;
 }
 
-/** Stat inline (label gris arriba, valor blanco abajo) — al tocar abre el wheel picker */
+/** Stat de la fila inferior: label gris arriba, valor abajo. Al tocar abre el wheel picker. */
 const EditStat = ({
-  label, value, onPress, onLabelPress,
+  label, value, onPress, onLabelPress, icon, accent,
 }: {
   label: string;
   value: string;
   onPress: () => void;
   onLabelPress?: () => void;
+  /** Ícono opcional a la izquierda del label (p.ej. la pesa en Peso). */
+  icon?: React.ReactNode;
+  /** Resalta el valor en lima (se usa cuando el peso está seteado). */
+  accent?: boolean;
 }) => (
-  <View className="items-center" style={{ minWidth: 40 }}>
+  <TouchableOpacity onPress={onPress} hitSlop={8} className="flex-1 items-center" activeOpacity={0.6}>
     {onLabelPress ? (
-      <TouchableOpacity onPress={onLabelPress} hitSlop={6} className="flex-row items-center mb-0.5">
-        <Text className="text-zinc-500 text-[10px]">{label}</Text>
+      <TouchableOpacity onPress={onLabelPress} hitSlop={6} className="flex-row items-center mb-1">
+        <Text className="text-zinc-500 text-[10px] uppercase tracking-wide">{label}</Text>
         <Ionicons name="swap-horizontal" size={9} color="#52525b" style={{ marginLeft: 2 }} />
       </TouchableOpacity>
     ) : (
-      <Text className="text-zinc-500 text-[10px] mb-0.5">{label}</Text>
+      <View className="flex-row items-center mb-1">
+        {icon}
+        <Text className="text-zinc-500 text-[10px] uppercase tracking-wide" style={icon ? { marginLeft: 3 } : undefined}>
+          {label}
+        </Text>
+      </View>
     )}
-    <TouchableOpacity onPress={onPress} hitSlop={8} className="px-1">
-      <Text className="text-white font-bold text-sm text-center">{value}</Text>
-    </TouchableOpacity>
-  </View>
+    <Text className={`font-bold text-base ${accent ? 'text-lime-400' : 'text-white'}`} numberOfLines={1}>
+      {value}
+    </Text>
+  </TouchableOpacity>
 );
 
 /**
- * Card de ejercicio del modo edición de rutina (dark zinc). Handle de drag a la
- * izquierda (long-press), stats tocables que abren el wheel picker, swipe a la
- * derecha para cambiar/eliminar y menú de 3 puntos con las mismas acciones.
+ * Card de ejercicio del modo edición de rutina (dark zinc). Dos filas: arriba la
+ * identidad (handle de drag, orden, imagen, nombre y menú) y abajo una fila de
+ * stats con aire (Sets, Reps/Seg, Rest, Peso) que al tocar abren el wheel picker.
+ * El peso siempre se muestra como un stat más, leído de plannedWeightKg.
  */
 export const EditExerciseCard: React.FC<EditExerciseCardProps> = ({
-  exercise, index, weightLabel, onOpenPicker, onRemove, onReplace, canReplace = true, onToggleRepMode, onDrag, isActive,
+  exercise, index, onOpenPicker, onRemove, onReplace, canReplace = true, onToggleRepMode, onDrag, isActive,
 }) => {
   const swipeableRef = useRef<Swipeable>(null);
   const { showActionSheetWithOptions } = useActionSheet();
 
+  const hasWeight = exercise.loadType === 'ExternalWeight' && exercise.plannedWeightKg != null;
+  const weightValue = hasWeight ? `${exercise.plannedWeightKg} kg` : 'Corporal';
+
   const openMenu = () => {
     const actions: { label: string; onPress: () => void; destructive?: boolean }[] = [
       ...(canReplace ? [{ label: 'Cambiar ejercicio', onPress: () => onReplace(exercise.id) }] : []),
-      { label: `Peso: ${weightLabel}`, onPress: () => onOpenPicker('weight') },
       { label: 'Eliminar', onPress: () => onRemove(exercise.id), destructive: true },
     ];
     const options = [...actions.map((a) => a.label), 'Cancelar'];
@@ -103,41 +114,48 @@ export const EditExerciseCard: React.FC<EditExerciseCardProps> = ({
   return (
     <Swipeable ref={swipeableRef} renderRightActions={renderRightActions} overshootRight={false} enabled={!isActive}>
       <View
-        className="flex-row items-center gap-2 bg-zinc-900 rounded-2xl border border-white/10 p-3 mb-3"
+        className="bg-zinc-900 rounded-2xl border border-white/10 p-3 mb-3"
         style={isActive ? { shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8 } : undefined}
       >
-        {/* Handle de 6 puntos (izquierda) — long-press para arrastrar */}
-        <TouchableOpacity onLongPress={onDrag} delayLongPress={150} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
-          <MaterialCommunityIcons name="drag-vertical" size={22} color="#52525b" />
-        </TouchableOpacity>
+        {/* Fila 1 — identidad: handle, orden, imagen, nombre, menú */}
+        <View className="flex-row items-center gap-2">
+          <TouchableOpacity onLongPress={onDrag} delayLongPress={150} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+            <MaterialCommunityIcons name="drag-vertical" size={22} color="#52525b" />
+          </TouchableOpacity>
 
-        {/* Número de orden */}
-        <Text className="text-zinc-600 font-bold text-sm w-4 text-center">{index + 1}</Text>
+          <Text className="text-zinc-600 font-bold text-sm w-4 text-center">{index + 1}</Text>
 
-        {/* GIF / imagen */}
-        <ExerciseThumbnail uri={exercise.gifUrl} size={56} />
+          <ExerciseThumbnail uri={exercise.gifUrl} size={48} />
 
-        {/* Nombre */}
-        <Text className="flex-1 text-white font-bold text-sm" numberOfLines={2}>{exercise.name}</Text>
+          <Text className="flex-1 text-white font-bold text-sm" numberOfLines={2}>{exercise.name}</Text>
 
-        {/* Stats — al tocar abren el wheel picker */}
-        <EditStat label="Sets" value={String(exercise.sets)} onPress={() => onOpenPicker('sets')} />
-        <EditStat
-          label={exercise.repMode === 'secs' ? 'Seg' : 'Reps'}
-          value={String(exercise.reps)}
-          onPress={() => onOpenPicker('reps')}
-          onLabelPress={() => onToggleRepMode(exercise.id)}
-        />
-        <EditStat label="Rest" value={String(exercise.restSeconds)} onPress={() => onOpenPicker('restSeconds')} />
+          <TouchableOpacity
+            onPress={openMenu}
+            className="w-8 h-8 rounded-full bg-white/10 items-center justify-center"
+            hitSlop={6}
+          >
+            <Ionicons name="ellipsis-vertical" size={16} className="text-zinc-300" />
+          </TouchableOpacity>
+        </View>
 
-        {/* Menú de 3 puntos (derecha) */}
-        <TouchableOpacity
-          onPress={openMenu}
-          className="w-8 h-8 rounded-full bg-white/10 items-center justify-center ml-1"
-          hitSlop={6}
-        >
-          <Ionicons name="ellipsis-vertical" size={16} className="text-zinc-300" />
-        </TouchableOpacity>
+        {/* Fila 2 — stats editables con aire (todas abren el wheel picker) */}
+        <View className="flex-row items-start mt-3 pt-3 border-t border-white/5">
+          <EditStat label="Sets" value={String(exercise.sets)} onPress={() => onOpenPicker('sets')} />
+          <EditStat
+            label={exercise.repMode === 'secs' ? 'Seg' : 'Reps'}
+            value={String(exercise.reps)}
+            onPress={() => onOpenPicker('reps')}
+            onLabelPress={() => onToggleRepMode(exercise.id)}
+          />
+          <EditStat label="Rest" value={`${exercise.restSeconds}s`} onPress={() => onOpenPicker('restSeconds')} />
+          <EditStat
+            label="Peso"
+            value={weightValue}
+            accent={hasWeight}
+            icon={<MaterialCommunityIcons name="weight-kilogram" size={11} color={hasWeight ? '#a3e635' : '#71717a'} />}
+            onPress={() => onOpenPicker('weight')}
+          />
+        </View>
       </View>
     </Swipeable>
   );

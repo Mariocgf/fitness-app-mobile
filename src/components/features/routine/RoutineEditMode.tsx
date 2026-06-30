@@ -12,13 +12,14 @@ import {
   downloadFitnessRoutineOffline,
   enqueueRoutineUpdateOffline,
 } from '@/src/offline/service';
+import { getExerciseInfo } from '@/src/services/exercise.service';
 import { updateRoutine } from '@/src/services/routine.service';
 import { CreateRoutineDay, CreateRoutineExercise } from '@/src/types/create-routine';
 import { Routine, RoutineDay, RoutineExercise } from '@/src/types/routine';
 import { calcDayApproxTime, routineToDraftDays } from '@/src/utils/routine-editor.utils';
 import { getWeightOptions } from '@/src/utils/weight.utils';
 import { useAuth } from '@clerk/clerk-expo';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { confirm, toast } from '@/src/components/ui/feedback';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -90,9 +91,43 @@ export const RoutineEditMode: React.FC<RoutineEditModeProps> = ({
 
   const [isSaving, setIsSaving] = useState(false);
 
-  /** En edición no hay equipamiento por ejercicio → opciones de peso genéricas. */
-  const weightOptions = useMemo(() => getWeightOptions(undefined, inventory), [inventory]);
-  const weightOptionsFor = useCallback(() => weightOptions, [weightOptions]);
+  /**
+   * El DTO de la rutina no trae el equipamiento por ejercicio, así que al editar
+   * lo cargamos aparte (deduplicado por exerciseId) y lo inyectamos al draft. Sin
+   * esto, las opciones de peso quedan genéricas y el peso guardado no se muestra.
+   */
+  const { setExercisesEquipments } = editor;
+  useEffect(() => {
+    const exerciseIds = Array.from(
+      new Set(routine.days.flatMap((day) => day.exercises.map((ex) => ex.exerciseId))),
+    );
+    if (exerciseIds.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      const token = await getToken();
+      const entries = await Promise.all(
+        exerciseIds.map(async (id) => {
+          try {
+            const info = await getExerciseInfo(id, token);
+            return [id, info.equipments] as const;
+          } catch {
+            return [id, [] as string[]] as const;
+          }
+        }),
+      );
+      if (cancelled) return;
+      setExercisesEquipments(Object.fromEntries(entries));
+    })();
+
+    return () => { cancelled = true; };
+  }, [routine.id, getToken, setExercisesEquipments]);
+
+  /** Opciones de peso filtradas por el equipamiento del ejercicio (igual que al crear). */
+  const weightOptionsFor = useCallback(
+    (exercise: CreateRoutineExercise) => getWeightOptions(exercise.equipments[0], inventory),
+    [inventory],
+  );
 
   /* ── Fade de entrada ──────────────────────────────────────────────────── */
 

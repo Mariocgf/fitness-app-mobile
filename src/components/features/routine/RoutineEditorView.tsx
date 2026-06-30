@@ -240,11 +240,6 @@ export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
                 <EditExerciseCard
                   exercise={item}
                   index={getIndex() ?? 0}
-                  weightLabel={
-                    weightOptionsFor(item).find((o) => o.value === item.plannedWeightKg)?.label
-                    ?? weightOptionsFor(item)[0]?.label
-                    ?? '—'
-                  }
                   onOpenPicker={(field) => setActivePicker({ exId: item.id, field })}
                   onRemove={editor.removeExercise}
                   onReplace={(id) => editor.setReplacingExerciseId(id)}
