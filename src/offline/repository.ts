@@ -1,3 +1,4 @@
+import { Routine } from '@/src/types/routine';
 import { getOfflineDb, deleteOfflineDatabase } from './db';
 import {
   OfflineModuleStatus,
@@ -30,6 +31,7 @@ interface OperationRow {
   created_at: string;
   updated_at: string;
   synced_at: string | null;
+  conflict_server_routine: string | null;
 }
 
 const nowIso = () => new Date().toISOString();
@@ -63,6 +65,9 @@ const mapOperation = (row: OperationRow): OfflineOperation => ({
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   syncedAt: row.synced_at,
+  serverRoutine: row.conflict_server_routine
+    ? parseJson<Routine | null>(row.conflict_server_routine, null)
+    : null,
 });
 
 export const saveOfflineSnapshot = async <TPayload>({
@@ -157,6 +162,7 @@ export const enqueueOfflineOperation = async <TPayload extends OfflineOperationP
     createdAt: timestamp,
     updatedAt: timestamp,
     syncedAt: null,
+    serverRoutine: null,
   };
 };
 
@@ -177,11 +183,15 @@ export const updateOfflineOperationStatus = async (
     error?: string | null;
     incrementAttempts?: boolean;
     syncedAt?: string | null;
+    /** Rutina del servidor a persistir (solo en conflicto). `undefined` no toca la columna. */
+    serverRoutine?: Routine | null;
   } = {},
 ): Promise<void> => {
   const db = await getOfflineDb();
   const timestamp = nowIso();
   const syncedAt = options.syncedAt === undefined ? null : options.syncedAt;
+  const serverRoutine =
+    options.serverRoutine === undefined ? null : JSON.stringify(options.serverRoutine);
 
   await db.runAsync(
     `UPDATE offline_queue
@@ -189,7 +199,8 @@ export const updateOfflineOperationStatus = async (
          attempts = attempts + ?,
          error = ?,
          updated_at = ?,
-         synced_at = COALESCE(?, synced_at)
+         synced_at = COALESCE(?, synced_at),
+         conflict_server_routine = COALESCE(?, conflict_server_routine)
      WHERE client_operation_id = ?`,
     [
       status,
@@ -197,9 +208,20 @@ export const updateOfflineOperationStatus = async (
       options.error ?? null,
       timestamp,
       syncedAt,
+      serverRoutine,
       clientOperationId,
     ],
   );
+};
+
+export const getConflictedOperations = async (): Promise<OfflineOperation[]> => {
+  const db = await getOfflineDb();
+  const rows = await db.getAllAsync<OperationRow>(
+    `SELECT * FROM offline_queue
+     WHERE status = 'conflict'
+     ORDER BY created_at ASC`,
+  );
+  return rows.map(mapOperation);
 };
 
 export const getOfflineOperationCounts = async (): Promise<{

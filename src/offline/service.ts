@@ -15,6 +15,7 @@ import { Routine } from '@/src/types/routine';
 import { SessionLog } from '@/src/types/session';
 import {
   enqueueOfflineOperation,
+  getConflictedOperations,
   getOfflineSnapshot,
   getSyncableOfflineOperations,
   saveOfflineSnapshot,
@@ -22,6 +23,7 @@ import {
 } from './repository';
 import {
   OfflineNutritionPayload,
+  OfflineOperation,
   NutritionPlanMealLogOperationPayload,
   RoutineUpdateOperationPayload,
   TrainingSessionOperationPayload,
@@ -273,6 +275,9 @@ export const syncOfflineOperations = async (token: string | null): Promise<{
         await updateOfflineOperationStatus(op.clientOperationId, 'conflict', {
           error: result.error ?? 'La operación tiene un conflicto de sincronización.',
           incrementAttempts: true,
+          // El backend devuelve la rutina actual del servidor en result.result.
+          // La guardamos para mostrar "tu versión vs la del servidor" sin un GET extra.
+          serverRoutine: (result.result as Routine | null) ?? null,
         });
         conflicts += 1;
         continue;
@@ -298,4 +303,61 @@ export const syncOfflineOperations = async (token: string | null): Promise<{
   }
 
   return { synced, failed, conflicts };
+};
+
+/**
+ * Operaciones de actualización de rutina que quedaron en conflicto, con la rutina
+ * local (`payload.offlineRoutine`) y la del servidor (`serverRoutine`) listas para
+ * mostrar en la UI de resolución.
+ */
+export const getRoutineUpdateConflicts = async (): Promise<OfflineOperation<RoutineUpdateOperationPayload>[]> => {
+  const ops = await getConflictedOperations();
+  return ops.filter(
+    (op): op is OfflineOperation<RoutineUpdateOperationPayload> =>
+      op.type === 'routine.update' && op.serverRoutine != null,
+  );
+};
+
+/**
+ * Opción A: el usuario se queda con la versión del servidor.
+ * Descarta los cambios locales, reemplaza el snapshot offline con la rutina del
+ * servidor y cierra la operación en conflicto. No hace falta red.
+ */
+export const resolveConflictKeepServer = async (
+  op: OfflineOperation<RoutineUpdateOperationPayload>,
+): Promise<void> => {
+  if (op.serverRoutine) {
+    await downloadFitnessRoutineOffline(null, op.serverRoutine);
+  }
+  await updateOfflineOperationStatus(op.clientOperationId, 'synced', {
+    syncedAt: new Date().toISOString(),
+  });
+};
+
+/**
+ * Opción B: el usuario fuerza su versión local sobre la del servidor.
+ * Reenvía la edición con `baseVersionId` = versión nueva del servidor y un
+ * `clientOperationId` NUEVO (la op en conflicto queda como recibo terminal en el
+ * backend; reusar su id devolvería el conflicto cacheado → loop). Cierra la op
+ * vieja y sincroniza la nueva en el acto.
+ */
+export const resolveConflictKeepLocal = async (
+  op: OfflineOperation<RoutineUpdateOperationPayload>,
+  token: string | null,
+): Promise<{ synced: number; failed: number; conflicts: number }> => {
+  const serverVersionId = op.serverRoutine?.activeVersionId ?? null;
+
+  await enqueueRoutineUpdateOffline({
+    routineId: op.payload.routineId,
+    updatePayload: op.payload.updatePayload,
+    offlineRoutine: op.payload.offlineRoutine,
+    baseVersionId: serverVersionId,
+  });
+
+  // La op en conflicto está cerrada: la resolución es una operación nueva.
+  await updateOfflineOperationStatus(op.clientOperationId, 'synced', {
+    syncedAt: new Date().toISOString(),
+  });
+
+  return syncOfflineOperations(token);
 };

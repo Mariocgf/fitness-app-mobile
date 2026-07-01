@@ -66,6 +66,11 @@ export interface OfflineOperation<TPayload = OfflineOperationPayload> {
   createdAt: string;
   updatedAt: string;
   syncedAt: string | null;
+  /**
+   * Rutina actual del servidor devuelta cuando la operación quedó en conflicto
+   * (result.result del sync). Solo presente para `routine.update` en conflicto.
+   */
+  serverRoutine: Routine | null;
 }
 
 export interface OfflineModuleStatus {

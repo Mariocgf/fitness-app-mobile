@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
 const DATABASE_NAME = 'wellium-offline.db';
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -54,7 +54,19 @@ const runMigrations = async (db: SQLite.SQLiteDatabase): Promise<void> => {
         CREATE INDEX IF NOT EXISTS idx_offline_queue_status_created
           ON offline_queue(status, created_at);
       `);
-      await tx.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
+      await tx.execAsync(`PRAGMA user_version = 1;`);
+    });
+  }
+
+  if (currentVersion < 2) {
+    // Guarda la rutina del servidor (result.result del POST /api/offline/sync)
+    // cuando una operación queda en conflicto, para mostrarla en la UI de
+    // resolución sin un GET extra.
+    await db.withExclusiveTransactionAsync(async (tx) => {
+      await tx.execAsync(
+        `ALTER TABLE offline_queue ADD COLUMN conflict_server_routine TEXT NULL;`,
+      );
+      await tx.execAsync(`PRAGMA user_version = 2;`);
     });
   }
 };

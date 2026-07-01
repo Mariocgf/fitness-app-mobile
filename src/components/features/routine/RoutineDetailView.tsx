@@ -123,6 +123,8 @@ interface RoutineDetailViewProps {
   };
   onDownloadOffline?: () => void;
   onSyncOffline?: () => void;
+  /** Abre la UI de resolución cuando hay un conflicto pendiente. */
+  onReviewConflict?: () => void;
 }
 
 /* ── Componente principal ─────────────────────────────────────────────────── */
@@ -140,6 +142,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
   offlineInfo,
   onDownloadOffline,
   onSyncOffline,
+  onReviewConflict,
 }) => {
   /* ── Estado de versionado ─────────────────────────────────────────────── */
   const [isVersionsOpen, setIsVersionsOpen] = useState(false);
@@ -753,7 +756,15 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
                       ? `Disponible offline${offlineInfo.downloadedAt ? ` · ${new Date(offlineInfo.downloadedAt).toLocaleDateString('es-UY')}` : ''}`
                       : 'Todavía no descargada para offline'}
                 </Text>
-                {offlineInfo.pendingCount > 0 || offlineInfo.failedCount > 0 ? (
+                {offlineInfo.conflictCount > 0 && onReviewConflict ? (
+                  <TouchableOpacity
+                    onPress={onReviewConflict}
+                    activeOpacity={0.7}
+                    className="rounded-full bg-amber-400 px-3 py-1"
+                  >
+                    <Text className="text-zinc-950 text-xs font-bold">Revisar</Text>
+                  </TouchableOpacity>
+                ) : offlineInfo.pendingCount > 0 || offlineInfo.failedCount > 0 ? (
                   <Text className="text-amber-400 text-xs font-semibold">
                     {offlineInfo.pendingCount + offlineInfo.failedCount} pendiente
                   </Text>

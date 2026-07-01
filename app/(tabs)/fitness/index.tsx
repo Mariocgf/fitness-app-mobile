@@ -3,6 +3,7 @@ import { SegmentedControl } from '@/src/components/common/SegmentedControl';
 import { ActionCard, CardState } from '@/src/components/features/home/ActionCard';
 import { CreateRoutineView } from '@/src/components/features/routine/CreateRoutineView';
 import { CardLayout, RoutineDetailView } from '@/src/components/features/routine/RoutineDetailView';
+import { ConflictResolutionModal } from '@/src/components/features/routine/ConflictResolutionModal';
 import { RoutineLibraryCard } from '@/src/components/features/routine/RoutineLibraryCard';
 import { DraftCard } from '@/src/components/features/routine/DraftCard';
 import { RecentActivityCard } from '@/src/components/features/training-history/RecentActivityCard';
@@ -14,8 +15,12 @@ import { useTrainingHistoryPreview } from '@/src/hooks/useTrainingHistoryPreview
 import {
   downloadFitnessRoutineOffline,
   getOfflineFitnessRoutine,
+  getRoutineUpdateConflicts,
+  resolveConflictKeepLocal,
+  resolveConflictKeepServer,
   syncOfflineOperations,
 } from '@/src/offline/service';
+import { OfflineOperation, RoutineUpdateOperationPayload } from '@/src/offline/types';
 import { activateRoutine, deleteRoutine, generateRoutine, getActiveRoutine, getRoutineById, regenerateRoutine } from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { Routine, RoutineSource, RoutineSummary } from '@/src/types/routine';
@@ -43,6 +48,9 @@ export default function FitnessScreen() {
   const [isDownloadingOffline, setIsDownloadingOffline] = useState(false);
   const [isSyncingOffline, setIsSyncingOffline] = useState(false);
   const [offlineError, setOfflineError] = useState<string | null>(null);
+  /** Operación en conflicto que el usuario está revisando (null = modal cerrado). */
+  const [conflictOp, setConflictOp] =
+    useState<OfflineOperation<RoutineUpdateOperationPayload> | null>(null);
   const { isOnline } = useNetworkStatus();
   const { status: offlineStatus, refresh: refreshOfflineStatus } =
     useOfflineModuleStatus('fitness-active-routine');
@@ -271,6 +279,58 @@ export default function FitnessScreen() {
       setIsSyncingOffline(false);
     }
   }, [getToken, isSyncingOffline, refreshOfflineStatus]);
+
+  const handleReviewConflict = useCallback(async () => {
+    try {
+      const conflicts = await getRoutineUpdateConflicts();
+      if (conflicts.length === 0) {
+        toast.info('No hay conflictos para revisar.');
+        await refreshOfflineStatus();
+        return;
+      }
+      setConflictOp(conflicts[0]);
+    } catch (error: any) {
+      toast.error(error?.message ?? 'No pudimos abrir el conflicto.');
+    }
+  }, [refreshOfflineStatus]);
+
+  const handleKeepServer = useCallback(async () => {
+    if (!conflictOp) return;
+    try {
+      await resolveConflictKeepServer(conflictOp);
+      if (conflictOp.serverRoutine) {
+        await handleRoutineUpdated(conflictOp.serverRoutine);
+      }
+      await refreshOfflineStatus();
+      toast.success('Te quedaste con la versión del servidor.', { title: 'Conflicto resuelto' });
+    } catch (error: any) {
+      toast.error(error?.message ?? 'No pudimos resolver el conflicto.');
+    } finally {
+      setConflictOp(null);
+    }
+  }, [conflictOp, handleRoutineUpdated, refreshOfflineStatus]);
+
+  const handleKeepLocal = useCallback(async () => {
+    if (!conflictOp) return;
+    try {
+      const token = await getToken();
+      const result = await resolveConflictKeepLocal(conflictOp, token);
+      await refreshOfflineStatus();
+      if (result.conflicts > 0) {
+        toast.warning('La rutina volvió a cambiar en el servidor. Revisá de nuevo.', {
+          title: 'Conflicto',
+        });
+      } else if (result.failed > 0) {
+        toast.error('No pudimos subir tu versión. Intentá más tarde.');
+      } else {
+        toast.success('Se mantuvo tu versión.', { title: 'Conflicto resuelto' });
+      }
+    } catch (error: any) {
+      toast.error(error?.message ?? 'No pudimos resolver el conflicto.');
+    } finally {
+      setConflictOp(null);
+    }
+  }, [conflictOp, getToken, refreshOfflineStatus]);
 
   const handleOpenCreate = useCallback(() => {
     const open = (layout: CardLayout) => {
@@ -626,6 +686,7 @@ export default function FitnessScreen() {
           }}
           onDownloadOffline={handleDownloadOffline}
           onSyncOffline={handleSyncOffline}
+          onReviewConflict={handleReviewConflict}
         />
       )}
 
@@ -668,6 +729,7 @@ export default function FitnessScreen() {
           }}
           onDownloadOffline={handleDownloadOffline}
           onSyncOffline={handleSyncOffline}
+          onReviewConflict={handleReviewConflict}
         />
       )}
 
@@ -700,6 +762,19 @@ export default function FitnessScreen() {
           } : undefined}
           onDownloadOffline={selectedFullRoutine.isActive ? handleDownloadOffline : undefined}
           onSyncOffline={selectedFullRoutine.isActive ? handleSyncOffline : undefined}
+          onReviewConflict={selectedFullRoutine.isActive ? handleReviewConflict : undefined}
+        />
+      )}
+
+      {/* Modal de resolución de conflicto de sync offline */}
+      {conflictOp?.serverRoutine && (
+        <ConflictResolutionModal
+          visible
+          localRoutine={conflictOp.payload.offlineRoutine}
+          serverRoutine={conflictOp.serverRoutine}
+          onClose={() => setConflictOp(null)}
+          onKeepLocal={handleKeepLocal}
+          onKeepServer={handleKeepServer}
         />
       )}
 
