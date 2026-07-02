@@ -14,6 +14,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import './global.css';
 import '@/src/utils/icon-interop';
 
+import { AppFrame } from '@/src/components/common/AppFrame';
 import { FullPageLoader } from '@/src/components/common/FullPageLoader';
 import { FeedbackHost } from '@/src/components/ui/feedback';
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
@@ -295,7 +296,9 @@ export default function RootLayout() {
             tokenCache={tokenCache}
           >
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <RootNavigator />
+              <AppFrame>
+                <RootNavigator />
+              </AppFrame>
               {/* Hosts de feedback no bloqueante (toasts + confirmaciones in-app) */}
               <FeedbackHost />
               {/* App dark-only: íconos/texto de la status bar siempre en claro para que se vean */}

@@ -211,10 +211,24 @@ ni service worker. Para PWA instalable + offline shell hace falta:
   y el offline fallback con la red cortada; confirmar Add to Home Screen en iOS Safari.
 - **Criterio:** Lighthouse PWA installable ✅; aparece prompt de instalación; abre standalone y offline.
 
-### Fase 5 — Layout centrado en web (DECIDIDO: app centrada, no responsive completo)
-- La UI es mobile-first; en desktop se ve una columna estirada. Agregar contenedor con `max-width`
-  centrado (~480px) para el viewport web, sin tocar el layout nativo (usar `.web.tsx` o guard).
-- **Criterio:** desktop web se ve como app centrada tipo móvil, no estirada.
+### Fase 5 — ✅ Layout centrado en web (IMPLEMENTADA — smoke test visual OK)
+- **`src/components/common/AppFrame.tsx`** (nuevo, base/nativo): passthrough (`<>{children}</>`),
+  cero envoltura visual — nativo sin cambios de comportamiento.
+- **`src/components/common/AppFrame.web.tsx`** (nuevo, override web): `View` con
+  `flex:1, width:'100%', maxWidth:480, alignSelf:'center'`. Metro resuelve por extensión (mismo
+  patrón que `use-color-scheme.web.ts` / `storage-support.web.ts`); el bundle nativo nunca ve este
+  archivo.
+- **`app/_layout.tsx`:** se envolvió únicamente `<RootNavigator />` con `<AppFrame>` (no
+  `FeedbackHost`/`StatusBar`, que son config/hosts no-layout). Los gutters laterales quedan pintados
+  `#09090b` por la regla `html,body,#root` de `app/+html.tsx` (Fase 4) — sin trabajo extra.
+- **Tab bar:** `Tabs` de `(tabs)/_layout.tsx` usa `tabBarStyle.position:'absolute'`, que se confina
+  solo al ancestro posicionado (`AppFrame.web.tsx`'s `View`, `position:relative` por default en RNW).
+- **Validado:** `tsc --noEmit` y ESLint limpios en los 3 archivos; `expo start --web` bundling sin
+  errores nuevos; **smoke test visual confirmado por el usuario** — desktop se ve como columna
+  centrada tipo móvil, no estirada.
+- **Pendiente:** regresión nativa (Expo Go/dev build) — no verificable en este entorno sin
+  dispositivo; `AppFrame` base es passthrough puro, riesgo nativo esperado: cero.
+- **Criterio:** desktop web se ve como app centrada tipo móvil, no estirada. ✅
 
 ### Fase 6 — Verificación final
 - Ver checklist §5.
