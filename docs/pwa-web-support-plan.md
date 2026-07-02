@@ -56,28 +56,36 @@ extensión en build-time; el bundle nativo **nunca ve** el código web. Riesgo s
 - **Pendiente real:** la persistencia de sesión web (si falla) depende de `clerk-js`/cookies/dominio del
   dev server, no del tokenCache. Se valida empíricamente en el smoke test de Fase 1, no se asume.
 
-### 2.2 🟡 `expo-sqlite` — capa offline (a validar)
+### 2.2 ✅ `expo-sqlite` — capa offline en web (IMPLEMENTADO, ver Fase 2)
 - **Hallazgo:** `expo-sqlite` **SÍ** trae impl web (`wa-sqlite` WASM, `worker.ts`, `WebStorage.js`).
 - **Dónde pega:** `src/offline/db.ts` (SQLite + migraciones), `src/offline/repository.ts`, `OfflineSyncGate`.
-- **Riesgo real:** la **persistencia** en web depende del VFS. Con OPFS/SharedArrayBuffer hace falta
-  servir la app con headers `Cross-Origin-Opener-Policy: same-origin` y
-  `Cross-Origin-Embedder-Policy: require-corp` (crossOriginIsolated). Sin eso puede caer a memoria
-  (se pierde al recargar) o fallar `WAL`/`withExclusiveTransactionAsync`.
 - **DECISIÓN TOMADA → Opción B (offline real):** habilitar wa-sqlite (WASM) en web y validar migraciones.
   Offline funcional en el navegador, paridad con nativo.
   - ✅ **CORRECCIÓN (verificado en `node_modules/expo-sqlite/web/wa-sqlite/`):** esta versión usa
     **`AccessHandlePoolVFS`** (OPFS Access Handle Pool) — `navigator.storage.getDirectory()` +
-    `createSyncAccessHandle()` en un Worker. **NO usa `SharedArrayBuffer`** (0 coincidencias de
-    `SharedArrayBuffer`/`crossOriginIsolated` en `AccessHandlePoolVFS.js` y `wa-sqlite.js`).
+    `createSyncAccessHandle()` en un Worker. **NO usa `SharedArrayBuffer`** para las APIs async que usa
+    la capa offline (0 coincidencias de `crossOriginIsolated` en todo `expo-sqlite/web`).
     → **NO hacen falta headers COOP/COEP.** El hosting deja de ser una restricción dura.
+  - ✅ **CORRECCIÓN 2 (verificado en `worker.ts:405` y `AccessHandlePoolVFS.js:218-235`):** una DB con
+    **nombre de archivo** (no `:memory:`, que es nuestro caso: `wellium-offline.db`) usa SIEMPRE el VFS
+    persistente. **NO hay fallback silencioso a `MemoryVFS`** — sin OPFS, `maybeInitAsync` **lanza**
+    `Error('Failed to initialize AccessHandlePoolVFS')`. `MemoryVFS` solo aplica a paths `:memory:`.
+    → Se implementó detección propia (`src/offline/storage-support.ts` / `.web.ts`) que lanza un error
+    tipado (`OfflineStorageUnavailableError`, `db.ts`) **antes** de llegar a ese throw críptico, para que
+    los consumidores degraden a network-only de forma controlada.
   - **Requisitos reales:** (1) contexto seguro **HTTPS** (o localhost) — necesario igual para SW/PWA;
     (2) navegador con OPFS + `createSyncAccessHandle` (Chrome 108+, Safari 17+, Firefox 111+);
-    (3) validar `PRAGMA journal_mode = WAL` y `ALTER TABLE ADD COLUMN` sobre el VFS web.
-  - **Fallback:** si el navegador no soporta OPFS, wa-sqlite cae a `MemoryVFS` (no persiste) — detectar
-    y avisar, o degradar a network-only solo en esos navegadores.
+    (3) `PRAGMA journal_mode = WAL` se **omite en web** (`db.ts`, guard `Platform.OS !== 'web'`):
+    `AccessHandlePoolVFS` no provee shared-memory para el WAL-index; web queda en journal `delete`.
+    `ALTER TABLE ADD COLUMN` (v2) sí corre igual en ambas plataformas dentro de
+    `withExclusiveTransactionAsync`.
   - (Descartada) Opción A network-only: era la rápida, pero sin offline en web.
-- **Nota migraciones:** `ALTER TABLE ... ADD COLUMN` (v2) y `PRAGMA journal_mode = WAL` hay que
-  probarlos explícitamente sobre el backend web de expo-sqlite.
+- **Build:** `wasm` no estaba en `assetExts` de Metro (ni en los defaults) — el worker de wa-sqlite
+  importa `wa-sqlite.wasm`. Se agregó a `metro.config.js → resolver.assetExts` (inerte en nativo, el
+  único `import` de `.wasm` del repo vive en `expo-sqlite/web/`).
+- **Nota migraciones:** `ALTER TABLE ... ADD COLUMN` (v2) corre igual en ambas plataformas; `PRAGMA
+  journal_mode = WAL` queda excluido en web por guard de plataforma (ver arriba). Pendiente: validar
+  empíricamente en `npm run web` si el guard de WAL era estrictamente necesario o defensivo.
 
 ### 2.3 🟡 `expo-camera` — escáner de alimentos
 - **Dónde pega:** `src/components/features/nutrition/FoodScannerView.tsx` (sin `Platform` guard),
@@ -127,14 +135,24 @@ ni service worker. Para PWA instalable + offline shell hace falta:
   sesión web se valida en el smoke test manual (`npm run web` → login → recargar) — no es un efecto de este
   cambio, sino de `clerk-js`/cookies; si falla, es un follow-up aparte, no repetir esta fase.
 
-### Fase 2 — 🟡 Offline real en web (Opción B, DECIDIDA)
-- Habilitar wa-sqlite real: validar que `SQLite.openDatabaseAsync` persista en web vía OPFS
-  (`AccessHandlePoolVFS`). **Sin headers COOP/COEP** (ver §2.2).
-- Servir sobre **HTTPS** (o localhost) — requisito de contexto seguro para OPFS y SW.
-- Validar migraciones (`WAL`, `ALTER TABLE ADD COLUMN`) sobre el backend web de expo-sqlite.
-- Detectar navegadores sin OPFS → avisar / degradar a network-only solo ahí (evitar `MemoryVFS` silencioso).
-- Si algún paso de migración no soporta web, aislar con guard puntual (no desactivar toda la capa).
-- **Criterio:** en web los datos offline **persisten tras recargar**; sin errores de SQLite.
+### Fase 2 — ✅ Offline real en web (Opción B, IMPLEMENTADA — pendiente smoke test)
+- `metro.config.js`: `wasm` agregado a `resolver.assetExts` para que Metro sirva `wa-sqlite.wasm`.
+- `src/offline/storage-support.ts` (+ `.web.ts`, nuevo): feature-detect de OPFS
+  (`navigator.storage.getDirectory` + `isSecureContext`). Nativo siempre `true`.
+- `src/offline/db.ts`: `getOfflineDb` lanza `OfflineStorageUnavailableError` (tipado) en web sin OPFS,
+  **antes** de que el VFS lance su error críptico (ver §2.2 corrección 2). `PRAGMA journal_mode = WAL`
+  excluido en web (`Platform.OS !== 'web'`) — `AccessHandlePoolVFS` no tiene shared-memory para WAL.
+  Path nativo sin cambios de comportamiento.
+- Consumidores auditados (`app/session.tsx`, `meal/[id].tsx`, `fitness/index.tsx`,
+  `RoutineEditMode.tsx`, `useNutritionOfflineRoutine.ts`): ya tenían try/catch genérico → degradan solos
+  mostrando el mensaje del error tipado. Único gap real: `useOfflineModuleStatus.ts` no tenía catch
+  (unhandled rejection) → se agregó, degrada a `EMPTY_STATUS`.
+- **Sin headers COOP/COEP** (ver §2.2). Servir sobre **HTTPS** (o localhost).
+- **Pendiente (no verificable estáticamente):** smoke test `npm run web` — bundling del worker+wasm sin
+  404, persistencia real tras F5 (DevTools → Application → OPFS → `wellium-offline.db`), migraciones v1/v2
+  corriendo sin throw, y confirmar si el guard de WAL era obligatorio (tiraba error) o defensivo.
+- **Criterio:** en web los datos offline **persisten tras recargar**; sin errores de SQLite; sin OPFS
+  degrada a network-only sin crashear.
 
 ### Fase 3 — 🟡🟢 Degradación de features nativas
 - `FoodScannerView`: guard web → búsqueda manual / ocultar escáner.
@@ -197,8 +215,10 @@ ni service worker. Para PWA instalable + offline shell hace falta:
 ## 7. Riesgos
 
 - **SQLite en web (OPFS):** ya no depende de headers COOP/COEP (usa `AccessHandlePoolVFS`). Riesgo real:
-  navegadores sin OPFS (Safari <17, browsers viejos) → cae a `MemoryVFS` sin persistir. Mitigación:
-  detectar soporte y degradar/avisar. También validar contención OPFS entre múltiples pestañas.
+  navegadores sin OPFS (Safari <17, browsers viejos) → el VFS **lanza** en vez de degradar solo
+  (verificado, no cae a `MemoryVFS`: ese VFS es solo para `:memory:`). Mitigado con detección propia
+  (`storage-support.web.ts`) + error tipado (Fase 2, implementado). Pendiente: validar contención OPFS
+  entre múltiples pestañas (fuera de alcance de Fase 2).
 - **Autoplay de audio en web:** el navegador bloquea sonido sin gesto previo.
 - **Clerk en web:** validar que el flujo OAuth (`expo-auth-session`/`expo-web-browser`) redirija bien
   con el `scheme`/redirect web.

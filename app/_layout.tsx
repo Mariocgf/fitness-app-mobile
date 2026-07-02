@@ -31,7 +31,12 @@ if (!publishableKey) {
 
 // App dark-only: forzamos el esquema oscuro en runtime (cubre Expo Go y los
 // useColorScheme directos de RN). El app.json lo fija además en builds nativos.
-Appearance.setColorScheme('dark');
+// En web, react-native-web no implementa Appearance.setColorScheme (lanza) y además
+// no está conectado al matchMedia que lee useColorScheme ahí: el forzado equivalente
+// para web vive en use-color-scheme.web.ts.
+if (Platform.OS !== 'web') {
+  Appearance.setColorScheme('dark');
+}
 
 // Previene que se oculte el splash screen antes de que tengamos la info del usuario
 SplashScreen.preventAutoHideAsync();

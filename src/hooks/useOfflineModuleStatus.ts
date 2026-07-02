@@ -19,6 +19,9 @@ export function useOfflineModuleStatus(type: OfflineSnapshotType) {
     setIsLoading(true);
     try {
       setStatus(await getOfflineModuleStatus(type));
+    } catch {
+      // Sin almacenamiento offline disponible (p. ej. web sin OPFS): degrada a no-disponible.
+      setStatus(EMPTY_STATUS);
     } finally {
       setIsLoading(false);
     }

@@ -1,11 +1,30 @@
 import * as SQLite from 'expo-sqlite';
+import { Platform } from 'react-native';
+
+import { isOfflineStorageSupported } from './storage-support';
 
 const DATABASE_NAME = 'wellium-offline.db';
 const SCHEMA_VERSION = 2;
 
+/**
+ * En web, sin OPFS el VFS persistente de expo-sqlite (AccessHandlePoolVFS) no
+ * degrada solo a memoria: lanza. La lanzamos nosotros antes, tipada, para que
+ * los consumidores puedan capturarla y degradar a network-only.
+ */
+export class OfflineStorageUnavailableError extends Error {
+  constructor() {
+    super('Almacenamiento offline no disponible en este navegador.');
+    this.name = 'OfflineStorageUnavailableError';
+  }
+}
+
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export const getOfflineDb = async (): Promise<SQLite.SQLiteDatabase> => {
+  if (Platform.OS === 'web' && !isOfflineStorageSupported()) {
+    throw new OfflineStorageUnavailableError();
+  }
+
   if (!dbPromise) {
     dbPromise = SQLite.openDatabaseAsync(DATABASE_NAME).then(async (db) => {
       await runMigrations(db);
@@ -21,7 +40,11 @@ export const resetOfflineDbConnection = () => {
 };
 
 const runMigrations = async (db: SQLite.SQLiteDatabase): Promise<void> => {
-  await db.execAsync('PRAGMA journal_mode = WAL;');
+  // AccessHandlePoolVFS (backend web de expo-sqlite) no provee shared-memory
+  // para el WAL-index: se omite en web y queda el journal `delete` por defecto.
+  if (Platform.OS !== 'web') {
+    await db.execAsync('PRAGMA journal_mode = WAL;');
+  }
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version;');
   const currentVersion = row?.user_version ?? 0;
 
