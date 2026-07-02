@@ -26,7 +26,6 @@ type IoniconName = keyof typeof Ionicons.glyphMap;
 /** Valor de una métrica de resumen para la tabla de comparación. */
 function formatSummaryValue(key: string, value: number): string {
   if (key === 'duration') return formatDurationLong(value);
-  if (key === 'totalVolume') return `${Math.round(value)} kg`;
   return `${value}`;
 }
 
@@ -35,7 +34,6 @@ function formatSignedDelta(delta: SessionMetricDelta): string {
   const sign = delta.diff > 0 ? '+' : '−';
   const abs = Math.abs(delta.diff);
   if (delta.key === 'duration') return `${sign}${formatDurationLong(abs)}`;
-  if (delta.key === 'totalVolume') return `${sign}${Math.round(abs)} kg`;
   return `${sign}${abs % 1 === 0 ? abs : abs.toFixed(1)}`;
 }
 
@@ -67,7 +65,7 @@ const VERDICT_META: Record<ComparisonVerdict, { label: string; icon: IoniconName
 const STAT_META: Record<string, { icon: IoniconName; changedLabel: string; noun: string }> = {
   completedSets: { icon: 'reorder-three-outline', changedLabel: 'series completadas', noun: 'Series' },
   duration: { icon: 'stopwatch-outline', changedLabel: 'de duración', noun: 'Duración' },
-  totalVolume: { icon: 'barbell-outline', changedLabel: 'de volumen', noun: 'Volumen' },
+  exerciseCount: { icon: 'barbell-outline', changedLabel: 'ejercicios realizados', noun: 'Ejercicios' },
 };
 
 /* ── Subcomponentes (uso único en esta vista) ────────────────────────────── */
@@ -178,7 +176,7 @@ export function SessionComparisonSheet({
   const byKey = (key: string) =>
     comparison?.summaryDeltas.find((d) => d.key === key);
   const miniStats = comparison
-    ? (['completedSets', 'duration', 'totalVolume']
+    ? (['completedSets', 'duration', 'exerciseCount']
         .map(byKey)
         .filter(Boolean) as SessionMetricDelta[])
     : [];

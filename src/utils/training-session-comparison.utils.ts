@@ -28,18 +28,12 @@ function buildDelta(
   return { key, label, unit, baseValue, targetValue, diff, percentChange, direction: computeDirection(diff) };
 }
 
-function exerciseVolume(ex: TrainingHistoryExercise): number {
-  return ex.sets
-    .filter((s) => s.isCompleted)
-    .reduce((acc, s) => acc + s.weightUsed * s.repsPerformed, 0);
-}
-
 function exerciseCompletedSets(ex: TrainingHistoryExercise): number {
   return ex.sets.filter((s) => s.isCompleted).length;
 }
 
-function sessionTotalVolume(session: TrainingHistorySession): number {
-  return session.exercises.reduce((acc, ex) => acc + exerciseVolume(ex), 0);
+function sessionExerciseCount(session: TrainingHistorySession): number {
+  return session.exercises.length;
 }
 
 function sessionTotalCompletedSets(session: TrainingHistorySession): number {
@@ -90,11 +84,11 @@ function buildExerciseDelta(
   };
 }
 
-/** Veredicto general: pesa series completadas y volumen (la duración es neutra). */
-function computeOverall(completedSetsDiff: number, volumeDiff: number): ComparisonVerdict {
+/** Veredicto general: pesa series completadas y ejercicios realizados (la duración es neutra). */
+function computeOverall(completedSetsDiff: number, exerciseCountDiff: number): ComparisonVerdict {
   let improvements = 0;
   let regressions = 0;
-  for (const diff of [completedSetsDiff, volumeDiff]) {
+  for (const diff of [completedSetsDiff, exerciseCountDiff]) {
     if (diff > DIRECTION_THRESHOLD) improvements += 1;
     else if (diff < -DIRECTION_THRESHOLD) regressions += 1;
   }
@@ -118,13 +112,13 @@ export function buildTrainingSessionComparison(
 
   const baseCompletedSets = sessionTotalCompletedSets(base);
   const targetCompletedSets = sessionTotalCompletedSets(target);
-  const baseVolume = sessionTotalVolume(base);
-  const targetVolume = sessionTotalVolume(target);
+  const baseExerciseCount = sessionExerciseCount(base);
+  const targetExerciseCount = sessionExerciseCount(target);
 
   const summaryDeltas: SessionMetricDelta[] = [
     buildDelta('duration', 'Duración', 's', base.totalSeconds, target.totalSeconds),
     buildDelta('completedSets', 'Series completadas', '', baseCompletedSets, targetCompletedSets),
-    buildDelta('totalVolume', 'Volumen total', 'kg', baseVolume, targetVolume),
+    buildDelta('exerciseCount', 'Ejercicios realizados', '', baseExerciseCount, targetExerciseCount),
   ];
 
   const exerciseDeltas: SessionExerciseDelta[] = [];
@@ -136,7 +130,7 @@ export function buildTrainingSessionComparison(
 
   const overall = computeOverall(
     targetCompletedSets - baseCompletedSets,
-    targetVolume - baseVolume,
+    targetExerciseCount - baseExerciseCount,
   );
 
   return { base, target, overall, summaryDeltas, exerciseDeltas };

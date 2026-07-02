@@ -160,7 +160,17 @@ export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
           className="flex-1 text-white text-base font-semibold text-center mx-3"
           returnKeyType="done"
         />
-        <View className="w-9" />
+        {activeDay ? (
+          <TouchableOpacity
+            onPress={() => onDayOptions(activeDay)}
+            className="w-9 h-9 rounded-full items-center justify-center"
+            hitSlop={8}
+          >
+            <Ionicons name="ellipsis-horizontal" size={20} className="text-white" />
+          </TouchableOpacity>
+        ) : (
+          <View className="w-9" />
+        )}
       </View>
 
       {/* Header de días (swipe + slot "+") */}
@@ -196,16 +206,11 @@ export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
           {isAddSlot ? (
             <Text className="text-lime-400/80 text-sm mt-0.5">Tocá para agregar un día</Text>
           ) : activeDay ? (
-            <View className="flex-row items-center gap-3 mt-0.5">
-              <Text className="text-zinc-500 text-sm">
-                {activeDay.exercises.length}{' '}
-                {activeDay.exercises.length === 1 ? 'ejercicio' : 'ejercicios'}
-                {activeDay.exercises.length > 0 && `  •  ≈${calcDayApproxTime(activeDay.exercises)} min`}
-              </Text>
-              <TouchableOpacity onPress={() => onDayOptions(activeDay)} hitSlop={8}>
-                <Ionicons name="ellipsis-horizontal" size={16} className="text-zinc-600" />
-              </TouchableOpacity>
-            </View>
+            <Text className="text-zinc-500 text-sm mt-0.5">
+              {activeDay.exercises.length}{' '}
+              {activeDay.exercises.length === 1 ? 'ejercicio' : 'ejercicios'}
+              {activeDay.exercises.length > 0 && `  •  ≈${calcDayApproxTime(activeDay.exercises)} min`}
+            </Text>
           ) : null}
         </Pressable>
       </GestureDetector>

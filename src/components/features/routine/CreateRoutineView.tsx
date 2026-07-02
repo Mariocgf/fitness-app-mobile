@@ -169,10 +169,14 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({
       actions.push({
         label: 'Copiar ejercicios a...',
         onPress: () =>
-          presentMenu(
-            `Copiar desde ${day.label}`,
-            otherDays.map((target) => ({ label: target.label, onPress: () => copyToTarget(target) })),
-          ),
+          // Android necesita que la modal del sheet anterior termine de desmontarse
+          // antes de abrir la siguiente; sin este delay, la segunda no aparece.
+          setTimeout(() => {
+            presentMenu(
+              `Copiar desde ${day.label}`,
+              otherDays.map((target) => ({ label: target.label, onPress: () => copyToTarget(target) })),
+            );
+          }, 500),
       });
     }
     actions.push({ label: 'Eliminar día', onPress: () => editor.removeDay(day.id), destructive: true });
