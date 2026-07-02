@@ -175,12 +175,40 @@ ni service worker. Para PWA instalable + offline shell hace falta:
   de escáner, ruler sin errores de haptics, audio/voz de sesión tras el tap de inicio) + regresión nativa
   (Android/Expo Go: escáner, haptics y audio funcionando igual que antes).
 
-### Fase 4 — PWA shell (el corazón del pedido)
-- Completar `app.json → web` (name, themeColor, backgroundColor, display, orientation) o `app/+html.tsx`.
-- Crear `public/manifest.json` + íconos (192/512 + maskable) + `apple-touch-icon`.
-- `app/+html.tsx`: `<link rel="manifest">`, metas de theme-color y apple.
-- Service Worker (Serwist/Workbox o manual) en `public/sw.js` — **solo precache de app-shell + assets**
-  (sin cachear API); registro condicionado a `Platform.OS === 'web'`.
+### Fase 4 — ✅ PWA shell (IMPLEMENTADA — pendiente verificación visual con Lighthouse/DevTools)
+- **Íconos:** `scripts/generate-pwa-icons.js` (nuevo, one-off) genera `public/icons/{icon-192,icon-512,
+  apple-touch-icon,icon-maskable-512}.png` desde `assets/images/icon.png` (fuente 512×512, sin canal
+  alpha) usando `@expo/image-utils` (ya instalado por Expo CLI, path Jimp puro — sin `sharp` en el
+  proyecto, no hace falta instalar nada nuevo). El maskable escala el ícono al 80% centrado sobre
+  `#09090b` (safe zone del mask).
+- **`public/manifest.json`:** `name/short_name` Wellium, `start_url`/`scope` `/`, `display: standalone`,
+  `background_color`/`theme_color` `#09090b` (zinc-950, fondo real dark-only — evita flash blanco).
+  Icons `any` (192/512) + `maskable` (512).
+- **`app/+html.tsx` (nuevo):** basado en la plantilla oficial de `expo-router/html`
+  (`ScrollViewStyleReset`), agrega `<link rel="manifest">`, `<meta name="theme-color">`, íconos/metas
+  Apple, un `<style>` inline de fondo `#09090b` (anti-flash pre-hidratación) y el registro del SW como
+  `<script dangerouslySetInnerHTML>` (string — nunca se ejecuta en el pre-render SSR) **solo si
+  `process.env.NODE_ENV === 'production'`**, para no interferir con `expo start --web`.
+  **Verificado:** `+html.tsx` está en el `ignoreList` de `getRoutesCore.js` de expo-router
+  (`/^\.\/\+(html|native-intent)\.[tj]sx?$/`) — nunca entra al árbol de rutas de la app, ni web ni
+  nativo. Es exclusivo del export estático. Riesgo nativo confirmado en **cero**, no solo supuesto.
+- **`public/sw.js` (nuevo, manual, sin Workbox/Serwist):** `install` precachea `/`; `fetch` solo
+  intercepta **same-origin GET** — navegaciones en network-first con fallback a `/` cacheado (offline
+  abre el shell); `/_expo/`, `/assets/`, `/icons/` en stale-while-revalidate. **Nunca toca la API**
+  (cumple la decisión §6.3). Sin condicionar por `Platform.OS`: el registro solo corre dentro de
+  `+html.tsx`, que ya es web-only por construcción (ver punto anterior).
+- **`app.json` NO se tocó:** verificado que con el bundler **Metro** (el que usa este proyecto), los
+  campos `web.name/themeColor/backgroundColor/display` **no generan** `manifest.json` — eso era
+  comportamiento del bundler Webpack legacy de Expo. Escribir el manifest a mano en `public/` es la
+  única vía real; tocar `app.json` habría sido config muerta silenciosa.
+- **Validado con `expo export --platform web`:** `dist/manifest.json`, `dist/sw.js`, `dist/icons/*.png`
+  presentes (confirma que `public/` se copia al root del export); `dist/index.html` incluye el
+  `<link rel="manifest">`, las metas Apple/theme-color y el `<script>` de registro del SW (el export
+  corre en modo producción). Servido localmente: `/manifest.json`, `/sw.js` y los 3 íconos responden
+  `200` con el `Content-Type` correcto. `tsc --noEmit` y ESLint sobre los archivos nuevos, limpios.
+- **Pendiente (no verificable estáticamente):** abrir en Chrome DevTools → Application (manifest sin
+  errores, SW "activated") y correr Lighthouse → PWA installable; probar el prompt de instalación real
+  y el offline fallback con la red cortada; confirmar Add to Home Screen en iOS Safari.
 - **Criterio:** Lighthouse PWA installable ✅; aparece prompt de instalación; abre standalone y offline.
 
 ### Fase 5 — Layout centrado en web (DECIDIDO: app centrada, no responsive completo)
