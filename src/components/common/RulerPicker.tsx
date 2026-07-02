@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
+    Platform,
     ScrollView,
     Text,
     useColorScheme,
@@ -104,7 +105,7 @@ export default function RulerPicker({
         // Haptic feedback al cambiar de valor (throttled cada 2 unidades para no saturar)
         if (Math.abs(clampedValue - lastHapticValue.current) >= 2) {
           lastHapticValue.current = clampedValue;
-          Haptics.selectionAsync().catch(() => {});
+          if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {});
         }
       }
     },

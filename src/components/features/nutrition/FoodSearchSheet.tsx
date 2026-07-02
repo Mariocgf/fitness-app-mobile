@@ -8,6 +8,7 @@ import { BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -166,12 +167,14 @@ export function FoodSearchSheet({
                   returnKeyType="search"
                 />
               </View>
-              <TouchableOpacity
-                onPress={handleOpenScanner}
-                className="w-14 h-14 items-center justify-center ml-3 bg-zinc-900 border border-zinc-800 rounded-2xl"
-              >
-                <Ionicons name="scan-outline" size={26} color="#ffffff" />
-              </TouchableOpacity>
+              {Platform.OS !== 'web' && (
+                <TouchableOpacity
+                  onPress={handleOpenScanner}
+                  className="w-14 h-14 items-center justify-center ml-3 bg-zinc-900 border border-zinc-800 rounded-2xl"
+                >
+                  <Ionicons name="scan-outline" size={26} color="#ffffff" />
+                </TouchableOpacity>
+              )}
             </View>
 
             {error && <Text className="text-rose-400 text-sm mt-3">{error}</Text>}

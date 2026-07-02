@@ -154,11 +154,26 @@ ni service worker. Para PWA instalable + offline shell hace falta:
 - **Criterio:** en web los datos offline **persisten tras recargar**; sin errores de SQLite; sin OPFS
   degrada a network-only sin crashear.
 
-### Fase 3 — 🟡🟢 Degradación de features nativas
-- `FoodScannerView`: guard web → búsqueda manual / ocultar escáner.
-- `RulerPicker`: `Haptics` bajo `Platform.OS !== 'web'`.
-- `useSessionAudio`: validar autoplay-tras-gesto; guard si hace falta.
+### Fase 3 — ✅ Degradación de features nativas (IMPLEMENTADA — pendiente smoke test)
+- **Escáner de alimentos (`FoodSearchSheet.tsx`):** el botón `scan-outline` que abre `FoodScannerView`
+  se envolvió en `Platform.OS !== 'web'`. En web nunca se monta `CameraView`; queda la búsqueda manual
+  (ya era la vista por defecto). `FoodScannerView.tsx` no se tocó (queda inalcanzable en web).
+  `useCameraPermissions()` se deja sin guard (no se puede llamar condicionalmente, rules of hooks;
+  no crashea en web vía getUserMedia).
+- **`RulerPicker.tsx`:** `Haptics.selectionAsync()` (única llamada, dentro del throttle de `handleScroll`)
+  ahora corre bajo `if (Platform.OS !== 'web')`. Sigue vivo — consumido por
+  `FitnessTrainingPreferencesConfig.tsx`, no era código muerto.
+- **`useSessionAudio.ts` (DECISIÓN: audio funciona en web):** solo se guardó `configureSessionAudio()`
+  (early-return en web antes de `Audio.setAudioModeAsync`, que trae keys 100% iOS/Android). Los beeps
+  (`Audio.Sound`) y la voz (`Speech.speak` → Web Speech API) se dejaron intactos: la sesión arranca con
+  un tap del usuario, así que hay gesto previo para desbloquear autoplay en el navegador. Si el smoke
+  test muestra ruido de `expo-av` en consola web, el plan B es early-return también en los effects de
+  reproducción (silencio total en web) — no se aplicó a priori.
+- **Sin cambios nuevos:** typecheck (`tsc --noEmit`) y ESLint sobre los 3 archivos, limpios.
 - **Criterio:** ninguna pantalla crashea en web; features no soportadas degradan con mensaje claro.
+  **Pendiente (no verificable estáticamente):** smoke test `npm run web` (búsqueda de alimentos sin botón
+  de escáner, ruler sin errores de haptics, audio/voz de sesión tras el tap de inicio) + regresión nativa
+  (Android/Expo Go: escáner, haptics y audio funcionando igual que antes).
 
 ### Fase 4 — PWA shell (el corazón del pedido)
 - Completar `app.json → web` (name, themeColor, backgroundColor, display, orientation) o `app/+html.tsx`.

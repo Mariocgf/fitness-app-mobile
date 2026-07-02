@@ -2,6 +2,7 @@ import { logger } from '@/src/utils/logger';
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
 import * as Speech from 'expo-speech';
 import { useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import { Phase } from './useActiveSession';
 
 interface UseSessionAudioProps {
@@ -30,6 +31,8 @@ type PreloadedSessionSounds = {
 };
 
 async function configureSessionAudio(): Promise<void> {
+  // El modo de audio nativo (ducking, background, earpiece) no aplica en web.
+  if (Platform.OS === 'web') return;
   await Audio.setAudioModeAsync(SESSION_AUDIO_MODE);
 }
 
