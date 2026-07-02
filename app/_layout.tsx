@@ -1,10 +1,10 @@
 import { logger } from '@/src/utils/logger';
 import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-expo';
+import { tokenCache } from '@clerk/clerk-expo/token-cache';
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import * as NavigationBar from 'expo-navigation-bar';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { Appearance, Platform } from 'react-native';
@@ -70,26 +70,6 @@ const getStatusFromResponse = (responseData: unknown) => {
   return normalizeOnboardingStatus(
     data.status ?? data.onboardingStatus ?? data.onboarding_status
   );
-};
-
-const tokenCache = {
-  async getToken(key: string) {
-    try {
-      const item = await SecureStore.getItemAsync(key);
-      return item;
-    } catch (error) {
-      logger.error('SecureStore get item error: ', error);
-      await SecureStore.deleteItemAsync(key);
-      return null;
-    }
-  },
-  async saveToken(key: string, value: string) {
-    try {
-      return SecureStore.setItemAsync(key, value);
-    } catch {
-      return;
-    }
-  },
 };
 
 export const unstable_settings = {
