@@ -29,6 +29,24 @@ const GENDER_OPTIONS = [
   { label: 'Femenino', value: 'female' },
 ];
 
+/** Formatea una fecha a `YYYY-MM-DD` local para el `<input type="date">` de web. */
+const toDateInputValue = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
+ * Parsea `YYYY-MM-DD` a una Date local. Se construye con los componentes para
+ * evitar el corrimiento de día que produce `new Date('YYYY-MM-DD')` (parsea UTC).
+ */
+const parseDateInputValue = (value: string): Date | null => {
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+};
+
 interface BasicInfoStep1Props {
   date: Date;
   onDateChange: (date: Date) => void;
@@ -82,6 +100,30 @@ export default function BasicInfoStep1({
           {/* Fecha de nacimiento */}
           <Text className="text-base text-zinc-400 mb-3">Fecha de nacimiento</Text>
           <View className="bg-zinc-900 rounded-3xl p-2 overflow-hidden">
+            {/* Web: el DateTimePicker nativo no existe (sin soporte web); se usa
+                el date input nativo del navegador, que react-native-web pinta como DOM. */}
+            {Platform.OS === 'web' && (
+              <input
+                type="date"
+                value={toDateInputValue(date)}
+                max={toDateInputValue(new Date())}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  const next = parseDateInputValue(e.target.value);
+                  if (next) onDateChange(next);
+                }}
+                style={{
+                  width: '100%',
+                  backgroundColor: 'transparent',
+                  color: '#ffffff',
+                  border: 'none',
+                  outline: 'none',
+                  fontSize: 20,
+                  padding: 12,
+                  colorScheme: 'dark',
+                }}
+              />
+            )}
+
             {Platform.OS === 'android' && !showDatePicker && (
               <TouchableOpacity
                 onPress={() => setShowDatePicker(true)}

@@ -2,7 +2,7 @@ import { Picker } from '@react-native-picker/picker';
 import React, { useMemo } from 'react';
 import { Platform, Text, View } from 'react-native';
 
-interface WheelPickerProps {
+export interface WheelPickerProps {
   /** Etiqueta de la métrica (ej. "Peso", "Altura") */
   label: string;
   /** Valor seleccionado */

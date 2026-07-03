@@ -260,7 +260,17 @@ function RootNavigator() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false, presentation: 'modal' }} />
-      <Stack.Screen name="session" options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen
+        name="session"
+        options={{
+          headerShown: false,
+          // En web el `fullScreenModal` no estira al viewport y queda con fondo
+          // transparente (se ve la pantalla de atrás). Usamos `card` en web.
+          presentation: Platform.OS === 'web' ? 'card' : 'fullScreenModal',
+          animation: 'slide_from_bottom',
+          contentStyle: { backgroundColor: '#09090b' },
+        }}
+      />
       <Stack.Screen name="profile" options={{ headerShown: false, animation: 'slide_from_right' }} />
     </Stack>
   );

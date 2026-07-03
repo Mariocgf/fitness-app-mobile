@@ -39,6 +39,29 @@ export const resetOfflineDbConnection = () => {
   dbPromise = null;
 };
 
+/**
+ * Ejecuta una migración dentro de una transacción atómica.
+ * Nativo usa `withExclusiveTransactionAsync` (conexión separada, aislamiento
+ * exclusivo) tal cual estaba. Web NO soporta esa API (lanza
+ * `withExclusiveTransactionAsync is not supported on web`), así que cae a
+ * `withTransactionAsync` sobre la misma conexión: como las migraciones corren
+ * al abrir la DB, sin concurrencia, el resultado es equivalente y atómico.
+ */
+const runMigrationTransaction = async (
+  db: SQLite.SQLiteDatabase,
+  task: (executor: Pick<SQLite.SQLiteDatabase, 'execAsync'>) => Promise<void>,
+): Promise<void> => {
+  if (Platform.OS === 'web') {
+    await db.withTransactionAsync(async () => {
+      await task(db);
+    });
+    return;
+  }
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await task(tx);
+  });
+};
+
 const runMigrations = async (db: SQLite.SQLiteDatabase): Promise<void> => {
   // AccessHandlePoolVFS (backend web de expo-sqlite) no provee shared-memory
   // para el WAL-index: se omite en web y queda el journal `delete` por defecto.
@@ -49,7 +72,7 @@ const runMigrations = async (db: SQLite.SQLiteDatabase): Promise<void> => {
   const currentVersion = row?.user_version ?? 0;
 
   if (currentVersion < 1) {
-    await db.withExclusiveTransactionAsync(async (tx) => {
+    await runMigrationTransaction(db, async (tx) => {
       await tx.execAsync(`
         CREATE TABLE IF NOT EXISTS offline_snapshots (
           type TEXT PRIMARY KEY NOT NULL,
@@ -85,7 +108,7 @@ const runMigrations = async (db: SQLite.SQLiteDatabase): Promise<void> => {
     // Guarda la rutina del servidor (result.result del POST /api/offline/sync)
     // cuando una operación queda en conflicto, para mostrarla en la UI de
     // resolución sin un GET extra.
-    await db.withExclusiveTransactionAsync(async (tx) => {
+    await runMigrationTransaction(db, async (tx) => {
       await tx.execAsync(
         `ALTER TABLE offline_queue ADD COLUMN conflict_server_routine TEXT NULL;`,
       );

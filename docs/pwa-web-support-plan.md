@@ -77,8 +77,13 @@ extensión en build-time; el bundle nativo **nunca ve** el código web. Riesgo s
     (2) navegador con OPFS + `createSyncAccessHandle` (Chrome 108+, Safari 17+, Firefox 111+);
     (3) `PRAGMA journal_mode = WAL` se **omite en web** (`db.ts`, guard `Platform.OS !== 'web'`):
     `AccessHandlePoolVFS` no provee shared-memory para el WAL-index; web queda en journal `delete`.
-    `ALTER TABLE ADD COLUMN` (v2) sí corre igual en ambas plataformas dentro de
-    `withExclusiveTransactionAsync`.
+    ✅ **CORRECCIÓN 3 (verificado en `node_modules/expo-sqlite/src/SQLiteDatabase.ts:170-172`, Fase 6):**
+    `withExclusiveTransactionAsync` **lanza en web** (`throw new Error('withExclusiveTransactionAsync is
+    not supported on web')`) — usa una conexión separada que el backend web no soporta. Las 2 migraciones
+    de `db.ts` la usaban → la capa offline web **reventaba en la migración v0→v1** (no solo la v2). Se
+    agregó un helper `runMigrationTransaction`: nativo sigue con `withExclusiveTransactionAsync` (idéntico),
+    web cae a `withTransactionAsync` (atómico, mismo hilo, sin concurrencia en open-time). Detalle en
+    `docs/agent-implementation-lessons.md` → sección "PWA Fase 6".
   - (Descartada) Opción A network-only: era la rápida, pero sin offline en web.
 - **Build:** `wasm` no estaba en `assetExts` de Metro (ni en los defaults) — el worker de wa-sqlite
   importa `wa-sqlite.wasm`. Se agregó a `metro.config.js → resolver.assetExts` (inerte en nativo, el

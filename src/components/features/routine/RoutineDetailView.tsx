@@ -32,6 +32,7 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -639,10 +640,57 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
     index,
   });
 
+  const renderExercise = (exercise: RoutineExercise, idx: number) => (
+    <SwapAwareExerciseItem
+      key={exercise.id}
+      exercise={exercise}
+      index={idx}
+      isSwapMode={isSwapMode}
+      isSelected={selectedForSwap.has(exercise.id)}
+      isLoading={loadingItems.has(exercise.id)}
+      suggestion={suggestions[exercise.id]}
+      pickExerciseId={picks[exercise.id]}
+      onPress={() => {
+        if (!isSwapMode) {
+          setSelectedExercise(exercise);
+          return;
+        }
+        if (suggestions[exercise.id]) {
+          setOpenCandidateFor(exercise.id);
+        } else {
+          toggleExerciseSelection(exercise.id);
+        }
+      }}
+    />
+  );
+
+  const listPaddingBottom =
+    insets.bottom + TAB_BAR_HEIGHT + BOTTOM_BUTTON_HEIGHT + 32 + (isPreviewing ? 64 : 0);
+
   /* ── Render ───────────────────────────────────────────────────────────── */
 
   return (
-    <Animated.View style={containerStyle} className="bg-zinc-950">
+    <Animated.View
+      style={
+        Platform.OS === 'web'
+          ? {
+              // En web NO usamos el expand animado desde `cardLayout` (measure()
+              // + interpolate de reanimated): la altura sale inestable y el flex
+              // chain no llega a acotarse, así que el scroll no tiene viewport.
+              // Contenedor fijo a pantalla completa → altura real garantizada.
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: '#09090b',
+              overflow: 'hidden',
+              zIndex: 40,
+            }
+          : containerStyle
+      }
+      className="bg-zinc-950"
+    >
       {isEditMode ? (
         <RoutineEditMode
           routine={routine}
@@ -790,28 +838,59 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
         ) : (
           <GestureDetector gesture={dayHeaderGesture}>
             <View className="px-6 pt-1 pb-4">
-              {/* 3 slots fijos: el contenido hace cross-fade al deslizar */}
-              <View className="flex-row items-baseline gap-6">
-                {SLOT_CONFIGS.slice(0, Math.min(3, sortedDays.length)).map((cfg, slotIdx) => {
-                  const N = sortedDays.length;
-                  const i = activeDayIndex + slotIdx;
-                  const getN = (idx: number) =>
-                    idx >= 0 && idx < N ? getDayDisplayName(sortedDays[idx].day) : '';
-                  return (
-                    <DaySlot
-                      key={slotIdx}
-                      prev={getN(i - 1)}
-                      current={getN(i)}
-                      next={getN(i + 1)}
-                      fontSize={cfg.fontSize}
-                      color={cfg.color}
-                      scrollX={scrollX}
-                      baseOffset={baseOffset}
-                      screenWidth={screenWidth}
-                    />
-                  );
-                })}
-              </View>
+              {/* 3 slots fijos: el contenido hace cross-fade al deslizar.
+                 En web las capas `position:absolute` con `width: screenWidth`
+                 se desbordan y se pisan. Replicamos el MISMO look (día actual
+                 grande + los que siguen, más chicos/grisados con SLOT_CONFIGS)
+                 pero estático: Text plano por slot, sin capas absolutas ni
+                 animación de scrollX. */}
+              {Platform.OS === 'web' ? (
+                <View className="flex-row items-baseline gap-6 overflow-hidden">
+                  {SLOT_CONFIGS.slice(0, Math.min(3, sortedDays.length)).map((cfg, slotIdx) => {
+                    const day = sortedDays[(activeDayIndex + slotIdx) % sortedDays.length];
+                    return (
+                      <Text
+                        key={slotIdx}
+                        numberOfLines={1}
+                        className="font-bold"
+                        // flexShrink:0 → cada día toma su ancho natural (no se
+                        // encoge ni trunca con "..."); los que siguen sobresalen
+                        // y los recorta el `overflow-hidden` de la fila (peek).
+                        style={{
+                          flexShrink: 0,
+                          fontSize: cfg.fontSize,
+                          lineHeight: cfg.fontSize * 1.15,
+                          color: cfg.color,
+                        }}
+                      >
+                        {getDayDisplayName(day.day)}
+                      </Text>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View className="flex-row items-baseline gap-6">
+                  {SLOT_CONFIGS.slice(0, Math.min(3, sortedDays.length)).map((cfg, slotIdx) => {
+                    const N = sortedDays.length;
+                    const i = activeDayIndex + slotIdx;
+                    const getN = (idx: number) =>
+                      idx >= 0 && idx < N ? getDayDisplayName(sortedDays[idx].day) : '';
+                    return (
+                      <DaySlot
+                        key={slotIdx}
+                        prev={getN(i - 1)}
+                        current={getN(i)}
+                        next={getN(i + 1)}
+                        fontSize={cfg.fontSize}
+                        color={cfg.color}
+                        scrollX={scrollX}
+                        baseOffset={baseOffset}
+                        screenWidth={screenWidth}
+                      />
+                    );
+                  })}
+                </View>
+              )}
               <Text className="text-zinc-500 text-sm mt-0.5">
                 {activeDay.exercises.length}{' '}
                 {activeDay.exercises.length === 1 ? 'ejercicio' : 'ejercicios'}{' '}
@@ -861,6 +940,22 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
               <SkeletonItem key={i} className="w-full h-20 rounded-2xl" />
             ))}
           </View>
+        ) : Platform.OS === 'web' ? (
+          /* En web evitamos el FlatList horizontal paginado + ScrollView vertical
+             anidado (patrón native-first que no scrollea bien en react-native-web).
+             Un único ScrollView vertical del día activo. El cambio de día en web
+             es por teclado (flechas ←/→). */
+          <ScrollView
+            style={{ flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingHorizontal: 16,
+              paddingTop: 4,
+              paddingBottom: listPaddingBottom,
+            }}
+          >
+            {activeDay.exercises.map((exercise, idx) => renderExercise(exercise, idx))}
+          </ScrollView>
         ) : (
           <AnimatedFlatList
             ref={flatListRef}
@@ -888,34 +983,10 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
                 contentContainerStyle={{
                   paddingHorizontal: 16,
                   paddingTop: 4,
-                  // En preview hay dos botones apilados → más espacio para no taparlos.
-                  paddingBottom:
-                    insets.bottom + TAB_BAR_HEIGHT + BOTTOM_BUTTON_HEIGHT + 32 + (isPreviewing ? 64 : 0),
+                  paddingBottom: listPaddingBottom,
                 }}
               >
-                {day.exercises.map((exercise, idx) => (
-                  <SwapAwareExerciseItem
-                    key={exercise.id}
-                    exercise={exercise}
-                    index={idx}
-                    isSwapMode={isSwapMode}
-                    isSelected={selectedForSwap.has(exercise.id)}
-                    isLoading={loadingItems.has(exercise.id)}
-                    suggestion={suggestions[exercise.id]}
-                    pickExerciseId={picks[exercise.id]}
-                    onPress={() => {
-                      if (!isSwapMode) {
-                        setSelectedExercise(exercise);
-                        return;
-                      }
-                      if (suggestions[exercise.id]) {
-                        setOpenCandidateFor(exercise.id);
-                      } else {
-                        toggleExerciseSelection(exercise.id);
-                      }
-                    }}
-                  />
-                ))}
+                {day.exercises.map((exercise, idx) => renderExercise(exercise, idx))}
               </ScrollView>
             )}
           />

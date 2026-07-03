@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -13,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import DatePickerField from "@/src/components/common/DatePickerField";
 import DurationWheelPicker from "@/src/components/common/DurationWheelPicker";
 import {
   SegmentedControl,
@@ -65,7 +65,6 @@ export function SleepFormView({
 }: SleepFormViewProps) {
   const insets = useSafeAreaInsets();
   const [date, setDate] = useState<Date>(new Date());
-  const [showPicker, setShowPicker] = useState(false);
   const [hours, setHours] = useState(8);
   const [minutes, setMinutes] = useState(0);
   const [quality, setQuality] = useState<SleepQuality>("Good");
@@ -128,49 +127,12 @@ export function SleepFormView({
         contentContainerClassName="px-4 pt-6 gap-4"
       >
         {/* Fecha */}
-        <View className="bg-zinc-900 border border-zinc-800 rounded-3xl px-5 py-4">
-          <Text className="text-white text-lg font-bold mb-1">Fecha</Text>
-          <TouchableOpacity
-            onPress={() => setShowPicker((s) => !s)}
-            className="flex-row items-center justify-between py-1"
-          >
-            <Text className="text-zinc-300 text-base">
-              {formatFullDate(toDateKey(date))}
-            </Text>
-            <View className="flex-row items-center gap-2">
-              <Ionicons name="calendar-outline" size={22} color={ROSE} />
-              <Ionicons name="chevron-forward" size={18} color="#71717a" />
-            </View>
-          </TouchableOpacity>
-
-          {showPicker &&
-            (Platform.OS === "ios" ? (
-              <View className="items-center">
-                <DateTimePicker
-                  value={date}
-                  mode="date"
-                  display="spinner"
-                  maximumDate={new Date()}
-                  textColor="#ffffff"
-                  style={{ width: "100%" }}
-                  onChange={(_e, d) => {
-                    if (d) setDate(d);
-                  }}
-                />
-              </View>
-            ) : (
-              <DateTimePicker
-                value={date}
-                mode="date"
-                display="default"
-                maximumDate={new Date()}
-                onChange={(_e, d) => {
-                  setShowPicker(false);
-                  if (d) setDate(d);
-                }}
-              />
-            ))}
-        </View>
+        <DatePickerField
+          value={date}
+          onChange={setDate}
+          formatValue={(d) => formatFullDate(toDateKey(d))}
+          accentColor={ROSE}
+        />
 
         {/* Duración */}
         <View className="bg-zinc-900 border border-zinc-800 rounded-3xl px-5 py-4">
