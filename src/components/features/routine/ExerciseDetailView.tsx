@@ -7,7 +7,7 @@ import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import React from 'react';
-import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { SlideInRight, SlideOutRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -57,6 +57,7 @@ interface ExerciseDetailViewProps {
 export const ExerciseDetailView: React.FC<ExerciseDetailViewProps> = ({ exercise, onBack, embedded = false }) => {
   const { getToken } = useAuth();
   const insets = useSafeAreaInsets();
+  const isWeb = Platform.OS === 'web';
 
   const { data: info, isLoading, isError } = useQuery({
     queryKey: ['exercise-info', exercise.id],
@@ -75,9 +76,27 @@ export const ExerciseDetailView: React.FC<ExerciseDetailViewProps> = ({ exercise
   return (
     <GestureDetector gesture={pan}>
       <Animated.View
-        entering={SlideInRight.duration(280)}
-        exiting={SlideOutRight.duration(220)}
-        className="absolute inset-0 z-20 bg-zinc-950"
+        // En web las animaciones de layout de reanimated + `position:absolute`
+        // vía nativewind NO se aplican: la vista cae en el flujo normal (aparece
+        // debajo del contenido) y el ScrollView queda sin viewport (no scrollea).
+        // Mismo criterio que RoutineDetailView: overlay con `style` inline explícito
+        // y sin entering/exiting en web.
+        entering={isWeb ? undefined : SlideInRight.duration(280)}
+        exiting={isWeb ? undefined : SlideOutRight.duration(220)}
+        style={
+          isWeb
+            ? {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 20,
+                backgroundColor: '#09090b',
+              }
+            : undefined
+        }
+        className={isWeb ? undefined : 'absolute inset-0 z-20 bg-zinc-950'}
       >
         {/* Header: back + título */}
         <View style={{ paddingTop: embedded ? 12 : insets.top + 12 }} className="px-4 pb-3">
@@ -101,6 +120,7 @@ export const ExerciseDetailView: React.FC<ExerciseDetailViewProps> = ({ exercise
 
         <ScrollView
           showsVerticalScrollIndicator={false}
+          style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: embedded ? 24 : insets.bottom + TAB_BAR_HEIGHT + 24 }}
         >
           <View className="px-4 pt-2 gap-4">
