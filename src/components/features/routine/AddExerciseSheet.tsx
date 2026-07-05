@@ -1,5 +1,5 @@
-import { translateEquipment, translateMuscle } from '@/src/i18n';
 import { ExerciseSearchItem } from '@/src/services/exercise.service';
+import { capitalize } from '@/src/utils/format.utils';
 import { Ionicons } from '@expo/vector-icons';
 import { ExerciseThumbnail } from '@/src/components/features/routine/ExerciseThumbnail';
 import { ExerciseDetailView } from '@/src/components/features/routine/ExerciseDetailView';
@@ -139,7 +139,7 @@ export const AddExerciseSheet: React.FC<AddExerciseSheetProps> = ({
                 {muscles.map((muscle) => (
                   <SelectablePill
                     key={muscle}
-                    label={translateMuscle(muscle)}
+                    label={capitalize(muscle)}
                     selected={selectedMuscle === muscle}
                     onPress={() => selectMuscle(muscle)}
                     accent="lime"
@@ -163,7 +163,7 @@ export const AddExerciseSheet: React.FC<AddExerciseSheetProps> = ({
                 {equipments.map((eq) => (
                   <SelectablePill
                     key={eq}
-                    label={translateEquipment(eq)}
+                    label={capitalize(eq)}
                     selected={selectedEquipment === eq}
                     onPress={() => selectEquipment(eq)}
                     accent="lime"
@@ -229,7 +229,7 @@ export const AddExerciseSheet: React.FC<AddExerciseSheetProps> = ({
                                   className="bg-zinc-800 rounded-md px-2 py-0.5"
                                 >
                                   <Text className="text-[11px] text-zinc-400">
-                                    {translateEquipment(tag)}
+                                    {capitalize(tag)}
                                   </Text>
                                 </View>
                               ))}

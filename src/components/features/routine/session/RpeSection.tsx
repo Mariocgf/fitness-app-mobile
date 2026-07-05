@@ -32,7 +32,7 @@ export const RpeSection: React.FC<RpeSectionProps> = ({
       <Text className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-3">
         Esfuerzo percibido
       </Text>
-      <SessionSlider value={rpe} onValueChange={onRpeChange} min={0} max={10} disabled={disabled || isLoading} />
+      <SessionSlider value={rpe} onValueChange={onRpeChange} min={0} max={10} disabled={disabled || isLoading} forceDark />
       <TouchableOpacity
         className={`w-full h-12 rounded-full items-center justify-center border ${
           canUpdate

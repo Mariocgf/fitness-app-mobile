@@ -111,7 +111,7 @@ function MeasurementRow({
           keyboardType="decimal-pad"
           placeholder="—"
           placeholderTextColor="#52525b"
-          className="flex-1 text-right text-white text-base font-bold"
+          className="flex-1 min-w-0 text-right text-white text-base font-bold"
         />
         <Text className="text-zinc-500 text-sm ml-2">{unit}</Text>
       </View>

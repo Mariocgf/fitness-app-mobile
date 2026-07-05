@@ -69,12 +69,18 @@ export function ToastHost() {
   return (
     <View
       pointerEvents="box-none"
-      className="absolute inset-x-0 top-0 z-50 gap-2 px-4"
+      className="absolute inset-x-0 top-0 z-50"
       style={{ paddingTop: insets.top + 8 }}
     >
-      {entries.map((entry) => (
-        <ToastCard key={entry.id} entry={entry} />
-      ))}
+      <View
+        pointerEvents="box-none"
+        className="w-full self-center gap-2 px-4"
+        style={{ maxWidth: 480 }}
+      >
+        {entries.map((entry) => (
+          <ToastCard key={entry.id} entry={entry} />
+        ))}
+      </View>
     </View>
   );
 }

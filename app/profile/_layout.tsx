@@ -16,6 +16,7 @@ export default function ProfileStackLayout() {
       <Stack.Screen name="fitness-subgoal" />
       <Stack.Screen name="nutrition" />
       <Stack.Screen name="nutrition-dietary" />
+      <Stack.Screen name="nutrition-allergy" />
       <Stack.Screen name="health" />
       <Stack.Screen name="health-injuries" />
       <Stack.Screen name="health-conditions" />

@@ -1,5 +1,5 @@
-import { translateEquipment, translateMuscle } from '@/src/i18n';
 import { SwapCandidate, SwapSuggestionItem } from '@/src/types/routine';
+import { capitalize } from '@/src/utils/format.utils';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
@@ -153,7 +153,7 @@ export const SwapCandidateModal: React.FC<SwapCandidateModalProps> = ({
                           className="px-2 py-0.5 rounded-full bg-lime-500/10 dark:bg-lime-500/15"
                         >
                           <Text className="text-zinc-900 dark:text-lime-300 text-[10px] font-semibold">
-                            {translateMuscle(m)}
+                            {capitalize(m)}
                           </Text>
                         </View>
                       ))}
@@ -163,7 +163,7 @@ export const SwapCandidateModal: React.FC<SwapCandidateModalProps> = ({
                           className="px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800"
                         >
                           <Text className="text-zinc-700 dark:text-zinc-300 text-[10px] font-semibold">
-                            {translateEquipment(e)}
+                            {capitalize(e)}
                           </Text>
                         </View>
                       ))}

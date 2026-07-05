@@ -1,3 +1,4 @@
+import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -15,6 +16,12 @@ interface SessionSliderProps {
   min?: number;
   max?: number;
   disabled?: boolean;
+  /**
+   * Fuerza el estilo oscuro sin importar el tema del sistema. Necesario en
+   * superficies dark-only (p. ej. la fase de descanso `zinc`), donde el variant
+   * `dark:` de NativeWind no aplica porque sigue el `useColorScheme` del device.
+   */
+  forceDark?: boolean;
 }
 
 const THUMB_SIZE = 36;
@@ -31,7 +38,22 @@ export const SessionSlider: React.FC<SessionSliderProps> = ({
   min = 0,
   max = 10,
   disabled = false,
+  forceDark = false,
 }) => {
+  // Resolvemos los colores en JS (no vía `className`): en web, NativeWind no
+  // aplica de forma confiable las clases sobre componentes de Reanimated, y el
+  // variant `dark:` sigue el tema del sistema. `forceDark` fuerza el esquema
+  // oscuro para superficies dark-only como la fase de descanso.
+  const { colorScheme } = useColorScheme();
+  const isDark = forceDark || colorScheme === 'dark';
+
+  // slate-50 / slate-700 / slate-900
+  const labelColor = isDark ? '#f8fafc' : '#0f172a';
+  const filledColor = isDark ? '#f8fafc' : '#0f172a';
+  const trackColor = isDark ? '#334155' : '#e2e8f0'; // slate-700 / slate-200
+  const thumbColor = isDark ? '#f8fafc' : '#0f172a';
+  const thumbTextColor = isDark ? '#0f172a' : '#ffffff';
+
   const trackWidthSV = useSharedValue(0);
   const trackOffsetXSV = useSharedValue(0);
 
@@ -133,26 +155,24 @@ export const SessionSlider: React.FC<SessionSliderProps> = ({
           }}
         >
           <Animated.Text
-            style={[leftLabelStyle, { width: LABEL_WIDTH, textAlign: 'center', fontWeight: '700', fontSize: 15, lineHeight: THUMB_SIZE }]}
-            className="text-slate-900 dark:text-slate-50"
+            style={[leftLabelStyle, { width: LABEL_WIDTH, textAlign: 'center', fontWeight: '700', fontSize: 15, lineHeight: THUMB_SIZE, color: labelColor }]}
           >
             {min}
           </Animated.Text>
 
           <View style={{ flex: 1, height: THUMB_SIZE }}>
-            <Animated.View style={leftLineStyle} className="bg-slate-900 dark:bg-slate-50" />
-            <Animated.View style={rightLineStyle} className="bg-slate-200 dark:bg-slate-700" />
+            <Animated.View style={[leftLineStyle, { backgroundColor: filledColor }]} />
+            <Animated.View style={[rightLineStyle, { backgroundColor: trackColor }]} />
           </View>
 
           <Animated.Text
-            style={[rightLabelStyle, { width: LABEL_WIDTH, textAlign: 'center', fontWeight: '700', fontSize: 15, lineHeight: THUMB_SIZE }]}
-            className="text-slate-900 dark:text-slate-50"
+            style={[rightLabelStyle, { width: LABEL_WIDTH, textAlign: 'center', fontWeight: '700', fontSize: 15, lineHeight: THUMB_SIZE, color: labelColor }]}
           >
             {max}
           </Animated.Text>
 
-          <Animated.View style={thumbStyle} className="bg-slate-900 dark:bg-slate-50">
-            <Text style={{ fontWeight: '700', fontSize: 13 }} className="text-white dark:text-slate-900">
+          <Animated.View style={[thumbStyle, { backgroundColor: thumbColor }]}>
+            <Text style={{ fontWeight: '700', fontSize: 13, color: thumbTextColor }}>
               {value}
             </Text>
           </Animated.View>

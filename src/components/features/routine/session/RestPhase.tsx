@@ -97,6 +97,7 @@ export const RestPhase: React.FC<RestPhaseProps> = ({
             onValueChange={onPartialRepsChange}
             min={0}
             max={repetitionMax}
+            forceDark
           />
         </View>
       )}

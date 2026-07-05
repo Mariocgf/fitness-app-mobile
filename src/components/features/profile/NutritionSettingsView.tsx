@@ -29,7 +29,7 @@ export const NutritionSettingsView: React.FC = () => {
         <ProfileModuleCard
           icon="alert-circle-outline"
           title="Alergias alimenticias"
-          onPress={() => toast.info('Próximamente.')}
+          onPress={() => router.push('/profile/nutrition-allergy')}
         />
         <ProfileModuleCard
           icon="restaurant-outline"

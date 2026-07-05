@@ -1,8 +1,7 @@
 import { TAB_BAR_HEIGHT } from '@/src/components/features/routine/routine-detail-shared';
-import { translateBodyPart, translateEquipment, translateMuscle, translateSecondaryMuscle } from '@/src/i18n';
 import { getExerciseInfo } from '@/src/services/exercise.service';
 import { RoutineExercise } from '@/src/types/routine';
-import { cleanStepPrefix } from '@/src/utils/format.utils';
+import { capitalize, cleanStepPrefix } from '@/src/utils/format.utils';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -154,22 +153,22 @@ export const ExerciseDetailView: React.FC<ExerciseDetailViewProps> = ({ exercise
                   <InfoRow
                     icon={<Ionicons name="body-outline" size={26} color={LIME} />}
                     label="Parte del cuerpo"
-                    value={info.bodyPart?.map(translateBodyPart).join(', ')}
+                    value={info.bodyPart?.map(capitalize).join(', ')}
                   />
                   <InfoRow
                     icon={<MaterialCommunityIcons name="arm-flex" size={26} color={LIME} />}
                     label="Músculo principal"
-                    value={info.targetMuscles?.map(translateMuscle).join(', ')}
+                    value={info.targetMuscles?.map(capitalize).join(', ')}
                   />
                   <InfoRow
                     icon={<MaterialCommunityIcons name="arm-flex-outline" size={26} color={LIME} />}
                     label="Secundarios"
-                    value={info.secundaryMuscles?.map(translateSecondaryMuscle).join(', ')}
+                    value={info.secundaryMuscles?.map(capitalize).join(', ')}
                   />
                   <InfoRow
                     icon={<MaterialCommunityIcons name="dumbbell" size={24} color={LIME} />}
                     label="Equipamiento"
-                    value={info.equipments?.map(translateEquipment).join(', ')}
+                    value={info.equipments?.map(capitalize).join(', ')}
                     isLast
                   />
                 </View>

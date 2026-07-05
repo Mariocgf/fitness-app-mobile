@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     DeviceEventEmitter,
     Keyboard,
+    Pressable,
     ScrollView,
     Text,
     TextInput,
@@ -105,6 +106,12 @@ export default function EquipmentSelect({
     Keyboard.dismiss();
   };
 
+  const closeDropdown = () => {
+    setIsOpen(false);
+    inputRef.current?.blur();
+    Keyboard.dismiss();
+  };
+
   const handleFocus = () => {
     DeviceEventEmitter.emit('closeOtherDropdowns', componentId);
     setIsOpen(true);
@@ -143,6 +150,23 @@ export default function EquipmentSelect({
           onSubmitEditing={() => Keyboard.dismiss()}
         />
       </TouchableOpacity>
+
+      {/* Overlay de cierre: al tocar fuera del dropdown, cierra. Cubre toda la
+          pantalla (insets negativos grandes) y se apila debajo del dropdown
+          pero encima del resto del contenido. */}
+      {isOpen && (
+        <Pressable
+          onPress={closeDropdown}
+          style={{
+            position: 'absolute',
+            top: -2000,
+            bottom: -2000,
+            left: -2000,
+            right: -2000,
+            zIndex: 40,
+          }}
+        />
+      )}
 
       {/* Dropdown de resultados (posicionado de forma absoluta) */}
       {isOpen && filteredItems.length > 0 && (

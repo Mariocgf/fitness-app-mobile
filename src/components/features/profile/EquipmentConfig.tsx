@@ -148,8 +148,9 @@ export default function EquipmentConfig({ onBack }: EquipmentConfigProps) {
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}
         onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
       />
-      {/* Header fijo: título + buscador */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 20, gap: 16 }}>
+      {/* Header fijo: título + buscador. zIndex alto para que el dropdown
+          del buscador se apile por encima de la lista de seleccionados. */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 20, gap: 16, zIndex: 50 }}>
         <View
           className="bg-zinc-900 rounded-2xl p-4"
           style={{ gap: 12 }}
@@ -185,7 +186,7 @@ export default function EquipmentConfig({ onBack }: EquipmentConfigProps) {
       {/* Lista de seleccionados — scrolleable */}
       {selectedWithDetails.length > 0 && (
         <ScrollView
-          style={{ flex: 1, marginTop: 16 }}
+          style={{ flex: 1, marginTop: 16, zIndex: 0 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           onScrollBeginDrag={() => DeviceEventEmitter.emit('closeDropdowns')}
