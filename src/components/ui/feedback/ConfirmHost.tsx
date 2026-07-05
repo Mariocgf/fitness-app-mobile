@@ -1,6 +1,5 @@
 import React from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { resolveConfirm, useConfirmRequest } from './confirm';
 
@@ -16,23 +15,18 @@ export function ConfirmHost() {
     <Modal
       visible={visible}
       transparent
-      animationType="none"
+      animationType="fade"
       statusBarTranslucent
       onRequestClose={() => resolveConfirm(false)}
     >
       {request ? (
         <View className="flex-1 items-center justify-center px-8">
-          <Animated.View
-            entering={FadeIn.duration(150)}
+          <Pressable
             className="absolute inset-0 bg-black/60"
-          >
-            <Pressable className="flex-1" onPress={() => resolveConfirm(false)} />
-          </Animated.View>
+            onPress={() => resolveConfirm(false)}
+          />
 
-          <Animated.View
-            entering={FadeInDown.springify().damping(20)}
-            className="w-full max-w-sm rounded-3xl border border-zinc-800 bg-zinc-900 p-6"
-          >
+          <View className="w-full max-w-sm rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
             {request.title ? (
               <Text className="text-lg font-bold text-zinc-100">{request.title}</Text>
             ) : null}
@@ -69,7 +63,7 @@ export function ConfirmHost() {
                 </Text>
               </Pressable>
             </View>
-          </Animated.View>
+          </View>
         </View>
       ) : null}
     </Modal>

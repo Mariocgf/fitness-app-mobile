@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toast } from '@/src/components/ui/feedback';
 import CheckableCard from '@/src/components/common/CheckableCard';
 import SectionCard from '@/src/components/common/SectionCard';
+import { translateSubGoalDescription, translateSubGoalName } from '@/src/i18n';
 import { useUnsavedChangesGuard } from '@/src/hooks/useUnsavedChangesGuard';
 import {
   getFitnessSubGoal,
@@ -137,8 +138,8 @@ export default function FitnessSubGoalConfig({ onBack }: FitnessSubGoalConfigPro
                 <CheckableCard
                   key={goal.id}
                   isSelected={selectedSubGoalId === goal.id}
-                  label={goal.name}
-                  description={goal.description}
+                  label={translateSubGoalName(goal.name)}
+                  description={translateSubGoalDescription(goal.description)}
                   onPress={() => setSelectedSubGoalId(goal.id)}
                 />
               ))}

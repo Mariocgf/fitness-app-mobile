@@ -40,7 +40,7 @@ export default function Root({ children }: PropsWithChildren) {
         {/* Fondo dark-only antes de hidratar React, evita flash blanco al abrir standalone */}
         <style
           dangerouslySetInnerHTML={{
-            __html: `html,body,#root{background-color:${THEME_COLOR}}`,
+            __html: `html,body,#root{background-color:${THEME_COLOR};overscroll-behavior:none}`,
           }}
         />
 

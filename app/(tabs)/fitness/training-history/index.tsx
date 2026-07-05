@@ -5,7 +5,6 @@ import { TrainingHistoryCardSkeleton } from '@/src/components/features/training-
 import { TAB_BAR_HEIGHT } from '@/src/components/features/routine/routine-detail-shared';
 import { useTrainingHistoryList } from '@/src/hooks/useTrainingHistoryList';
 import { TrainingHistorySession } from '@/src/types/training-history';
-import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -35,14 +34,7 @@ type DatePreset = 'all' | 'today' | 'week' | 'month';
  */
 export default function TrainingHistoryScreen() {
   const router = useRouter();
-  const { getToken } = useAuth();
   const insets = useSafeAreaInsets();
-
-  const [token, setToken] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    getToken().then(setToken);
-  }, [getToken]);
 
   const {
     sessions,
@@ -55,7 +47,7 @@ export default function TrainingHistoryScreen() {
     loadMore,
     refresh,
     deleteSession,
-  } = useTrainingHistoryList(token);
+  } = useTrainingHistoryList();
 
   const [refreshing, setRefreshing] = useState(false);
 

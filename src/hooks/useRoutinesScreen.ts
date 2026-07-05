@@ -28,11 +28,6 @@ export type DatePreset = 'all' | 'week' | 'month';
 export function useRoutinesScreen() {
   const router = useRouter();
   const { getToken } = useAuth();
-  const [token, setToken] = useState<string | null>(null);
-
-  React.useEffect(() => {
-    getToken().then(setToken);
-  }, [getToken]);
 
   const {
     routines,
@@ -47,7 +42,7 @@ export function useRoutinesScreen() {
     loadMore,
     applyFilters,
     refresh,
-  } = useMyRoutines(token);
+  } = useMyRoutines();
 
   const [refreshing, setRefreshing] = useState(false);
   const [showDateFilter, setShowDateFilter] = useState(false);

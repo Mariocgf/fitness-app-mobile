@@ -64,7 +64,10 @@ export default function LoginScreen() {
 
   return (
     <View className="flex-1 bg-zinc-950">
-      <SafeAreaView className="flex-1 px-6">
+      {/* px-6 va en un View hijo, NO en el SafeAreaView: en web su versión aplica el padding de
+          insets como estilo inline y pisaría la clase CSS `px-6` de NativeWind (queda a 0). */}
+      <SafeAreaView className="flex-1">
+        <View className="flex-1 px-6">
         {/* Bloque hero centrado: wordmark + título + subtítulo + features */}
         <View className="flex-1 justify-center">
           <Text className="text-center text-zinc-500 text-base font-semibold tracking-[8px] mb-8">
@@ -120,6 +123,7 @@ export default function LoginScreen() {
               onPress={() => onSocialLoginPress('oauth_apple')}
             />
           )}
+        </View>
         </View>
       </SafeAreaView>
     </View>

@@ -3,6 +3,7 @@ import FieldSection from '@/src/components/common/FieldSection';
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
 import OnboardingHeader from '@/src/components/common/OnboardingHeader';
 import ProgressBar from '@/src/components/common/ProgressBar';
+import { translateSubGoalDescription, translateSubGoalName } from '@/src/i18n';
 import { SubGoal } from '@/src/types/nutrition';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
@@ -49,8 +50,8 @@ export default function NutritionSubGoalStep({
               <CheckableCard
                 key={goal.id}
                 isSelected={selectedSubGoalId === goal.id}
-                label={goal.name}
-                description={goal.description}
+                label={translateSubGoalName(goal.name)}
+                description={translateSubGoalDescription(goal.description)}
                 onPress={() => onSelectSubGoal(goal.id)}
                 variant="radio"
                 accent="amber"

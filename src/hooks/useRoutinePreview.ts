@@ -6,6 +6,7 @@ import {
   isCurrentRequest,
   isRequestCanceled,
 } from '@/src/utils/request-cancellation';
+import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RoutineSummary } from '../types/routine';
 import { fetchRoutinePreview } from '../services/routine.service';
@@ -20,9 +21,14 @@ interface UseRoutinePreviewReturn {
 
 /**
  * Hook para obtener el preview de rutinas (5 AI + 5 Manual).
- * @param token Token de autenticación de Clerk.
+ * Resuelve el token de Clerk fresco en cada fetch (patrón getTokenRef) para no
+ * refetchear cuando Clerk refresca la sesión en segundo plano.
  */
-export function useRoutinePreview(token: string | null): UseRoutinePreviewReturn {
+export function useRoutinePreview(): UseRoutinePreviewReturn {
+  const { getToken, isSignedIn } = useAuth();
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+
   const [aiRoutines, setAiRoutines] = useState<RoutineSummary[]>([]);
   const [manualRoutines, setManualRoutines] = useState<RoutineSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,6 +38,7 @@ export function useRoutinePreview(token: string | null): UseRoutinePreviewReturn
   const loadPreview = useCallback(async () => {
     abortRequest(loadRequestRef);
 
+    const token = await getTokenRef.current();
     if (!token) {
       setIsLoading(false);
       return;
@@ -58,14 +65,15 @@ export function useRoutinePreview(token: string | null): UseRoutinePreviewReturn
       }
       endAbortableRequest(loadRequestRef, controller);
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => {
+    if (!isSignedIn) return;
     loadPreview();
     return () => {
       abortRequest(loadRequestRef);
     };
-  }, [loadPreview]);
+  }, [isSignedIn, loadPreview]);
 
   const refresh = useCallback(() => {
     loadPreview();

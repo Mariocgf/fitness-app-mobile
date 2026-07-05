@@ -1,3 +1,4 @@
+import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { fetchMyNutritionRoutines } from '../services/nutritionRoutine.service';
@@ -28,8 +29,14 @@ const PAGE_SIZE = 10;
  * El backend ordena la activa primero y luego las más recientes, así que el orden
  * de llegada se respeta tal cual (no se reordena en el cliente).
  * Usa getTokenRef-style refs de cancelación para evitar respuestas pisadas.
+ * Resuelve el token de Clerk fresco en cada fetch para no refetchear cuando
+ * Clerk refresca la sesión en segundo plano.
  */
-export function useMyNutritionRoutines(token: string | null): UseMyNutritionRoutinesReturn {
+export function useMyNutritionRoutines(): UseMyNutritionRoutinesReturn {
+  const { getToken, isSignedIn } = useAuth();
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+
   const [routines, setRoutines] = useState<NutritionRoutineSummaryDto[]>([]);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -47,6 +54,7 @@ export function useMyNutritionRoutines(token: string | null): UseMyNutritionRout
     abortRequest(loadMoreRequestRef);
     abortRequest(firstPageRequestRef);
 
+    const token = await getTokenRef.current();
     if (!token) {
       setIsLoading(false);
       return;
@@ -72,11 +80,14 @@ export function useMyNutritionRoutines(token: string | null): UseMyNutritionRout
       if (isCurrentRequest(firstPageRequestRef, controller)) setIsLoading(false);
       endAbortableRequest(firstPageRequestRef, controller);
     }
-  }, [token]);
+  }, []);
 
   /** Carga la siguiente página y la concatena. */
   const loadMore = useCallback(async () => {
-    if (!token || isLoadingMore || !hasMore) return;
+    if (isLoadingMore || !hasMore) return;
+
+    const token = await getTokenRef.current();
+    if (!token) return;
 
     const controller = beginAbortableRequest(loadMoreRequestRef);
     const { signal } = controller;
@@ -97,15 +108,16 @@ export function useMyNutritionRoutines(token: string | null): UseMyNutritionRout
       if (isCurrentRequest(loadMoreRequestRef, controller)) setIsLoadingMore(false);
       endAbortableRequest(loadMoreRequestRef, controller);
     }
-  }, [token, page, isLoadingMore, hasMore]);
+  }, [page, isLoadingMore, hasMore]);
 
   useEffect(() => {
+    if (!isSignedIn) return;
     loadFirstPage();
     return () => {
       abortRequest(firstPageRequestRef);
       abortRequest(loadMoreRequestRef);
     };
-  }, [loadFirstPage]);
+  }, [isSignedIn, loadFirstPage]);
 
   return {
     routines,

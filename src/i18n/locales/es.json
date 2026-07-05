@@ -101,5 +101,46 @@
     "upper arms": "Brazos superiores",
     "upper legs": "Piernas superiores",
     "waist": "Cintura"
+  },
+  "moduleNames": {
+    "Fitness": "Fitness",
+    "Nutrition": "Nutrición",
+    "Health": "Salud"
+  },
+  "moduleDescriptions": {
+    "Training and activity.": "Entrenamiento y actividad.",
+    "Daily plans and tracking.": "Planes diarios y seguimiento.",
+    "Habits and general well-being.": "Hábitos y bienestar general."
+  },
+  "globalGoals": {
+    "Weight Loss": "Pérdida de peso",
+    "Athletic Performance": "Rendimiento atlético",
+    "Muscle Gain": "Aumento muscular",
+    "Maintenance": "Mantenimiento"
+  },
+  "subGoalNames": {
+    "Balanced Macros": "Macros balanceados",
+    "Mobility & Maintenance": "Movilidad y mantenimiento",
+    "Caloric Deficit": "Déficit calórico",
+    "High Protein Intake": "Alto consumo de proteínas",
+    "HIIT & Cardio": "HIIT y cardio",
+    "Caloric Surplus": "Superávit calórico",
+    "Hypertrophy Training": "Entrenamiento de hipertrofia",
+    "Performance Fueling": "Nutrición para el rendimiento",
+    "Endurance & Stamina": "Resistencia y aguante",
+    "Strength & Power": "Fuerza y potencia"
+  },
+  "subGoalDescriptions": {
+    "Standard distribution of macros for weight maintenance.": "Distribución estándar de macros para mantener el peso.",
+    "Consistent low-intensity movement to maintain current fitness level.": "Movimiento constante de baja intensidad para mantener tu nivel físico actual.",
+    "Eat fewer calories than you burn to lose body fat.": "Come menos calorías de las que quemas para perder grasa corporal.",
+    "Maintain protein levels to preserve muscle during fat loss.": "Mantén los niveles de proteína para preservar el músculo durante la pérdida de grasa.",
+    "High-intensity intervals to maximize caloric expenditure.": "Intervalos de alta intensidad para maximizar el gasto calórico.",
+    "Eat more calories than you burn to build muscle mass.": "Come más calorías de las que quemas para ganar masa muscular.",
+    "High protein diet to support muscle repair and growth.": "Dieta alta en proteínas para favorecer la reparación y el crecimiento muscular.",
+    "High-volume weight training to maximize muscle size.": "Entrenamiento con pesas de alto volumen para maximizar el tamaño muscular.",
+    "Optimize carb and protein intake for intense athletic training.": "Optimiza el consumo de carbohidratos y proteínas para un entrenamiento atlético intenso.",
+    "Long-duration cardiovascular training for aerobic capacity.": "Entrenamiento cardiovascular de larga duración para la capacidad aeróbica.",
+    "Heavy lifting with low reps for maximum force production.": "Levantamiento de cargas pesadas con pocas repeticiones para máxima producción de fuerza."
   }
 }

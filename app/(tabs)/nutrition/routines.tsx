@@ -5,9 +5,8 @@ import { useMyNutritionRoutines } from '@/src/hooks/useMyNutritionRoutines';
 import { useNutritionRoutineContext } from '@/src/store/nutrition-routine-context';
 import { NutritionRoutineSummaryDto } from '@/src/types/nutritionRoutine';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -32,19 +31,12 @@ const AMBER = '#fbbf24';
 export default function NutritionRoutinesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { getToken } = useAuth();
   const { generate } = useNutritionRoutineContext();
 
-  const [token, setToken] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Resuelve el token para el hook de listado.
-  useEffect(() => {
-    getToken().then(setToken);
-  }, [getToken]);
-
   const { routines, isLoading, isLoadingMore, error, hasMore, refresh, loadMore } =
-    useMyNutritionRoutines(token);
+    useMyNutritionRoutines();
 
   const handleBack = useCallback(() => router.back(), [router]);
 

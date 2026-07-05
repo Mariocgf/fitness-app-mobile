@@ -12,6 +12,7 @@ import CheckableCard from '@/src/components/common/CheckableCard';
 import EquipmentSelect from '@/src/components/common/EquipmentSelect';
 import EquipmentSelectedList from '@/src/components/common/EquipmentSelectedList';
 import FieldSection from '@/src/components/common/FieldSection';
+import { translateSubGoalDescription, translateSubGoalName } from '@/src/i18n';
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
 import OnboardingHeader from '@/src/components/common/OnboardingHeader';
 import ProgressBar from '@/src/components/common/ProgressBar';
@@ -183,8 +184,8 @@ export default function FitnessConfigStep({
                     <CheckableCard
                       key={goal.id}
                       isSelected={selectedSubGoalIds.includes(goal.id)}
-                      label={goal.name}
-                      description={goal.description}
+                      label={translateSubGoalName(goal.name)}
+                      description={translateSubGoalDescription(goal.description)}
                       onPress={() => toggleSubGoal(goal.id)}
                       variant="radio"
                       accent="lime"

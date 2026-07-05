@@ -6,6 +6,7 @@ import OnboardingFooter from '@/src/components/common/OnboardingFooter';
 import OnboardingHeader from '@/src/components/common/OnboardingHeader';
 import ProgressBar from '@/src/components/common/ProgressBar';
 import SelectableCard from '@/src/components/common/SelectableCard';
+import { translateGlobalGoal } from '@/src/i18n';
 import { Goal } from '@/src/types/goal';
 
 /** Total de pasos del onboarding básico */
@@ -74,7 +75,7 @@ export default function BasicInfoStep3({
                 <SelectableCard
                   key={option.id}
                   isSelected={goal === option.id}
-                  label={option.name}
+                  label={translateGlobalGoal(option.name)}
                   onPress={() => onGoalChange(option.id)}
                   variant="outline"
                 />

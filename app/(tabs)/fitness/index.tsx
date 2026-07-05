@@ -80,18 +80,12 @@ export default function FitnessScreen() {
   const routineRef = useRef(routine);
   routineRef.current = routine;
 
-  /* ── Hook para preview de rutinas ────────────────────────────────────── */
-  const [previewToken, setPreviewToken] = useState<string | null>(null);
-  const { aiRoutines, manualRoutines, isLoading: isLoadingPreview, refresh: refreshPreview } = useRoutinePreview(previewToken);
+  /* ── Hook para preview de rutinas (resuelve su propio token) ───────────── */
+  const { aiRoutines, manualRoutines, isLoading: isLoadingPreview, refresh: refreshPreview } = useRoutinePreview();
 
   /* ── Tab de la biblioteca de rutinas (IA / Manual) ────────────────────── */
   const [libraryTab, setLibraryTab] = useState<RoutineSource>('AI');
   const libraryRoutines = libraryTab === 'AI' ? aiRoutines : manualRoutines;
-
-  // Actualizar token cuando cambia
-  useEffect(() => {
-    getToken().then((t) => { setPreviewToken(t); });
-  }, [getToken, setActiveRoutine]);
 
   /* ── Refs para callbacks estables ─────────────────────────────────────── */
   const setShowRef = useRef(setShowCreateRoutine);
@@ -369,7 +363,7 @@ export default function FitnessScreen() {
   const { draft, saveDraft, clearDraft } = useRoutineDraft();
 
   /* ── Hook para preview del historial de entrenamiento ─────────────────── */
-  const { sessions: historyPreview, isLoading: isLoadingHistory } = useTrainingHistoryPreview(previewToken);
+  const { sessions: historyPreview, isLoading: isLoadingHistory } = useTrainingHistoryPreview();
 
   const handleViewAllHistory = useCallback(() => {
     router.push('/fitness/training-history' as any);

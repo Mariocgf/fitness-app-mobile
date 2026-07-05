@@ -8,6 +8,7 @@ import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GreetingHeader } from '@/src/components/features/home/GreetingHeader';
+import { GeneratePlanCard } from '@/src/components/features/home/GeneratePlanCard';
 import { HealthAccessCard } from '@/src/components/features/home/HealthAccessCard';
 import { HydrationQuickAddCard } from '@/src/components/features/home/HydrationQuickAddCard';
 import { MoodQuickCard } from '@/src/components/features/home/MoodQuickCard';
@@ -16,6 +17,7 @@ import { RoutineTodayCard } from '@/src/components/features/home/RoutineTodayCar
 import { SleepQuickCard } from '@/src/components/features/home/SleepQuickCard';
 import { useHomeDashboard } from '@/src/hooks/useHomeDashboard';
 import { getNutritionDataVersion } from '@/src/store/nutrition-sync';
+import { useNutritionRoutineContext } from '@/src/store/nutrition-routine-context';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { getTodayDateKey } from '@/src/utils/nutrition.utils';
 
@@ -38,6 +40,8 @@ export default function HomeScreen() {
     routine,
     trainedToday,
     isLoadingRoutine,
+    isGeneratingRoutine,
+    generateFitnessRoutine,
     wellness,
     isLoadingWellness,
     nutrition,
@@ -48,6 +52,16 @@ export default function HomeScreen() {
     refreshNutrition,
     refresh,
   } = useHomeDashboard();
+
+  // Rutina de nutrición (plan de comidas): vive en su propio contexto, no en el
+  // dashboard. La usamos para el estado vacío "Generá tu dieta" del Home.
+  const {
+    routine: nutritionRoutine,
+    draft: nutritionDraft,
+    isLoading: isLoadingNutritionRoutine,
+    isGenerating: isGeneratingNutrition,
+    generate: generateNutritionRoutine,
+  } = useNutritionRoutineContext();
 
   const userName = user?.firstName ?? 'Usuario';
 
@@ -75,6 +89,19 @@ export default function HomeScreen() {
   const pendingSleep = !isLoadingWellness && wellness.sleep == null;
   const hasPending = pendingRoutine || pendingMood || pendingSleep;
   const isLoading = isLoadingRoutine || isLoadingWellness;
+
+  // ── Estados vacíos: sin rutina de ejercicio y/o de nutrición ──
+  const needsFitnessPlan = !isLoadingRoutine && routine == null;
+  const needsNutritionPlan =
+    !isLoadingNutritionRoutine && nutritionRoutine == null && nutritionDraft == null;
+  const needsAnyPlan = needsFitnessPlan || needsNutritionPlan;
+
+  // Genera el borrador de nutrición y lleva al tab de plan para confirmarlo
+  // (la generación de nutrición no activa el plan automáticamente).
+  const handleGenerateNutrition = useCallback(async () => {
+    await generateNutritionRoutine();
+    router.push({ pathname: '/(tabs)/nutrition' as any, params: { tab: 'plan' } });
+  }, [generateNutritionRoutine, router]);
 
   return (
     <SafeAreaView className="flex-1 bg-zinc-950">
@@ -129,6 +156,42 @@ export default function HomeScreen() {
               Ya registraste lo importante de hoy. Seguí abajo con el resto.
             </Text>
           </View>
+        ) : null}
+
+        {/* ── Armá tu plan: estados vacíos de rutina de ejercicio / nutrición ── */}
+        {needsAnyPlan ? (
+          <>
+            <SectionTitle>Armá tu plan</SectionTitle>
+            <View className="px-4 gap-3">
+              {needsFitnessPlan ? (
+                <GeneratePlanCard
+                  eyebrow="Rutina"
+                  title="Generá tu rutina"
+                  subtitle="Obtené tu primer plan de entrenamiento personalizado con IA."
+                  icon="barbell"
+                  accentColor="#a3e635"
+                  ctaLabel="Generar rutina"
+                  generatingLabel="Generando..."
+                  onGenerate={generateFitnessRoutine}
+                  isGenerating={isGeneratingRoutine}
+                />
+              ) : null}
+
+              {needsNutritionPlan ? (
+                <GeneratePlanCard
+                  eyebrow="Nutrición"
+                  title="Generá tu dieta"
+                  subtitle="Obtené tu primer plan de comidas personalizado con IA."
+                  icon="restaurant"
+                  accentColor="#fbbf24"
+                  ctaLabel="Generar dieta"
+                  generatingLabel="Generando..."
+                  onGenerate={handleGenerateNutrition}
+                  isGenerating={isGeneratingNutrition}
+                />
+              ) : null}
+            </View>
+          </>
         ) : null}
 
         {/* ── Zona 2: Tu día (siempre accesible) ── */}

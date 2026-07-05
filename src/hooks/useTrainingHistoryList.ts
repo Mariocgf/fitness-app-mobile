@@ -6,6 +6,7 @@ import {
   isCurrentRequest,
   isRequestCanceled,
 } from '@/src/utils/request-cancellation';
+import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { deleteTrainingSession, fetchTrainingHistory } from '../services/training-history.service';
 import { remove, setMany } from '../store/training-history-cache';
@@ -33,11 +34,14 @@ interface UseTrainingHistoryListReturn {
 
 /**
  * Hook para la lista paginada de historial de entrenamiento con filtros.
- * @param token Token de autenticación de Clerk.
+ * Resuelve el token de Clerk fresco en cada fetch para no refetchear cuando
+ * Clerk refresca la sesión en segundo plano.
  */
-export function useTrainingHistoryList(
-  token: string | null,
-): UseTrainingHistoryListReturn {
+export function useTrainingHistoryList(): UseTrainingHistoryListReturn {
+  const { getToken, isSignedIn } = useAuth();
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+
   const [sessions, setSessions] = useState<TrainingHistorySession[]>([]);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -60,6 +64,7 @@ export function useTrainingHistoryList(
       abortRequest(loadMoreRequestRef);
       abortRequest(firstPageRequestRef);
 
+      const token = await getTokenRef.current();
       if (!token) {
         setIsLoading(false);
         return;
@@ -89,12 +94,15 @@ export function useTrainingHistoryList(
         endAbortableRequest(firstPageRequestRef, controller);
       }
     },
-    [token],
+    [],
   );
 
   /** Carga más resultados (paginación hacia adelante) */
   const loadMore = useCallback(async () => {
-    if (!token || isLoadingMore || page * PAGE_SIZE >= totalCount) return;
+    if (isLoadingMore || page * PAGE_SIZE >= totalCount) return;
+
+    const token = await getTokenRef.current();
+    if (!token) return;
 
     const controller = beginAbortableRequest(loadMoreRequestRef);
     const { signal } = controller;
@@ -117,7 +125,7 @@ export function useTrainingHistoryList(
       }
       endAbortableRequest(loadMoreRequestRef, controller);
     }
-  }, [token, isLoadingMore, page, totalCount, filters]);
+  }, [isLoadingMore, page, totalCount, filters]);
 
   const hasMore = useMemo(() => page * PAGE_SIZE < totalCount, [page, totalCount]);
 
@@ -168,6 +176,7 @@ export function useTrainingHistoryList(
    */
   const deleteSession = useCallback(
     async (id: string): Promise<boolean> => {
+      const token = await getTokenRef.current();
       if (!token) return false;
 
       try {
@@ -185,18 +194,19 @@ export function useTrainingHistoryList(
         throw err;
       }
     },
-    [token],
+    [],
   );
 
   useEffect(() => {
+    if (!isSignedIn) return;
     loadFirstPage(filters);
     return () => {
       abortRequest(firstPageRequestRef);
       abortRequest(loadMoreRequestRef);
     };
-    // Solo al montar (token cambia)
+    // Solo al montar / cuando la sesión queda lista
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [isSignedIn]);
 
   return {
     sessions,

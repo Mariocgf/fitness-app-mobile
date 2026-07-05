@@ -12,10 +12,9 @@ import {
   formatDurationLong,
   formatSessionDateTimeDot,
 } from '@/src/utils/training-history.utils';
-import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -26,16 +25,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function TrainingSessionDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getToken } = useAuth();
   const insets = useSafeAreaInsets();
 
-  const [token, setToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    getToken().then(setToken);
-  }, [getToken]);
-
-  const { session, isLoading, error, refresh } = useTrainingSessionDetail(id ?? '', token);
+  const { session, isLoading, error, refresh } = useTrainingSessionDetail(id ?? '');
 
   const [pickerVisible, setPickerVisible] = useState(false);
   const { comparison, isLoadingTarget, targetError, selectTarget, reset } =

@@ -6,6 +6,7 @@ import {
   isCurrentRequest,
   isRequestCanceled,
 } from '@/src/utils/request-cancellation';
+import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RoutineSummary, RoutineSource } from '../types/routine';
 import { fetchMyRoutines } from '../services/routine.service';
@@ -36,9 +37,14 @@ const PAGE_SIZE = 10;
 /**
  * Hook para obtener todas las rutinas del usuario con paginación y filtros.
  * Los filtros se aplican en el frontend sobre todos los datos cargados.
- * @param token Token de autenticación de Clerk.
+ * Resuelve el token de Clerk fresco en cada fetch para no refetchear cuando
+ * Clerk refresca la sesión en segundo plano.
  */
-export function useMyRoutines(token: string | null): UseMyRoutinesReturn {
+export function useMyRoutines(): UseMyRoutinesReturn {
+  const { getToken, isSignedIn } = useAuth();
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+
   const [allRoutines, setAllRoutines] = useState<RoutineSummary[]>([]);
   const [displayedRoutines, setDisplayedRoutines] = useState<RoutineSummary[]>([]);
   const [page, setPage] = useState(1);
@@ -57,6 +63,7 @@ export function useMyRoutines(token: string | null): UseMyRoutinesReturn {
     abortRequest(loadMoreRequestRef);
     abortRequest(firstPageRequestRef);
 
+    const token = await getTokenRef.current();
     if (!token) {
       setIsLoading(false);
       return;
@@ -85,11 +92,14 @@ export function useMyRoutines(token: string | null): UseMyRoutinesReturn {
       }
       endAbortableRequest(firstPageRequestRef, controller);
     }
-  }, [token]);
+  }, []);
 
   /** Cargar más rutinas (paginación) */
   const loadMore = useCallback(async () => {
-    if (!token || isLoadingMore || !hasMore) return;
+    if (isLoadingMore || !hasMore) return;
+
+    const token = await getTokenRef.current();
+    if (!token) return;
 
     const controller = beginAbortableRequest(loadMoreRequestRef);
     const { signal } = controller;
@@ -116,7 +126,7 @@ export function useMyRoutines(token: string | null): UseMyRoutinesReturn {
       }
       endAbortableRequest(loadMoreRequestRef, controller);
     }
-  }, [token, page, isLoadingMore, allRoutines, dateRange, sourceFilter]);
+  }, [page, isLoadingMore, allRoutines, dateRange, sourceFilter]);
 
   /** Aplicar filtros a los datos */
   const applyFiltersToData = (
@@ -172,12 +182,13 @@ export function useMyRoutines(token: string | null): UseMyRoutinesReturn {
 
   /** Carga inicial */
   useEffect(() => {
+    if (!isSignedIn) return;
     loadRoutines();
     return () => {
       abortRequest(firstPageRequestRef);
       abortRequest(loadMoreRequestRef);
     };
-  }, [loadRoutines]);
+  }, [isSignedIn, loadRoutines]);
 
   /** Re-aplicar filtros cuando cambian */
   useEffect(() => {

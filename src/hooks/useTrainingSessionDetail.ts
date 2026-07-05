@@ -1,4 +1,5 @@
 import { logger } from '@/src/utils/logger';
+import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTrainingSessionById } from '../services/training-history.service';
 import { getSession, setSession } from '../store/training-history-cache';
@@ -22,13 +23,17 @@ interface UseTrainingSessionDetailReturn {
 /**
  * Obtiene el detalle de una sesión de entrenamiento.
  * Primero consulta el cache en memoria; si no está, hace fetch al backend.
- * @param id    UUID de la sesión.
- * @param token Token de autenticación de Clerk.
+ * Resuelve el token de Clerk fresco en cada fetch para no refetchear cuando
+ * Clerk refresca la sesión en segundo plano.
+ * @param id UUID de la sesión.
  */
 export function useTrainingSessionDetail(
   id: string,
-  token: string | null,
 ): UseTrainingSessionDetailReturn {
+  const { getToken, isSignedIn } = useAuth();
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+
   const [session, setSessionState] = useState<TrainingHistorySession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +42,7 @@ export function useTrainingSessionDetail(
   const load = useCallback(async () => {
     abortRequest(loadRequestRef);
 
-    if (!id || !token) {
+    if (!id) {
       setIsLoading(false);
       return;
     }
@@ -51,6 +56,12 @@ export function useTrainingSessionDetail(
     }
 
     // 2. Fetch al backend
+    const token = await getTokenRef.current();
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
+
     const controller = beginAbortableRequest(loadRequestRef);
     const { signal } = controller;
 
@@ -76,14 +87,15 @@ export function useTrainingSessionDetail(
       }
       endAbortableRequest(loadRequestRef, controller);
     }
-  }, [id, token]);
+  }, [id]);
 
   useEffect(() => {
+    if (!isSignedIn) return;
     load();
     return () => {
       abortRequest(loadRequestRef);
     };
-  }, [load]);
+  }, [isSignedIn, load]);
 
   const refresh = useCallback(() => {
     // Forzar refetch ignorando cache

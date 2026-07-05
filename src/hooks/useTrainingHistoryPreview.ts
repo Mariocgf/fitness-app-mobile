@@ -6,6 +6,7 @@ import {
   isCurrentRequest,
   isRequestCanceled,
 } from '@/src/utils/request-cancellation';
+import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchTrainingHistory } from '../services/training-history.service';
 import { setMany } from '../store/training-history-cache';
@@ -21,11 +22,14 @@ interface UseTrainingHistoryPreviewReturn {
 
 /**
  * Obtiene las 5 sesiones más recientes para el preview de la pantalla principal de fitness.
- * @param token Token de autenticación de Clerk.
+ * Resuelve el token de Clerk fresco en cada fetch (patrón getTokenRef) para no
+ * refetchear cuando Clerk refresca la sesión en segundo plano.
  */
-export function useTrainingHistoryPreview(
-  token: string | null,
-): UseTrainingHistoryPreviewReturn {
+export function useTrainingHistoryPreview(): UseTrainingHistoryPreviewReturn {
+  const { getToken, isSignedIn } = useAuth();
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+
   const [sessions, setSessions] = useState<TrainingHistorySession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +38,7 @@ export function useTrainingHistoryPreview(
   const load = useCallback(async () => {
     abortRequest(loadRequestRef);
 
+    const token = await getTokenRef.current();
     if (!token) {
       setIsLoading(false);
       return;
@@ -67,14 +72,15 @@ export function useTrainingHistoryPreview(
       }
       endAbortableRequest(loadRequestRef, controller);
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => {
+    if (!isSignedIn) return;
     load();
     return () => {
       abortRequest(loadRequestRef);
     };
-  }, [load]);
+  }, [isSignedIn, load]);
 
   const refresh = useCallback(() => {
     load();

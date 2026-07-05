@@ -13,6 +13,7 @@ import {
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
 import OnboardingHeader from '@/src/components/common/OnboardingHeader';
 import ProgressBar from '@/src/components/common/ProgressBar';
+import { translateModuleDescription, translateModuleName } from '@/src/i18n';
 import { Module } from '@/src/types/user';
 
 /** Degradado de las tarjetas: #0F172B opaco al 0% → #334E91 al 25% de opacidad al 100% */
@@ -122,8 +123,8 @@ export default function ModuleSelectionStep({
                     key={module.id}
                     imageUri={module.imageUrl}
                     iconName={getModuleIcon(module.name) as any}
-                    name={module.name}
-                    description={module.description}
+                    name={translateModuleName(module.name)}
+                    description={translateModuleDescription(module.description)}
                     isSelected={isSelected}
                     onPress={() => toggleModule(module.id)}
                   />

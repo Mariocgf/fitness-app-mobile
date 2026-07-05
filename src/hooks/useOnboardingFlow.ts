@@ -1,4 +1,5 @@
 import { logger } from '@/src/utils/logger';
+import { translateGlobalGoal } from '@/src/i18n';
 import { getGlobalGoals } from '@/src/services/goal.service';
 import { getActiveModules } from '@/src/services/module.service';
 import {
@@ -413,9 +414,9 @@ export function useOnboardingFlow() {
   const globalGoalName = useMemo(() => {
     if (globalGoals.length > 0 && goal) {
       const found = globalGoals.find((g) => g.id === goal);
-      if (found) return found.name;
+      if (found) return translateGlobalGoal(found.name);
     }
-    return draftedGoalName || '';
+    return translateGlobalGoal(draftedGoalName || '');
   }, [goal, globalGoals, draftedGoalName]);
 
   return {
