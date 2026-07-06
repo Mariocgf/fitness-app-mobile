@@ -4,6 +4,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { toast } from '@/src/components/ui/feedback';
 import { ActiveSessionView } from '@/src/components/features/routine/session/ActiveSessionView';
+import { CountdownOverlay } from '@/src/components/features/routine/session/CountdownOverlay';
 import { useNetworkStatus } from '@/src/hooks/useNetworkStatus';
 import { enqueueTrainingSessionOffline } from '@/src/offline/service';
 import { saveSession } from '@/src/services/routine.service';
@@ -23,6 +24,7 @@ export default function SessionScreen() {
   const { isOnline } = useNetworkStatus();
 
   const [isSaving, setIsSaving] = useState(false);
+  const [showCountdown, setShowCountdown] = useState(true);
 
   const day: SessionDay | null = dayData ? JSON.parse(dayData) : null;
 
@@ -71,14 +73,20 @@ export default function SessionScreen() {
 
   return (
     <View className="flex-1 bg-zinc-950">
-      <ActiveSessionView
-        routineId={routineId}
-        day={day}
-        routineName={routineName}
-        nextSessionDay={nextSessionDay}
-        onFinishSession={handleFinishSession}
-        onCancel={() => router.back()}
-      />
+      {/* La rutina se monta recién cuando el countdown "3, 2, 1, GO" termina */}
+      {!showCountdown && (
+        <ActiveSessionView
+          routineId={routineId}
+          day={day}
+          routineName={routineName}
+          nextSessionDay={nextSessionDay}
+          onFinishSession={handleFinishSession}
+          onCancel={() => router.back()}
+        />
+      )}
+      {showCountdown && (
+        <CountdownOverlay onFinish={() => setShowCountdown(false)} />
+      )}
       {isSaving && (
         <View className="absolute inset-0 bg-black/50 items-center justify-center">
           <ActivityIndicator size="large" color="#d9f99d" />

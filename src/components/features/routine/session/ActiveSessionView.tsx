@@ -7,7 +7,6 @@ import React from 'react';
 import { View } from 'react-native';
 import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CountdownPhase } from './CountdownPhase';
 import { ExercisePhase } from './ExercisePhase';
 import { RestPhase } from './RestPhase';
 import { SetActionButtons } from './SetActionButtons';
@@ -37,11 +36,6 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
   const session = useActiveSession({ routineId, day, onFinishSession, onCancel });
 
   if (!session.currentExercise && session.phase !== 'SUMMARY') return null;
-
-  /* ══════════════════════ COUNTDOWN ══════════════════════ */
-  if (session.phase === 'COUNTDOWN') {
-    return <CountdownPhase countdown={session.countdown} />;
-  }
 
   /* ══════════════════════ SUMMARY ══════════════════════ */
   if (session.phase === 'SUMMARY') {

@@ -6,7 +6,7 @@ import { confirm, toast } from '@/src/components/ui/feedback';
 import { useNetworkStatus } from './useNetworkStatus';
 import { useSessionAudio } from './useSessionAudio';
 
-export type Phase = 'COUNTDOWN' | 'EXERCISE' | 'REST' | 'SUMMARY';
+export type Phase = 'EXERCISE' | 'REST' | 'SUMMARY';
 export type RepetitionMode = 'partial' | 'all';
 
 interface UseActiveSessionProps {
@@ -20,7 +20,6 @@ interface UseActiveSessionReturn {
   /* Estado de fase */
   phase: Phase;
   setPhase: (phase: Phase) => void;
-  countdown: number;
 
   /* Estado de ejercicio */
   exercises: SessionExercise[];
@@ -91,8 +90,7 @@ export function useActiveSession({
 
 
   /* ── Estados ── */
-  const [phase, setPhase] = useState<Phase>('COUNTDOWN');
-  const [countdown, setCountdown] = useState(3);
+  const [phase, setPhase] = useState<Phase>('EXERCISE');
   const [exercises, setExercises] = useState<SessionExercise[]>(day.exercises);
   const [globalTime, setGlobalTime] = useState(0);
   const [exerciseIndex, setExerciseIndex] = useState(0);
@@ -168,17 +166,6 @@ export function useActiveSession({
   }, [logs, day.exercises]);
 
   /* ── Effects ── */
-
-  /* Countdown inicial */
-  useEffect(() => {
-    if (phase !== 'COUNTDOWN') return;
-    if (countdown > 0) {
-      const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
-      return () => clearTimeout(t);
-    }
-    const t = setTimeout(() => setPhase('EXERCISE'), 1000);
-    return () => clearTimeout(t);
-  }, [countdown, phase]);
 
   /* Timer global */
   useEffect(() => {
@@ -478,7 +465,6 @@ export function useActiveSession({
   return {
     phase,
     setPhase,
-    countdown,
     exercises,
     setExercises,
     exerciseIndex,
