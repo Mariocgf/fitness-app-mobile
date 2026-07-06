@@ -16,6 +16,7 @@ import '@/src/utils/icon-interop';
 
 import { AppFrame } from '@/src/components/common/AppFrame';
 import { FullPageLoader } from '@/src/components/common/FullPageLoader';
+import { InstallPrompt } from '@/src/components/common/InstallPrompt';
 import { FeedbackHost } from '@/src/components/ui/feedback';
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
 import { useIsOffline } from '@/src/hooks/useIsOffline';
@@ -384,6 +385,8 @@ export default function RootLayout() {
               </AppFrame>
               {/* Hosts de feedback no bloqueante (toasts + confirmaciones in-app) */}
               <FeedbackHost />
+              {/* Prompt de instalación PWA (solo web; no-op en nativo) */}
+              <InstallPrompt />
               {/* App dark-only: íconos/texto de la status bar siempre en claro para que se vean */}
               <StatusBar style="light" />
             </ThemeProvider>
