@@ -18,6 +18,7 @@ import { AppFrame } from '@/src/components/common/AppFrame';
 import { FullPageLoader } from '@/src/components/common/FullPageLoader';
 import { FeedbackHost } from '@/src/components/ui/feedback';
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
+import { useIsOffline } from '@/src/hooks/useIsOffline';
 import { getOnboardingStatus, syncAuthenticatedUser } from '@/src/services/onboarding.service';
 import { destroyOfflineData } from '@/src/offline/repository';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -90,6 +91,11 @@ function RootNavigator() {
   const [completedLocally, setCompletedLocally] = useState<boolean | null>(null);
   const [backendOnboardingStatus, setBackendOnboardingStatus] = useState<string | null>(null);
   const [isResolvingBackendStatus, setIsResolvingBackendStatus] = useState(false);
+  const isOffline = useIsOffline();
+  // Red-de-seguridad: si Clerk no cargó en 6s (p.ej. su CDN caído) tratamos el arranque
+  // como "colgado" para no dejar al usuario en el loader eterno. Se auto-corrige: cuando
+  // Clerk termina, `isLoaded` pasa a true y el render vuelve al camino normal.
+  const [clerkStalled, setClerkStalled] = useState(false);
 
   const clerkOnboardingStatus = normalizeOnboardingStatus(user?.publicMetadata?.onboarding_status);
   const resolvedOnboardingStatus = clerkOnboardingStatus || backendOnboardingStatus || '';
@@ -244,15 +250,43 @@ function RootNavigator() {
     };
   }, [user, isSignedIn, clerkOnboardingStatus]);
 
+  // Timeout de seguridad para el arranque cuando Clerk no termina de cargar.
+  useEffect(() => {
+    if (isLoaded) {
+      setClerkStalled(false);
+      return;
+    }
+    const timeout = setTimeout(() => setClerkStalled(true), 6000);
+    return () => clearTimeout(timeout);
+  }, [isLoaded]);
+
+  // Clerk web NO puede inicializar sin red (baja clerk-js remoto). Si estamos offline (o
+  // Clerk quedó colgado) y el usuario ya estaba logueado + onboarded en este dispositivo
+  // (@onboarding_completed), entramos a la app con los datos locales/SQLite en vez de
+  // quedarnos en el loader para siempre. En nativo `isOffline` es siempre false: este
+  // bypass no aplica y Clerk levanta la sesión desde SecureStore como siempre.
+  const offlineAuthed = !isLoaded && completedLocally === true && (isOffline || clerkStalled);
+
+  // Sin la sesión de Clerk el splash nativo no se oculta solo por el efecto de ruteo
+  // (que espera a `isLoaded`); lo bajamos acá al entrar en modo offline.
+  useEffect(() => {
+    if (offlineAuthed) hideSplash();
+  }, [offlineAuthed]);
+
   const isCompleted = resolvedOnboardingStatus === 'COMPLETED' || completedLocally;
   const isWaitingForBackendStatus = isSignedIn && !resolvedOnboardingStatus && !isCompleted && isResolvingBackendStatus;
 
-  if (!isLoaded || completedLocally === null || isWaitingForBackendStatus) {
-    return (
-      <FullPageLoader
-        message={isWaitingForBackendStatus ? "Sincronizando tu perfil..." : "Preparando tu espacio..."}
-      />
-    );
+  if (!offlineAuthed && (!isLoaded || completedLocally === null || isWaitingForBackendStatus)) {
+    // Offline y sin sesión previa cacheada: no hay nada que mostrar sin red. Se lo
+    // decimos en vez de girar para siempre.
+    const offlineNoSession = isOffline && completedLocally === false;
+    const message = offlineNoSession
+      ? 'Sin conexión. Reconectate para iniciar sesión.'
+      : isWaitingForBackendStatus
+        ? 'Sincronizando tu perfil...'
+        : 'Preparando tu espacio...';
+
+    return <FullPageLoader message={message} />;
   }
 
   return (

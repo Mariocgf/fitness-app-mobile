@@ -1,4 +1,5 @@
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
+import { useIsOffline } from '@/src/hooks/useIsOffline';
 import { OfflineSyncGate } from '@/src/offline/OfflineSyncGate';
 import { NutritionRoutineProvider } from '@/src/store/nutrition-routine-context';
 import { RoutineDetailProvider } from '@/src/store/routine-detail-context';
@@ -13,8 +14,12 @@ export default function TabLayout() {
   const { isLoaded, isSignedIn } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const isOffline = useIsOffline();
 
-  if (!isLoaded || !isSignedIn) return null;
+  // Offline, Clerk web nunca carga (isLoaded se queda en false). Solo llegamos acá si el
+  // root layout ya validó la sesión local (offlineAuthed), así que sin red dibujamos los
+  // tabs igual. En nativo `isOffline` es false y el gate original se mantiene idéntico.
+  if (!isOffline && (!isLoaded || !isSignedIn)) return null;
 
   const activeTint = isDark ? '#f8fafc' : '#09090b';
   const inactiveTint = isDark ? '#64748b' : '#94a3b8';
