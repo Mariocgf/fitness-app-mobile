@@ -1,42 +1,49 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import Lottie from 'lottie-react';
+import React, { useEffect, useRef } from 'react';
+import { View } from 'react-native';
+
+import countdownAnimation from '@/assets/svg/countdown.json';
 
 interface CountdownOverlayProps {
-  /** Se dispara cuando el "3, 2, 1, ¡YA!" termina de reproducirse. */
+  /** Se dispara cuando el "3, 2, 1, GO" termina de reproducirse. */
   onFinish: () => void;
 }
 
-// En web `lottie-react-native` no renderiza confiable (y su onAnimationFinish no dispara),
-// así que en vez del Lottie hacemos una cuenta regresiva numérica propia. Además de verse,
-// garantiza que la sesión arranque. Metro usa este archivo SOLO en web por la extensión
-// `.web.tsx`; el bundle nativo sigue con `CountdownOverlay.tsx` (Lottie) sin cambios.
-const STEPS = ['3', '2', '1', '¡YA!'];
-const STEP_MS = 800;
+// Colchón por si `onComplete` de lottie-web no dispara: garantiza el arranque de la sesión.
+const FALLBACK_MS = 5500;
 
+/**
+ * Variante WEB de la cuenta regresiva. `lottie-react-native` no renderiza en web, así que
+ * usamos `lottie-react` (motor lottie-web) con el MISMO `countdown.json` → diseño idéntico
+ * al nativo. El JSON va empaquetado en el bundle, así que anda offline sin pedir red.
+ * Metro elige este archivo solo en web por la extensión `.web.tsx`; el bundle nativo sigue
+ * con `CountdownOverlay.tsx` (lottie-react-native) sin cambios.
+ */
 export function CountdownOverlay({ onFinish }: CountdownOverlayProps) {
-  const [index, setIndex] = useState(0);
+  // Garantiza un único disparo de onFinish (onComplete + timer pueden competir).
   const firedRef = useRef(false);
 
+  const finishOnce = () => {
+    if (firedRef.current) return;
+    firedRef.current = true;
+    onFinish();
+  };
+
   useEffect(() => {
-    if (index >= STEPS.length) {
-      if (!firedRef.current) {
-        firedRef.current = true;
-        onFinish();
-      }
-      return;
-    }
-    const timeout = setTimeout(() => setIndex((i) => i + 1), STEP_MS);
+    const timeout = setTimeout(finishOnce, FALLBACK_MS);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index]);
-
-  const label = STEPS[Math.min(index, STEPS.length - 1)];
+  }, []);
 
   return (
     <View className="absolute inset-0 bg-zinc-950 items-center justify-center z-50">
-      <Text style={{ color: '#d9f99d', fontSize: 96, fontWeight: '800' }}>
-        {label}
-      </Text>
+      <Lottie
+        animationData={countdownAnimation}
+        loop={false}
+        autoplay
+        onComplete={finishOnce}
+        style={{ width: 300, height: 300 }}
+      />
     </View>
   );
 }
