@@ -1,7 +1,7 @@
 {
   "name": "wellium",
   "main": "expo-router/entry",
-  "version": "0.20.8",
+  "version": "0.20.9",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
