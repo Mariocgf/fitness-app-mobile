@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 
 import apiClient from '@/src/api/client';
@@ -30,6 +31,13 @@ import {
 } from './types';
 
 export const createClientOperationId = (): string => Crypto.randomUUID();
+
+// Marca infalible de "usuario autenticado + onboarded en este device": si pudo descargar
+// una rutina, lo está. La usa el arranque offline (app/_layout.tsx) para dejar entrar sin
+// red cuando Clerk web no puede inicializar. Best-effort: si falla el storage, no rompe la
+// descarga (que es lo importante).
+const markOfflineAuthReady = () =>
+  AsyncStorage.setItem('@onboarding_completed', 'true').catch(() => {});
 
 interface OfflineSyncApiOperation {
   clientOperationId: string;
@@ -68,7 +76,7 @@ export const downloadFitnessRoutineOffline = async (
   const activeRoutine = routine ?? await getActiveRoutine(token);
   if (!activeRoutine) throw new Error('No hay rutina activa para descargar.');
 
-  return saveOfflineSnapshot<Routine>({
+  const snapshot = await saveOfflineSnapshot<Routine>({
     type: 'fitness-active-routine',
     entityId: activeRoutine.id,
     versionId: activeRoutine.activeVersionId ?? null,
@@ -78,6 +86,8 @@ export const downloadFitnessRoutineOffline = async (
       versionNumber: activeRoutine.versionNumber ?? null,
     },
   });
+  markOfflineAuthReady();
+  return snapshot;
 };
 
 export const getOfflineFitnessRoutine = async (): Promise<Routine | null> => {
@@ -89,13 +99,15 @@ export const downloadNutritionRoutineOffline = async (token: string | null) => {
   const bundle = await getOfflineNutritionRoutineBundle(token);
 
   if (bundle) {
-    return saveOfflineSnapshot<OfflineNutritionPayload>({
+    const snapshot = await saveOfflineSnapshot<OfflineNutritionPayload>({
       type: 'nutrition-active-routine',
       entityId: bundle.routine.id,
       versionId: null,
       payload: bundle,
       metadata: { name: bundle.routine.name },
     });
+    markOfflineAuthReady();
+    return snapshot;
   }
 
   const routine = await getActiveNutritionRoutine(token);
@@ -117,13 +129,15 @@ export const downloadNutritionRoutineOffline = async (token: string | null) => {
     mealDetails: Object.fromEntries(detailEntries),
   };
 
-  return saveOfflineSnapshot<OfflineNutritionPayload>({
+  const snapshot = await saveOfflineSnapshot<OfflineNutritionPayload>({
     type: 'nutrition-active-routine',
     entityId: routine.id,
     versionId: null,
     payload,
     metadata: { name: routine.name },
   });
+  markOfflineAuthReady();
+  return snapshot;
 };
 
 export const getOfflineNutritionRoutine = async (): Promise<NutritionRoutineDto | null> => {
