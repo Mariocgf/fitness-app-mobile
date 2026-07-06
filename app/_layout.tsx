@@ -100,9 +100,14 @@ function RootNavigator() {
   const clerkOnboardingStatus = normalizeOnboardingStatus(user?.publicMetadata?.onboarding_status);
   const resolvedOnboardingStatus = clerkOnboardingStatus || backendOnboardingStatus || '';
 
-  // Leer el flag local de onboarding completado cuando cambia el usuario (para detectar sign in/out)
+  // Detectar sign in/out. OJO: durante el arranque Clerk TODAVÍA no cargó, así que
+  // `isSignedIn` es false SIN que el usuario esté deslogueado. Antes limpiábamos acá sin
+  // chequear `isLoaded` → en CADA apertura se borraba la rutina descargada
+  // (`destroyOfflineData` hace `deleteOfflineDatabase`) y el flag de onboarding. En web
+  // offline Clerk nunca carga → se borraba SIEMPRE. Solo tratamos como sign-out REAL cuando
+  // Clerk ya confirmó que no hay sesión: `isLoaded && !isSignedIn`.
   useEffect(() => {
-    if (!isSignedIn) {
+    if (isLoaded && !isSignedIn) {
       setCompletedLocally(false);
       setBackendOnboardingStatus(null);
       setIsResolvingBackendStatus(false);
@@ -122,10 +127,12 @@ function RootNavigator() {
       return;
     }
 
+    // Signed in, o Clerk todavía cargando (incluye web offline, donde nunca carga): leemos
+    // el flag local para poder decidir el bypass offline. NUNCA destruimos datos acá.
     AsyncStorage.getItem('@onboarding_completed')
       .then((val) => setCompletedLocally(val === 'true'))
       .catch(() => setCompletedLocally(false));
-  }, [isSignedIn, user?.id]);
+  }, [isLoaded, isSignedIn, user?.id]);
 
   // Clerk metadata es solo cache. Si no está, resolvemos el estado real contra el backend.
   useEffect(() => {
