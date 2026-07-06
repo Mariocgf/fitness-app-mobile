@@ -23,7 +23,7 @@ import { getOnboardingStatus, syncAuthenticatedUser } from '@/src/services/onboa
 import { destroyOfflineData } from '@/src/offline/repository';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
@@ -259,6 +259,36 @@ function RootNavigator() {
     const timeout = setTimeout(() => setClerkStalled(true), 6000);
     return () => clearTimeout(timeout);
   }, [isLoaded]);
+
+  // Persistir el flag de onboarding completado cuando lo confirmamos ONLINE. El flag
+  // `@onboarding_completed` solo se escribía en el flujo de onboarding, así que un usuario
+  // ya onboarded que loguea en web nunca lo tenía → offline el bypass no se activaba. Al
+  // grabarlo acá, tras una visita online, el cold-start offline sí puede entrar con SQLite.
+  useEffect(() => {
+    if (isLoaded && isSignedIn && resolvedOnboardingStatus === 'COMPLETED') {
+      AsyncStorage.setItem('@onboarding_completed', 'true').catch(() => {});
+    }
+  }, [isLoaded, isSignedIn, resolvedOnboardingStatus]);
+
+  // Recuperación al reconectar: si arrancamos offline, Clerk web nunca cargó clerk-js y
+  // NO reintenta solo → la app queda en limbo sin sesión. Cuando vuelve la red recargamos
+  // para reinicializar Clerk desde cero, en vez de obligar al usuario a cerrar la app.
+  const wasOfflineRef = useRef(false);
+  useEffect(() => {
+    if (isOffline) {
+      wasOfflineRef.current = true;
+      return;
+    }
+    if (
+      wasOfflineRef.current &&
+      !isLoaded &&
+      Platform.OS === 'web' &&
+      typeof window !== 'undefined'
+    ) {
+      wasOfflineRef.current = false;
+      window.location.reload();
+    }
+  }, [isOffline, isLoaded]);
 
   // Clerk web NO puede inicializar sin red (baja clerk-js remoto). Si estamos offline (o
   // Clerk quedó colgado) y el usuario ya estaba logueado + onboarded en este dispositivo

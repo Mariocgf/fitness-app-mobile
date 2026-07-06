@@ -1,8 +1,8 @@
 // Service worker manual del app-shell de Wellium PWA.
 // Alcance decidido: SOLO precache/runtime-cache del shell y assets estaticos.
 // NO cachea respuestas de API (evita duplicar logica de sync; ver docs/pwa-web-support-plan.md #6.3).
-const SHELL_CACHE = 'wellium-shell-v2';
-const RUNTIME_CACHE = 'wellium-runtime-v2';
+const SHELL_CACHE = 'wellium-shell-v3';
+const RUNTIME_CACHE = 'wellium-runtime-v3';
 const CURRENT_CACHES = [SHELL_CACHE, RUNTIME_CACHE];
 
 // Precachea el shell HTML y ADEMAS los bundles hasheados que referencia (/_expo/*.js,
@@ -57,10 +57,18 @@ function isRuntimeCacheable(url) {
 }
 
 async function networkFirstNavigation(request) {
+  const cache = await caches.open(SHELL_CACHE);
   try {
-    return await fetch(request);
+    const response = await fetch(request);
+    // Write-through: refresca el shell cacheado en cada visita online, asi offline se
+    // sirve SIEMPRE el ultimo deploy. Sin esto el HTML queda congelado en el install del
+    // SW (que solo corre una vez) apuntando a un bundle viejo → offline = codigo viejo.
+    // El bundle nuevo lo cachea staleWhileRevalidate cuando la pagina lo pide online.
+    if (response && response.ok) {
+      cache.put('/', response.clone());
+    }
+    return response;
   } catch {
-    const cache = await caches.open(SHELL_CACHE);
     const cached = await cache.match('/');
     if (cached) return cached;
     throw new Error('offline-and-no-shell-cached');
