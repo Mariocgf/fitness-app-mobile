@@ -13,6 +13,7 @@ import {
   VersionBadge,
 } from '@/src/components/features/routine/routine-detail-shared';
 import { RoutineVersionsSheet } from '@/src/components/features/routine/RoutineVersionsSheet';
+import { ModalFrame } from '@/src/components/common/ModalFrame';
 import { translateDay } from '@/src/i18n';
 import {
   confirmSwapExercises,
@@ -1075,6 +1076,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
           animationType="fade"
           onRequestClose={() => setIsOptionsOpen(false)}
         >
+          <ModalFrame>
           <Pressable className="flex-1" onPress={() => setIsOptionsOpen(false)}>
             <View
               className="absolute right-4 w-[240px] bg-zinc-800 border border-white/10 rounded-2xl overflow-hidden"
@@ -1111,6 +1113,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
               ))}
             </View>
           </Pressable>
+          </ModalFrame>
         </Modal>
 
         {/* ── Overlay de detalle de ejercicio ──────────────────────────── */}

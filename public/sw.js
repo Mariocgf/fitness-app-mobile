@@ -1,16 +1,39 @@
 // Service worker manual del app-shell de Wellium PWA.
 // Alcance decidido: SOLO precache/runtime-cache del shell y assets estaticos.
 // NO cachea respuestas de API (evita duplicar logica de sync; ver docs/pwa-web-support-plan.md #6.3).
-const SHELL_CACHE = 'wellium-shell-v1';
-const RUNTIME_CACHE = 'wellium-runtime-v1';
+const SHELL_CACHE = 'wellium-shell-v2';
+const RUNTIME_CACHE = 'wellium-runtime-v2';
 const CURRENT_CACHES = [SHELL_CACHE, RUNTIME_CACHE];
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(SHELL_CACHE)
-      .then((cache) => cache.addAll(['/']))
-      .then(() => self.skipWaiting())
+// Precachea el shell HTML y ADEMAS los bundles hasheados que referencia (/_expo/*.js,
+// css). Sin esto, el bundle solo se cachea si el SW ya controlaba la pagina cuando el
+// navegador lo pidio — cosa que NO pasa en la primera visita: un SW recien instalado no
+// controla la carga que lo instalo. Resultado offline: el HTML abre pero el JS falta y la
+// app "queda ahi" en blanco (roto en Android e iOS por igual). Leemos los nombres del
+// propio HTML porque el hash cambia en cada build; no se pueden hardcodear.
+async function precacheShell() {
+  const cache = await caches.open(SHELL_CACHE);
+  await cache.add('/');
+
+  const res = await cache.match('/');
+  if (!res) return;
+
+  const html = await res.text();
+  // Set: el HTML referencia el CSS dos veces (stylesheet + preload) y cache.addAll()
+  // RECHAZA con InvalidStateError si le pasas URLs duplicadas — tumbaria todo el precache.
+  const assets = Array.from(
+    new Set(
+      Array.from(
+        html.matchAll(/(?:src|href)="(\/_expo\/[^"]+)"/g),
+        (match) => match[1],
+      ),
+    ),
   );
+  if (assets.length) await cache.addAll(assets);
+}
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(precacheShell().then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
@@ -44,13 +67,16 @@ async function networkFirstNavigation(request) {
   }
 }
 
+// Busca en TODOS los caches (caches.match global), no solo en RUNTIME_CACHE: los bundles
+// del shell se precachean en SHELL_CACHE durante el install, asi que offline hay que
+// mirar ahi tambien. Revalida en segundo plano contra la red y refresca RUNTIME_CACHE.
 async function staleWhileRevalidate(request) {
-  const cache = await caches.open(RUNTIME_CACHE);
-  const cached = await cache.match(request);
+  const cached = await caches.match(request);
   const networkPromise = fetch(request)
     .then((response) => {
       if (response && response.ok) {
-        cache.put(request, response.clone());
+        const copy = response.clone();
+        caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
       }
       return response;
     })
