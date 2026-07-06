@@ -265,10 +265,12 @@ function RootNavigator() {
   // ya onboarded que loguea en web nunca lo tenía → offline el bypass no se activaba. Al
   // grabarlo acá, tras una visita online, el cold-start offline sí puede entrar con SQLite.
   useEffect(() => {
-    if (isLoaded && isSignedIn && resolvedOnboardingStatus === 'COMPLETED') {
+    const completedOnline =
+      resolvedOnboardingStatus === 'COMPLETED' || completedLocally === true;
+    if (isLoaded && isSignedIn && completedOnline) {
       AsyncStorage.setItem('@onboarding_completed', 'true').catch(() => {});
     }
-  }, [isLoaded, isSignedIn, resolvedOnboardingStatus]);
+  }, [isLoaded, isSignedIn, resolvedOnboardingStatus, completedLocally]);
 
   // Recuperación al reconectar: si arrancamos offline, Clerk web nunca cargó clerk-js y
   // NO reintenta solo → la app queda en limbo sin sesión. Cuando vuelve la red recargamos
