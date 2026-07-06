@@ -23,6 +23,11 @@ export default function TabLayout() {
 
   const activeTint = isDark ? '#f8fafc' : '#09090b';
   const inactiveTint = isDark ? '#64748b' : '#94a3b8';
+  // En web no hay BlurView (es iOS-only), así que el fondo semitransparente dejaba ver el
+  // contenido detrás arriba y negro puro en la zona del home indicator → "barra negra" en
+  // dos tonos. En web lo hacemos opaco + borde superior para que sea una barra sólida y
+  // uniforme. Nativo no se toca (sigue con blur).
+  const isWeb = Platform.OS === 'web';
 
   return (
     <RoutineDetailProvider>
@@ -38,7 +43,10 @@ export default function TabLayout() {
               // sólido para que no aparezca la "barra" opaca encima.
               tabBarStyle: {
                 position: 'absolute',
-                borderTopWidth: 0,
+                // Web: borde superior finito para delimitar la barra opaca. Nativo: sin
+                // borde, el blur ya la separa visualmente.
+                borderTopWidth: isWeb ? StyleSheet.hairlineWidth : 0,
+                borderTopColor: 'rgba(255, 255, 255, 0.06)',
                 backgroundColor: 'transparent',
                 elevation: 0,
               },
@@ -56,9 +64,13 @@ export default function TabLayout() {
                     style={[
                       StyleSheet.absoluteFill,
                       {
-                        backgroundColor: isDark
-                          ? 'rgba(2, 6, 23, 0.88)'
-                          : 'rgba(248, 250, 252, 0.88)',
+                        // Web: opaco (sin blur disponible) → barra sólida uniforme, sin la
+                        // franja negra en dos tonos. Android: mantiene el semitransparente.
+                        backgroundColor: isWeb
+                          ? (isDark ? '#0e0e11' : '#f8fafc')
+                          : (isDark
+                              ? 'rgba(2, 6, 23, 0.88)'
+                              : 'rgba(248, 250, 252, 0.88)'),
                       },
                     ]}
                   />
