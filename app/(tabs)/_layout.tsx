@@ -64,8 +64,8 @@ export default function TabLayout() {
                     style={[
                       StyleSheet.absoluteFill,
                       {
-                        // Web: opaco (sin blur disponible) → barra sólida uniforme, sin la
-                        // franja negra en dos tonos. Android: mantiene el semitransparente.
+                        // Web: opaco (sin blur disponible) → sin el dos-tonos. La franja del
+                        // home indicator la tapa el relleno de abajo (ver <Tabs/> sibling).
                         backgroundColor: isWeb
                           ? (isDark ? '#0e0e11' : '#f8fafc')
                           : (isDark
@@ -138,6 +138,25 @@ export default function TabLayout() {
               }}
             />
         </Tabs>
+        {/* Web: relleno del safe-area del home indicator. react-navigation no cubre esa
+            franja en web y queda una "barra negra" debajo del tab bar. Este View, pegado
+            al fondo real de la pantalla (fuera del tab bar → nadie lo recorta), la pinta
+            del mismo color de la barra usando `env(safe-area-inset-bottom)` (valor real del
+            navegador). En nativo no se renderiza. `as any`: RN no tipa `env()`, RNW lo pasa
+            a CSS tal cual. */}
+        {isWeb && (
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 'env(safe-area-inset-bottom)',
+              backgroundColor: isDark ? '#0e0e11' : '#f8fafc',
+            } as any}
+          />
+        )}
       </NutritionRoutineProvider>
     </RoutineDetailProvider>
   );
