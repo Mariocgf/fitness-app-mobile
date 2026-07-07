@@ -3,6 +3,7 @@ import { useOAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
+import { useState } from 'react';
 import { Platform, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -41,8 +42,16 @@ export default function LoginScreen() {
   const { startOAuthFlow: startGoogleOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
   const { startOAuthFlow: startAppleOAuthFlow } = useOAuth({ strategy: 'oauth_apple' });
 
+  // Proveedor en curso (o null si ninguno). Da feedback visual desde el click hasta que el
+  // `_layout` navega. OJO: en el camino feliz NO lo reseteamos: la sesión ya está activa pero
+  // el `_layout` todavía resuelve el onboarding contra el backend (ese "hueco" donde parecía
+  // que no pasaba nada). El loader queda hasta que esta pantalla se desmonte al navegar.
+  const [authStrategy, setAuthStrategy] = useState<'oauth_google' | 'oauth_apple' | null>(null);
+
   /** Autenticación con redes sociales */
   const onSocialLoginPress = async (strategy: 'oauth_google' | 'oauth_apple') => {
+    if (authStrategy) return; // evita doble toque mientras hay un flujo en curso
+    setAuthStrategy(strategy);
     try {
       const startOAuthFlow = strategy === 'oauth_google' ? startGoogleOAuthFlow : startAppleOAuthFlow;
 
@@ -56,13 +65,18 @@ export default function LoginScreen() {
 
       if (createdSessionId && setOAuthActive) {
         await setOAuthActive({ session: createdSessionId });
+        return; // sesión activa: mantenemos el loader hasta que el ruteo desmonte la pantalla
       }
+
+      // El flujo terminó sin sesión (ej. el usuario cerró el popup): liberamos el botón.
+      setAuthStrategy(null);
     } catch (err: any) {
       logger.error('Error de OAuth', err);
       if (err?.e?.toUpperCase() === "You're already signed in".toUpperCase()) {
         Linking.createURL('/(tabs)');
       }
       toast.error('No se pudo iniciar sesión con esta red.', { title: 'Interrumpido' });
+      setAuthStrategy(null);
     }
   };
 
@@ -117,6 +131,8 @@ export default function LoginScreen() {
             icon={<GoogleIcon width={20} height={20} />}
             variant="light"
             onPress={() => onSocialLoginPress('oauth_google')}
+            loading={authStrategy === 'oauth_google'}
+            disabled={authStrategy !== null}
           />
 
           {Platform.OS === 'ios' && (
@@ -125,6 +141,8 @@ export default function LoginScreen() {
               icon={<AppleIcon width={20} height={20} />}
               variant="dark"
               onPress={() => onSocialLoginPress('oauth_apple')}
+              loading={authStrategy === 'oauth_apple'}
+              disabled={authStrategy !== null}
             />
           )}
         </View>
