@@ -46,8 +46,12 @@ export default function LoginScreen() {
     try {
       const startOAuthFlow = strategy === 'oauth_google' ? startGoogleOAuthFlow : startAppleOAuthFlow;
 
+      // El popup DEBE aterrizar en /sso-callback (no en /(tabs)): esa ruta llama a
+      // `WebBrowser.maybeCompleteAuthSession()` a nivel de módulo, cierra el popup y devuelve
+      // la sesión al opener. Apuntando a la app entera, eso nunca corría y el sign_in quedaba
+      // abandonado en producción (cookies first-party que exigen completar en el opener).
       const { createdSessionId, setActive: setOAuthActive } = await startOAuthFlow({
-        redirectUrl: Linking.createURL('/(tabs)'),
+        redirectUrl: Linking.createURL('/sso-callback'),
       });
 
       if (createdSessionId && setOAuthActive) {

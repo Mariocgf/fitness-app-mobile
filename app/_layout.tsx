@@ -7,6 +7,7 @@ import * as NavigationBar from 'expo-navigation-bar';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import * as WebBrowser from 'expo-web-browser';
 import { Appearance, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
@@ -31,6 +32,11 @@ const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 if (!publishableKey) {
   throw new Error('EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is not defined');
 }
+
+// El popup de OAuth en web puede aterrizar en CUALQUIER ruta antes de que se monte su pantalla.
+// Correr esto a nivel de módulo del layout raíz garantiza que, cargue donde cargue, el popup
+// cierre y devuelva la sesión al opener. Es un no-op seguro fuera del flujo OAuth y en nativo.
+WebBrowser.maybeCompleteAuthSession();
 
 // App dark-only: forzamos el esquema oscuro en runtime (cubre Expo Go y los
 // useColorScheme directos de RN). El app.json lo fija además en builds nativos.
@@ -200,6 +206,11 @@ function RootNavigator() {
     // 2. Revisamos si el usuario ya está en la ruta del login o onboarding
     const inLoginScreen = segments[0] === 'login';
     const inOnboardingScreen = segments[0] === 'onboarding';
+    // La ruta de callback de OAuth es efímera (cierra el popup en web). No la tratamos como
+    // "no logueado" para no redirigir a /login antes de que complete el flujo.
+    const inSSOCallback = segments[0] === 'sso-callback';
+
+    if (inSSOCallback) return;
 
     if (!isSignedIn && !inLoginScreen) {
       // 3. Si NO está logueado y NO está en la pantalla de login, lo obligamos a ir a /login
@@ -334,6 +345,7 @@ function RootNavigator() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="sso-callback" options={{ headerShown: false }} />
       <Stack.Screen
         name="session"
         options={{
