@@ -80,8 +80,19 @@ export default function ProfileScreen() {
       '@user_routine',
       '@nutrition_routine',
     ]);
-    await destroyOfflineData();
-    signOut();
+    // La limpieza de datos offline es best-effort y NO debe bloquear el cierre de sesión.
+    // En la PWA móvil, `deleteDatabaseAsync` puede quedarse COLGADO si el OfflineSyncGate
+    // mantiene conexiones SQLite/IndexedDB abiertas; al estar `await`-eado antes de `signOut()`,
+    // este último nunca se ejecutaba y el logout no hacía nada (el modal cerraba y listo). Lo
+    // disparamos sin bloquear; el `_layout` vuelve a limpiar (también best-effort) al detectar
+    // el sign-out.
+    destroyOfflineData().catch(() => {});
+
+    try {
+      await signOut();
+    } catch (err) {
+      logger.error('Error al cerrar sesión', err);
+    }
   };
 
   if (!isLoaded) {
