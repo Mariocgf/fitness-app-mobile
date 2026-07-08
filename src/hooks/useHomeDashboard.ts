@@ -1,6 +1,7 @@
 import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { toast } from '../components/ui/feedback';
 import { getOfflineFitnessRoutine } from '../offline/service';
 import { generateRoutine, getActiveRoutine } from '../services/routine.service';
 import { fetchTrainingHistory } from '../services/training-history.service';
@@ -170,7 +171,9 @@ export function useHomeDashboard(): UseHomeDashboardReturn {
       if (mountedRef.current) setRoutine(newRoutine);
     } catch (error) {
       logger.error('[useHomeDashboard] Error generando rutina:', error);
-      throw error;
+      toast.error('No pudimos generar tu rutina. Intentá de nuevo.', {
+        title: 'Algo salió mal',
+      });
     } finally {
       if (mountedRef.current) setIsGeneratingRoutine(false);
     }

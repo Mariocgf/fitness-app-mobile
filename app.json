@@ -2,7 +2,7 @@
   "expo": {
     "name": "Wellium",
     "slug": "frontend",
-    "version": "0.20.9",
+    "version": "0.21.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "frontend",
