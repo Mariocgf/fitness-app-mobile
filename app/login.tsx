@@ -1,9 +1,9 @@
 import { logger } from '@/src/utils/logger';
-import { useOAuth } from '@clerk/clerk-expo';
+import { useAuth, useOAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -39,6 +39,7 @@ function FeatureColumn({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; 
 /** Pantalla de bienvenida y autenticación social */
 export default function LoginScreen() {
   // Hooks de autenticación social de Clerk
+  const { isSignedIn } = useAuth();
   const { startOAuthFlow: startGoogleOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
   const { startOAuthFlow: startAppleOAuthFlow } = useOAuth({ strategy: 'oauth_apple' });
 
@@ -47,6 +48,24 @@ export default function LoginScreen() {
   // el `_layout` todavía resuelve el onboarding contra el backend (ese "hueco" donde parecía
   // que no pasaba nada). El loader queda hasta que esta pantalla se desmonte al navegar.
   const [authStrategy, setAuthStrategy] = useState<'oauth_google' | 'oauth_apple' | null>(null);
+
+  // En la PWA standalone móvil, si el usuario CIERRA la ventana de Google sin completar,
+  // `startOAuthFlow` no resuelve nunca → el botón quedaba en "Ingresando..." para siempre.
+  // Cuando el usuario vuelve a la app (`visibilitychange`), damos un margen a que un login
+  // exitoso active la sesión y navegue; si sigue sin sesión, liberamos el botón.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      setTimeout(() => {
+        if (!isSignedIn) setAuthStrategy(null);
+      }, 1500);
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [isSignedIn]);
 
   /** Autenticación con redes sociales */
   const onSocialLoginPress = async (strategy: 'oauth_google' | 'oauth_apple') => {
