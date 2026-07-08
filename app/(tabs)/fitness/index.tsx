@@ -190,6 +190,9 @@ export default function FitnessScreen() {
     } catch (error) {
       logger.error(error);
       setCardState('initial');
+      toast.error('No pudimos generar tu rutina. Intentá de nuevo.', {
+        title: 'Algo salió mal',
+      });
     }
   };
 
@@ -204,6 +207,9 @@ export default function FitnessScreen() {
     } catch (error) {
       logger.error(error);
       setCardState('success');
+      toast.error('No pudimos regenerar tu rutina. Intentá de nuevo.', {
+        title: 'Algo salió mal',
+      });
     }
   }, [getToken, setActiveRoutine]);
 
