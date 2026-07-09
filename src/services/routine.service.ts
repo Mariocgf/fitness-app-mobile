@@ -3,15 +3,18 @@ import { AxiosError } from 'axios';
 import apiClient from '../api/client';
 import {
   AdaptRoutineResponseDto,
+  GenerateRoutinePayload,
   PagedRoutinesResponse,
   Routine,
   RoutineDay,
+  RoutineGenerationOptions,
   RoutinePreviewResponse,
   RoutineVersionDetail,
   RoutineVersionsResponse,
   SwapPick,
   SwapSuggestionsResponse,
 } from '../types/routine';
+import { FitnessDay } from '../types/fitness';
 import { SessionLog } from '../types/session';
 import { ExerciseLoadType, capitalize } from '../utils/format.utils';
 import { withRequestSignal } from '../utils/request-cancellation';
@@ -80,24 +83,91 @@ const capitalizeVersionDetail = (detail: RoutineVersionDetail): RoutineVersionDe
   days: capitalizeDays(detail.days),
 });
 
+/** Días válidos que puede devolver el GET de opciones (para filtrar basura). */
+const VALID_FITNESS_DAYS: FitnessDay[] = [
+  'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+];
+
 /**
- * Genera una rutina personalizada usando la IA del backend.
- * Llama al endpoint POST /api/Routine/generate-routine.
+ * Pre-carga el modal de generación de rutina.
+ * Llama al endpoint GET /api/routine/generation-options.
  * @param token Token de autenticación de Clerk.
  */
+export const getRoutineGenerationOptions = async (
+  token: string | null,
+  signal?: AbortSignal,
+): Promise<RoutineGenerationOptions> => {
+  const url = '/api/routine/generation-options';
+  try {
+    const { data } = await apiClient.get<RoutineGenerationOptions>(url, withRequestSignal({
+      headers: { Authorization: `Bearer ${token}` },
+    }, signal));
+    console.log(JSON.stringify(data));
+    
+    // Defensa: si el backend envuelve la respuesta en { data: ... }, extraerla.
+    const raw = (data as any)?.workoutLocationOptions != null ? data : ((data as any)?.data ?? data);
+    return {
+      equipment: Array.isArray(raw?.equipment) ? raw.equipment : [],
+      injuries: Array.isArray(raw?.injuries) ? raw.injuries : [],
+      approvedMedicalConditions: Array.isArray(raw?.approvedMedicalConditions)
+        ? raw.approvedMedicalConditions
+        : [],
+      workoutLocationOptions: Array.isArray(raw?.workoutLocationOptions) ? raw.workoutLocationOptions : [],
+      difficultyOptions: Array.isArray(raw?.difficultyOptions) ? raw.difficultyOptions : [],
+      // El backend puede mandar los días capitalizados ("Monday"); normalizamos a
+      // minúscula antes de validar contra los FitnessDay del cliente.
+      preferredWorkoutDays: Array.isArray(raw?.preferredWorkoutDays)
+        ? raw.preferredWorkoutDays
+            .map((d: unknown) => (typeof d === 'string' ? d.toLowerCase() : d))
+            .filter((d: unknown): d is FitnessDay => VALID_FITNESS_DAYS.includes(d as FitnessDay))
+        : [],
+      sessionDurationMinutes:
+        typeof raw?.sessionDurationMinutes === 'number' && raw.sessionDurationMinutes > 0
+          ? raw.sessionDurationMinutes
+          : null,
+    };
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      logger.error('[routine.service]', url, 'FAIL', {
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+    }
+    throw error;
+  }
+};
+
+/**
+ * Genera una rutina personalizada usando la IA del backend.
+ * Llama al endpoint POST /api/routine/generate-routine con lugar, nivel, tiempo y días.
+ * @param payload Lugar, nivel, tiempo (null = disponible) y días elegidos en el modal.
+ * @param token   Token de autenticación de Clerk.
+ */
 export const generateRoutine = async (
+  payload: GenerateRoutinePayload,
   token: string | null
 ): Promise<Routine> => {
-  const { data } = await apiClient.post<Routine>(
-    '/api/Routine/generate-routine',
-    {},
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+  const url = '/api/routine/generate-routine';
+  try {
+    const { data } = await apiClient.post<Routine>(
+      url,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return capitalizeRoutineNames(data);
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      logger.error('[routine.service]', url, 'FAIL', {
+        status: error.response?.status,
+        data: error.response?.data,
+      });
     }
-  );
-  return capitalizeRoutineNames(data);
+    throw error;
+  }
 };
 
 /**

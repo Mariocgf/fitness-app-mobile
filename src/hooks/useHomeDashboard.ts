@@ -1,9 +1,8 @@
 import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { toast } from '../components/ui/feedback';
 import { getOfflineFitnessRoutine } from '../offline/service';
-import { generateRoutine, getActiveRoutine } from '../services/routine.service';
+import { getActiveRoutine } from '../services/routine.service';
 import { fetchTrainingHistory } from '../services/training-history.service';
 import {
   postHydrationLog,
@@ -44,10 +43,6 @@ interface UseHomeDashboardReturn {
   trainedToday: boolean;
   /** Carga del bloque de rutina (activa + historial de hoy). */
   isLoadingRoutine: boolean;
-  /** true mientras se genera una rutina de ejercicio con IA desde el Home. */
-  isGeneratingRoutine: boolean;
-  /** Genera una rutina de ejercicio con IA y la deja como activa. */
-  generateFitnessRoutine: () => Promise<void>;
   /** Resumen "Hoy" de bienestar (sueño/ánimo/hidratación/meditación). */
   wellness: ReturnType<typeof useWellnessDashboard>['today'];
   isLoadingWellness: boolean;
@@ -90,7 +85,6 @@ export function useHomeDashboard(): UseHomeDashboardReturn {
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [trainedToday, setTrainedToday] = useState(false);
   const [isLoadingRoutine, setIsLoadingRoutine] = useState(true);
-  const [isGeneratingRoutine, setIsGeneratingRoutine] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadRoutine = useCallback(async () => {
@@ -157,28 +151,6 @@ export function useHomeDashboard(): UseHomeDashboardReturn {
     };
   }, [loadRoutine]);
 
-  /**
-   * Genera una rutina de ejercicio con IA desde el Home. El backend la deja
-   * activa, así que actualizamos el estado local para que la card pase de
-   * "generar" a mostrar la rutina del día sin recargar todo el dashboard.
-   */
-  const generateFitnessRoutine = useCallback(async () => {
-    if (isGeneratingRoutine) return;
-    setIsGeneratingRoutine(true);
-    try {
-      const token = await getTokenRef.current();
-      const newRoutine = await generateRoutine(token);
-      if (mountedRef.current) setRoutine(newRoutine);
-    } catch (error) {
-      logger.error('[useHomeDashboard] Error generando rutina:', error);
-      toast.error('No pudimos generar tu rutina. Intentá de nuevo.', {
-        title: 'Algo salió mal',
-      });
-    } finally {
-      if (mountedRef.current) setIsGeneratingRoutine(false);
-    }
-  }, [isGeneratingRoutine]);
-
   /** Ejecuta una mutación de bienestar, marca el dirty global y refresca. */
   const runWellnessMutation = useCallback(
     async (mutate: (token: string | null) => Promise<unknown>) => {
@@ -232,8 +204,6 @@ export function useHomeDashboard(): UseHomeDashboardReturn {
     routine,
     trainedToday,
     isLoadingRoutine,
-    isGeneratingRoutine,
-    generateFitnessRoutine,
     wellness: wellness.today,
     isLoadingWellness: wellness.isLoading,
     nutrition,

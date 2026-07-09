@@ -1,4 +1,5 @@
 import { ExerciseLoadType } from '../utils/format.utils';
+import { FitnessDay } from './fitness';
 
 export type RepType = 'Fixed' | 'Range' | 'Timed';
 
@@ -189,5 +190,42 @@ export interface AdaptRoutineResponseDto {
   hasChanges: boolean;
   days: AdaptRoutineDay[];
   motives: AdaptRoutineMotive[];
+}
+
+/* ──────────────────── Generación de rutina por modal ─────────────────────── */
+
+/**
+ * Respuesta de GET /api/routine/generation-options. Pre-carga el modal de
+ * generación: equipamiento/lesiones/condiciones son de SOLO LECTURA (informativos,
+ * no se envían de vuelta); las opciones de lugar/nivel arman los selects; días y
+ * tiempo vienen pre-seleccionados de la última generación del usuario.
+ */
+export interface RoutineGenerationOptions {
+  /** Nombres del equipamiento del usuario (útil en "Casa"). Solo mostrar. */
+  equipment: string[];
+  /** Nombres de lesiones que el backend ya aplica. Solo mostrar. */
+  injuries: string[];
+  /** Condiciones que el usuario habilitó para IA. Solo mostrar. */
+  approvedMedicalConditions: string[];
+  /** Opciones del select de lugar (ej: ["Gym","Home","Calisthenics"]). */
+  workoutLocationOptions: string[];
+  /** Opciones del select de nivel (ej: ["Beginner","Intermediate","Advanced"]). */
+  difficultyOptions: string[];
+  /** Pre-selección de días (inglés minúscula). Puede venir []. */
+  preferredWorkoutDays: FitnessDay[];
+  /** Pre-selección de tiempo. null = "tengo tiempo disponible". */
+  sessionDurationMinutes: number | null;
+}
+
+/** Body de POST /api/routine/generate-routine (los 4 campos del modal). */
+export interface GenerateRoutinePayload {
+  /** "Gym" | "Home" | "Calisthenics" (valor crudo del GET). */
+  workoutLocation: string;
+  /** "Beginner" | "Intermediate" | "Advanced" (valor crudo del GET). */
+  experienceLevel: string;
+  /** null = "tengo tiempo disponible"; o entero > 0 y <= 300. */
+  sessionDurationMinutes: number | null;
+  /** Al menos 1 día, en inglés minúscula (monday..sunday). */
+  preferredWorkoutDays: FitnessDay[];
 }
 

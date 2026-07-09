@@ -14,41 +14,15 @@ import {
   getTrainingPreferences,
   updateTrainingPreferences,
 } from '@/src/services/fitness.service';
-import { FitnessDay, WEEKDAY_OPTIONS } from '@/src/types/fitness';
+import { WEEKDAY_OPTIONS } from '@/src/types/fitness';
+import { toFitnessDays, toPickerDays } from '@/src/utils/weekday';
 
 interface FitnessTrainingPreferencesConfigProps {
   /** Vuelve a la lista del módulo tras guardar (la ruta lo cablea a `router.back()`) */
   onBack: () => void;
 }
 
-const dayToPickerValue: Record<FitnessDay, number> = {
-  monday: 1,
-  tuesday: 2,
-  wednesday: 3,
-  thursday: 4,
-  friday: 5,
-  saturday: 6,
-  sunday: 0,
-};
-
-const pickerValueToDay: Record<number, FitnessDay> = {
-  1: 'monday',
-  2: 'tuesday',
-  3: 'wednesday',
-  4: 'thursday',
-  5: 'friday',
-  6: 'saturday',
-  0: 'sunday',
-};
-
 const DEFAULT_SESSION_DURATION = 60;
-
-const toPickerDays = (days: FitnessDay[]) => days.map((day) => dayToPickerValue[day]);
-
-const toFitnessDays = (days: number[]) =>
-  days
-    .map((day) => pickerValueToDay[day])
-    .filter((day): day is FitnessDay => Boolean(day));
 
 const areSameDays = (a: number[], b: number[]) => {
   if (a.length !== b.length) return false;
