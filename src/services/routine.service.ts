@@ -102,7 +102,6 @@ export const getRoutineGenerationOptions = async (
     const { data } = await apiClient.get<RoutineGenerationOptions>(url, withRequestSignal({
       headers: { Authorization: `Bearer ${token}` },
     }, signal));
-    console.log(JSON.stringify(data));
     
     // Defensa: si el backend envuelve la respuesta en { data: ... }, extraerla.
     const raw = (data as any)?.workoutLocationOptions != null ? data : ((data as any)?.data ?? data);
