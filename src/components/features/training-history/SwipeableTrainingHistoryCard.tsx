@@ -1,6 +1,6 @@
 import { IconTile } from '@/src/components/common/IconTile';
 import { TrainingHistorySession } from '@/src/types/training-history';
-import { formatDurationLong, formatRelativeDay } from '@/src/utils/training-history.utils';
+import { formatDurationLong, formatRelativeDay, getSessionTitle } from '@/src/utils/training-history.utils';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useRef } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
@@ -74,7 +74,7 @@ export function SwipeableTrainingHistoryCard({
           <IconTile name="barbell" color={LIME} size={48} iconSize={24} />
           <View className="flex-1 ml-3 pr-2">
             <Text className="text-white font-semibold text-base" numberOfLines={2}>
-              {session.routineName}
+              {getSessionTitle(session)}
             </Text>
             <Text className="text-zinc-500 text-sm mt-0.5" numberOfLines={1}>
               {meta}

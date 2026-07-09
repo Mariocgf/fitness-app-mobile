@@ -1,5 +1,5 @@
 import { TrainingHistorySession } from '@/src/types/training-history';
-import { formatDurationLong, formatRelativeDay } from '@/src/utils/training-history.utils';
+import { formatDurationLong, formatRelativeDay, getSessionTitle } from '@/src/utils/training-history.utils';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
@@ -40,7 +40,7 @@ export function RecentActivityCard({ session, onPress }: RecentActivityCardProps
       <View className="flex-1">
         <Text className="text-zinc-500 text-xs mb-0.5">Último entrenamiento</Text>
         <Text className="text-white font-bold text-base mb-1" numberOfLines={1}>
-          {session.routineName}
+          {getSessionTitle(session)}
         </Text>
         <Text className="text-zinc-400 text-xs" numberOfLines={1}>
           {meta}

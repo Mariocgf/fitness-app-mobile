@@ -8,6 +8,7 @@ import { ConflictResolutionModal } from '@/src/components/features/routine/Confl
 import { RoutineLibraryCard } from '@/src/components/features/routine/RoutineLibraryCard';
 import { DraftCard } from '@/src/components/features/routine/DraftCard';
 import { RecentActivityCard } from '@/src/components/features/training-history/RecentActivityCard';
+import { RegisterManualSessionView } from '@/src/components/features/training-history/RegisterManualSessionView';
 import { useRoutineDraft } from '@/src/hooks/useRoutineDraft';
 import { useOfflineModuleStatus } from '@/src/hooks/useOfflineModuleStatus';
 import { useNetworkStatus } from '@/src/hooks/useNetworkStatus';
@@ -402,7 +403,43 @@ export default function FitnessScreen() {
   const { draft, saveDraft, clearDraft } = useRoutineDraft();
 
   /* ── Hook para preview del historial de entrenamiento ─────────────────── */
-  const { sessions: historyPreview, isLoading: isLoadingHistory } = useTrainingHistoryPreview();
+  const { sessions: historyPreview, isLoading: isLoadingHistory, refresh: refreshHistoryPreview } =
+    useTrainingHistoryPreview();
+
+  /* ── Registro de sesión manual (overlay desde la card del Home) ────────── */
+  const [showManualSession, setShowManualSession] = useState(false);
+  const [manualCardLayout, setManualCardLayout] = useState<CardLayout | null>(null);
+  const manualCardRef = useRef<View>(null);
+
+  const handleOpenManualSession = useCallback(() => {
+    const open = (layout: CardLayout) => {
+      setManualCardLayout(layout);
+      setShowManualSession(true);
+      setDetailVisible(true);
+    };
+    if (manualCardRef.current) {
+      manualCardRef.current.measureInWindow((x, y, width, height) => {
+        open(width > 0 ? { x, y, width, height } : {
+          x: SCREEN_WIDTH * 0.1,
+          y: SCREEN_HEIGHT * 0.5,
+          width: SCREEN_WIDTH * 0.8,
+          height: 60,
+        });
+      });
+    } else {
+      open({ x: SCREEN_WIDTH * 0.1, y: SCREEN_HEIGHT * 0.5, width: SCREEN_WIDTH * 0.8, height: 60 });
+    }
+  }, [setDetailVisible]);
+
+  const handleCloseManualSession = useCallback(() => {
+    setShowManualSession(false);
+    setDetailVisible(false);
+  }, [setDetailVisible]);
+
+  const handleManualSessionCreated = useCallback(() => {
+    // La sesión ya está en el back: refrescamos el preview para verla en "Actividad reciente".
+    refreshHistoryPreview();
+  }, [refreshHistoryPreview]);
 
   const handleViewAllHistory = useCallback(() => {
     router.push('/fitness/training-history' as any);
@@ -670,6 +707,18 @@ export default function FitnessScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Registrar sesión manual (histórica, sin rutina) */}
+        <View ref={manualCardRef} collapsable={false} className="px-4 mt-3">
+          <TouchableOpacity
+            onPress={handleOpenManualSession}
+            activeOpacity={0.85}
+            className="flex-row items-center justify-center py-4 rounded-2xl border border-lime-400 bg-lime-400/10"
+          >
+            <Ionicons name="create-outline" size={20} color="#a3e635" />
+            <Text className="text-lime-400 font-bold text-base ml-2">Registrar sesión manual</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Generar rutina con IA */}
         <View className="px-4 mt-3">
           <TouchableOpacity
@@ -744,6 +793,15 @@ export default function FitnessScreen() {
             setIsCreatingRoutine(false);
             handleRoutineCreated(r);
           }}
+        />
+      )}
+
+      {/* Overlay de registro de sesión manual */}
+      {showManualSession && manualCardLayout && (
+        <RegisterManualSessionView
+          cardLayout={manualCardLayout}
+          onClose={handleCloseManualSession}
+          onCreated={handleManualSessionCreated}
         />
       )}
 

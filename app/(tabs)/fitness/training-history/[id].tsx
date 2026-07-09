@@ -11,6 +11,7 @@ import {
   computeSessionStats,
   formatDurationLong,
   formatSessionDateTimeDot,
+  getSessionTitle,
 } from '@/src/utils/training-history.utils';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -101,7 +102,7 @@ export default function TrainingSessionDetailScreen() {
             >
               {/* Título + meta */}
               <Text className="text-white text-4xl font-bold" numberOfLines={2}>
-                {session.routineName}
+                {getSessionTitle(session)}
               </Text>
               <Text className="text-zinc-400 text-base mt-2">
                 {formatSessionDateTimeDot(session.trainedAt)}

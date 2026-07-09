@@ -5,6 +5,8 @@ export interface TrainingHistorySet {
   repsPerformed: number;
   weightUsed: number;
   durationSeconds: number;
+  /** Esfuerzo percibido (0–10). Movido del ejercicio al set en el nuevo contrato. */
+  rpe: number;
   isCompleted: boolean;
 }
 
@@ -14,6 +16,7 @@ export interface TrainingHistoryExercise {
   exerciseNameEs: string | null;
   gifUrl: string | null;
   targetMuscles: string[];
+  /** RPE representativo del ejercicio, derivado de los sets (el back ya no lo manda a este nivel). */
   rpe: number;
   sets: TrainingHistorySet[];
 }
@@ -24,7 +27,8 @@ export interface TrainingHistorySession {
   trainedAt: Date;
   /** Duración total de la sesión en segundos (mapeado desde "HH:mm:ss") */
   totalSeconds: number;
-  routineId: string;
+  /** Null en sesiones manuales (sin rutina asociada). */
+  routineId: string | null;
   routineName: string;
   /** Versión de la rutina con la que se hizo este entreno (queda clavada). */
   routineVersionId: string | null;
@@ -55,6 +59,8 @@ export interface TrainingHistorySetDto {
   repsPerformed: string;
   weightUsed: string;
   durationSeconds: string;
+  // RPE ahora vive en el set (nuevo contrato). Opcional por compatibilidad con back viejo.
+  rpe?: string | number | null;
   isCompleted: boolean;
 }
 
@@ -64,7 +70,8 @@ export interface TrainingHistoryExerciseDto {
   exerciseNameEs: string | null;
   gifUrl: string | null;
   targetMuscles: string[];
-  rpe: string;
+  // El back movió el RPE al set; a nivel ejercicio ya no viene (se deja opcional por retrocompat).
+  rpe?: string | number | null;
   sets: TrainingHistorySetDto[];
 }
 
@@ -72,7 +79,8 @@ export interface TrainingHistorySessionDto {
   id: string;
   trainedAt: string;
   totalTime: string;
-  routineId: string;
+  // Null en sesiones manuales.
+  routineId: string | null;
   routineName: string;
   // El backend puede mandar el número como number o string (resto del DTO usa strings).
   routineVersionId?: string | null;
@@ -135,4 +143,33 @@ export interface TrainingSessionComparison {
   overall: ComparisonVerdict;
   summaryDeltas: SessionMetricDelta[];
   exerciseDeltas: SessionExerciseDelta[];
+}
+
+/* ── Registro manual de sesión (POST /api/routine/sessions/manual) ─────────── */
+
+/** Un set dentro del form de sesión manual. Todo opcional salvo por construcción. */
+export interface ManualSessionSet {
+  reps: number;
+  rpe: number;
+  weight: number;
+  /** Para ejercicios por tiempo; null si no aplica. */
+  durationSeconds: number | null;
+}
+
+/** Un ejercicio del form de sesión manual (con su ExternalId de catálogo). */
+export interface ManualSessionExercise {
+  /** ExternalId del catálogo de Mongo (viene de /api/Exercise/search). */
+  exerciseId: string;
+  /** Nombre de respaldo por si el catálogo no resuelve el nombre. */
+  exerciseNameSnapshot: string;
+  sets: ManualSessionSet[];
+}
+
+/** Payload de dominio para crear una sesión manual (lo arma el hook del form). */
+export interface CreateManualSessionPayload {
+  /** Fecha en que se entrenó. Si es null, el back usa "ahora". */
+  trainedAt: Date | null;
+  /** Duración total en segundos. Si es 0/null, el back guarda 00:00:00. */
+  totalSeconds: number | null;
+  exercises: ManualSessionExercise[];
 }
