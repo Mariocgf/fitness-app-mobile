@@ -25,10 +25,6 @@ describe('fitness.service', () => {
     const payload = {
       experienceLevel: 'beginner',
       trainingHistory: 'sedentary',
-      preferredWorkoutDays: [1, 3, 5],
-      availableEquipment: [],
-      workoutLocation: 'Home',
-      sessionDurationPreference: 60,
       subGoals: ['g1'],
     };
     (apiClient.post as jest.Mock).mockResolvedValue({ data: { success: true } });

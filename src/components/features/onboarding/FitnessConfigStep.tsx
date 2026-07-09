@@ -1,31 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import {
-    ActivityIndicator,
-    DeviceEventEmitter,
-    Pressable,
-    ScrollView,
-    Text,
-    View
-} from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
 import CheckableCard from '@/src/components/common/CheckableCard';
-import EquipmentSelect from '@/src/components/common/EquipmentSelect';
-import EquipmentSelectedList from '@/src/components/common/EquipmentSelectedList';
 import FieldSection from '@/src/components/common/FieldSection';
 import { translateSubGoalDescription, translateSubGoalName } from '@/src/i18n';
 import OnboardingFooter from '@/src/components/common/OnboardingFooter';
 import OnboardingHeader from '@/src/components/common/OnboardingHeader';
 import ProgressBar from '@/src/components/common/ProgressBar';
 import { SegmentedControl } from '@/src/components/common/SegmentedControl';
-import SelectableCard from '@/src/components/common/SelectableCard';
 import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
-import WeekDayPicker from '@/src/components/common/WeekDayPicker';
-import WheelPicker from '@/src/components/common/WheelPicker';
 import { useFitnessConfigStep } from '@/src/hooks/useFitnessConfigStep';
 import {
     EXPERIENCE_LEVEL_OPTIONS,
     TRAINING_HISTORY_OPTIONS,
-    WEEKDAY_OPTIONS,
 } from '@/src/types/fitness';
 
 interface FitnessConfigStepProps {
@@ -45,11 +32,12 @@ interface FitnessConfigStepProps {
 
 /**
  * Configuración del módulo Fitness durante el onboarding.
- * Se compone de 4 pantallas internas (la lógica vive en `useFitnessConfigStep`):
+ * Se compone de 2 pantallas internas (la lógica vive en `useFitnessConfigStep`):
  *   - SubStep 0: Nivel de experiencia + Nivel de actividad
- *   - SubStep 1: Sub-objetivos
- *   - SubStep 2: Disponibilidad (días) + Duración de sesión
- *   - SubStep 3: Entorno + Equipamiento → envía POST
+ *   - SubStep 1: Sub-objetivos → envía POST
+ *
+ * Los días, la duración de sesión y el equipamiento ya no se piden acá: se
+ * configuran en el modal de generación de rutina.
  */
 export default function FitnessConfigStep({
   brandColor,
@@ -71,19 +59,6 @@ export default function FitnessConfigStep({
     selectedSubGoalIds,
     isLoadingSubGoals,
     toggleSubGoal,
-    selectedDays,
-    setSelectedDays,
-    hasFlexibleTime,
-    setHasFlexibleTime,
-    sessionDuration,
-    setSessionDuration,
-    equipmentList,
-    selectedEquipment,
-    setSelectedEquipment,
-    isLoadingEquipment,
-    selectedWithDetails,
-    setEquipmentQty,
-    removeEquipment,
     handleSubmit,
   } = useFitnessConfigStep({ moduleId, onComplete, setIsSubmitting });
 
@@ -93,7 +68,7 @@ export default function FitnessConfigStep({
   if (subStep === 0) {
     return (
       <View className="flex-1 bg-zinc-950">
-        <ProgressBar currentStep={subStep} totalSteps={4} />
+        <ProgressBar currentStep={subStep} totalSteps={2} />
         <ScrollView
           contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16 }}
           showsVerticalScrollIndicator={false}
@@ -157,7 +132,7 @@ export default function FitnessConfigStep({
     return (
       <SwipeBackWrapper onSwipeBack={() => setSubStep(0)}>
         <View className="flex-1 bg-zinc-950">
-          <ProgressBar currentStep={subStep} totalSteps={4} />
+          <ProgressBar currentStep={subStep} totalSteps={2} />
 
           <ScrollView
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16 }}
@@ -197,7 +172,8 @@ export default function FitnessConfigStep({
           </ScrollView>
 
           <OnboardingFooter
-            onPress={() => setSubStep(2)}
+            onPress={handleSubmit}
+            disabled={isSubmitting}
             helperText="Usaremos estos datos para darte planes más personalizados. Puedes editarlos luego."
             helperIcon={<Ionicons name="sparkles-outline" size={18} className="text-zinc-400" />}
           />
@@ -206,174 +182,5 @@ export default function FitnessConfigStep({
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // PANTALLA 3: Disponibilidad + Duración de sesión
-  // ═══════════════════════════════════════════════════════════════════
-  if (subStep === 2) {
-    return (
-      <SwipeBackWrapper onSwipeBack={() => setSubStep(1)}>
-        <View className="flex-1 bg-zinc-950">
-          <ProgressBar currentStep={subStep} totalSteps={4} />
-
-          <ScrollView
-            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16 }}
-            showsVerticalScrollIndicator={false}
-          >
-            <OnboardingHeader
-              title={"Perfil de\nentrenamiento"}
-              subtitle="Adaptaremos tus entrenamientos a tu rutina y tiempo disponible."
-              centered
-            />
-
-            {/* Disponibilidad → días en círculos con acento lime */}
-            <FieldSection
-              eyebrow="Disponibilidad"
-              question="¿Qué días tienes disponibles?"
-            >
-              <WeekDayPicker
-                days={WEEKDAY_OPTIONS}
-                selectedDays={selectedDays}
-                onChange={setSelectedDays}
-                accent="lime"
-              />
-            </FieldSection>
-
-            {/* Divisor entre secciones */}
-            <View className="h-px bg-zinc-800 my-10" />
-
-            {/* Duración por sesión → toggle "Tengo tiempo / Elegir tiempo" + rueda */}
-            <FieldSection
-              eyebrow="Duración por sesión"
-              question="¿Cuánto tiempo dispones para entrenar?"
-            >
-              <View className="flex-row gap-3">
-                <View className="flex-1">
-                  <SelectableCard
-                    isSelected={hasFlexibleTime}
-                    label="Tengo tiempo"
-                    onPress={() => setHasFlexibleTime(true)}
-                    textSize="sm"
-                    size="auto"
-                  />
-                </View>
-                <View className="flex-1">
-                  <SelectableCard
-                    isSelected={!hasFlexibleTime}
-                    label="Elegir tiempo"
-                    onPress={() => setHasFlexibleTime(false)}
-                    textSize="sm"
-                    size="auto"
-                  />
-                </View>
-              </View>
-
-              {/* Rueda de duración — solo si "Elegir tiempo" */}
-              {!hasFlexibleTime && (
-                <View className="mt-6">
-                  <WheelPicker
-                    label="Duración por sesión"
-                    min={15}
-                    max={120}
-                    value={sessionDuration}
-                    step={5}
-                    unit="min"
-                    onChange={setSessionDuration}
-                    accent="lime"
-                    wheelHeight={150}
-                  />
-                </View>
-              )}
-            </FieldSection>
-          </ScrollView>
-
-          <OnboardingFooter
-            onPress={() => setSubStep(3)}
-            helperText="Usaremos estos datos para adaptar la duración de tus entrenamientos."
-            helperIcon={<Ionicons name="information-circle-outline" size={18} className="text-zinc-400" />}
-          />
-        </View>
-      </SwipeBackWrapper>
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // PANTALLA 4: Entorno + Equipamiento → POST
-  // ═══════════════════════════════════════════════════════════════════
-  return (
-    <SwipeBackWrapper onSwipeBack={() => setSubStep(2)}>
-      <View className="flex-1 bg-zinc-950">
-        <ProgressBar currentStep={3} totalSteps={4} />
-
-        {/* Backdrop: cierra el dropdown del buscador al tocar fuera */}
-        <Pressable
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}
-          onPress={() => DeviceEventEmitter.emit('closeDropdowns')}
-        />
-
-        {/* Sección fija: header + buscador (el dropdown se superpone a la lista) */}
-        <View style={{ paddingHorizontal: 24, paddingTop: 24, zIndex: 20 }}>
-          <OnboardingHeader
-            title={"Perfil de\nentrenamiento"}
-            subtitle="Conocer tu equipamiento nos ayudará a crear entrenamientos más precisos."
-            centered
-          />
-
-          {/* Equipamiento → buscador "al aire" */}
-          <FieldSection
-            eyebrow="Equipamiento"
-            question="¿Con qué materiales cuentas?"
-          >
-            {isLoadingEquipment ? (
-              <View className="py-6 items-center">
-                <ActivityIndicator size="large" color={brandColor} />
-                <Text className="text-zinc-400 mt-4">
-                  Cargando equipamiento...
-                </Text>
-              </View>
-            ) : (
-              <EquipmentSelect
-                equipments={equipmentList}
-                selectedEquipment={selectedEquipment}
-                onSelectionChange={setSelectedEquipment}
-                placeholder="Buscar equipamiento"
-              />
-            )}
-          </FieldSection>
-        </View>
-
-        {/* Lista de equipamiento seleccionado → scroll propio */}
-        {selectedWithDetails.length > 0 && (
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 24 }}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            onScrollBeginDrag={() => DeviceEventEmitter.emit('closeDropdowns')}
-          >
-            <EquipmentSelectedList
-              items={selectedWithDetails.map((item) => ({
-                id: String(item.id),
-                name: item.name,
-                qty: item.qty,
-              }))}
-              onChangeQty={setEquipmentQty}
-              onRemove={removeEquipment}
-              onClearAll={() => setSelectedEquipment([])}
-              accent="lime"
-            />
-          </ScrollView>
-        )}
-
-        {/* Empuja el footer abajo cuando no hay lista que ocupe el espacio */}
-        {selectedWithDetails.length === 0 && <View className="flex-1" />}
-
-        <OnboardingFooter
-          onPress={handleSubmit}
-          disabled={isSubmitting}
-          helperText="Usaremos estos datos para adaptar mejor tus entrenamientos a lo que tienes."
-          helperIcon={<Ionicons name="information-circle-outline" size={18} className="text-zinc-400" />}
-        />
-      </View>
-    </SwipeBackWrapper>
-  );
+  return null;
 }

@@ -1,7 +1,6 @@
 import { logger } from '@/src/utils/logger';
 import { translateGlobalGoal } from '@/src/i18n';
 import { getGlobalGoals } from '@/src/services/goal.service';
-import { getActiveModules } from '@/src/services/module.service';
 import {
   acceptTerms,
   getModules,
@@ -12,7 +11,7 @@ import {
 import { useModuleConfigStorage } from '@/src/hooks/use-module-config-storage';
 import { useOnboardingStorage } from '@/src/hooks/use-onboarding-storage';
 import { Goal } from '@/src/types/goal';
-import { BasicInfoPayload, Module } from '@/src/types/user';
+import { BasicInfoPayload, Module, OnboardingModuleStatus } from '@/src/types/user';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -44,11 +43,7 @@ export function useOnboardingFlow() {
   const router = useRouter();
   const { saveDraft, loadDraft, clearDraft } = useOnboardingStorage();
   const {
-    saveSelectedModules,
-    loadSelectedModules,
     clearAllModuleConfig,
-    saveConfigStep,
-    loadConfigStep,
     setOnboardingCompleted,
     clearOnboardingCompleted,
   } = useModuleConfigStorage();
@@ -127,46 +122,50 @@ export function useOnboardingFlow() {
 
         // Si ya seleccionó módulos pero falta configuración
         if (status === 'AWAITING_MODULE_CONFIG') {
-          // Restaurar los módulos activos desde local
-          let savedModules = await loadSelectedModules();
+          // El backend es la fuente de verdad: su `modules[]` dice qué módulos
+          // están activos y cuáles ya se configuraron. Retomamos desde el primer
+          // pendiente, sin depender de ningún índice local.
+          const statusModules: OnboardingModuleStatus[] = Array.isArray(responseData?.modules)
+            ? responseData.modules
+            : [];
 
-          // Fallback: si el storage local no los tiene (reinstall, cache limpia,
-          // otro dispositivo), el backend es la fuente de verdad.
-          if (!savedModules || savedModules.length === 0) {
-            try {
-              const [activeNames, allModules] = await Promise.all([
-                getActiveModules(token),
-                getModules(token),
-              ]);
-              const activeNameSet = new Set(activeNames.map((m) => m.name));
-              const reconstructed = allModules.filter((m) => activeNameSet.has(m.name));
-
-              if (reconstructed.length > 0) {
-                savedModules = reconstructed;
-                await saveSelectedModules(reconstructed);
-              }
-            } catch (err) {
-              logger.error('Error reconstruyendo módulos activos desde backend:', err);
-            }
+          // El status no trae brandColor ni el resto del `Module`, así que
+          // cruzamos con el catálogo para poder renderizar cada configuración.
+          let catalog: Module[] = [];
+          try {
+            catalog = await getModules(token);
+          } catch (err) {
+            logger.error('Error cargando módulos para configuración:', err);
           }
 
-          if (savedModules && savedModules.length > 0) {
-            setActiveModules(sortModules(savedModules));
-          } else {
-            // No se pudo determinar los módulos activos: volver a selección
+          const activeModulesFromBackend = sortModules(
+            statusModules
+              .map((sm) =>
+                catalog.find((m) => m.id === sm.moduleId) ??
+                catalog.find((m) => m.name === sm.name)
+              )
+              .filter((m): m is Module => Boolean(m))
+          );
+
+          if (activeModulesFromBackend.length === 0) {
+            // No pudimos resolver los módulos activos (p. ej. falló el catálogo):
+            // volvemos a la selección; el backend ya tiene la elección guardada.
             setStep(3);
             return;
           }
 
-          // Restaurar el índice de configuración (validar que no esté fuera de rango)
-          const savedStep = await loadConfigStep();
-          if (savedStep !== null && savedStep < savedModules.length) {
-            setConfigIndex(savedStep);
-          } else {
-            setConfigIndex(0);
-            await saveConfigStep(0);
-          }
-          // Restaurar el objetivo global seleccionado (para Nutrition)
+          // Primer módulo pendiente según el backend = punto de reanudación.
+          const completedByName = new Map(
+            statusModules.map((sm) => [sm.name, sm.onboardingCompleted])
+          );
+          const firstPending = activeModulesFromBackend.findIndex(
+            (m) => !completedByName.get(m.name)
+          );
+
+          setActiveModules(activeModulesFromBackend);
+          setConfigIndex(firstPending === -1 ? activeModulesFromBackend.length : firstPending);
+
+          // Restaurar el objetivo global seleccionado (lo usa Nutrition).
           const draft = await loadDraft();
           if (draft?.GlobalGoal) {
             setGoal(draft.GlobalGoal);
@@ -370,12 +369,11 @@ export function useOnboardingFlow() {
       const token = await getToken();
       await setSelectedModules(selectedModuleIds, token);
 
-      // Guardar los módulos activos completos en local (ordenados)
+      // Los módulos activos viven en el estado de React durante la sesión; el
+      // resume en frío se recalcula desde el backend, no desde local.
       const selected = sortModules(modules.filter((m) => selectedModuleIds.includes(m.id)));
-      await saveSelectedModules(selected);
       setActiveModules(selected);
       setConfigIndex(0);
-      await saveConfigStep(0);
 
       setStep(4);
     } catch (error) {
@@ -388,8 +386,9 @@ export function useOnboardingFlow() {
 
   /**
    * Callback cuando un módulo termina su configuración.
-   * Avanza al siguiente módulo o finaliza el onboarding.
-   * Usa el flag local para evitar depender de la sincronización de Clerk.
+   * Avanza al siguiente módulo o finaliza el onboarding. El progreso vive en el
+   * backend (cada POST marca el módulo como completado), así que en sesión solo
+   * avanzamos el índice en memoria; el resume en frío lo recalcula desde `/status`.
    */
   const handleModuleConfigured = async () => {
     const nextIndex = configIndex + 1;
@@ -402,9 +401,8 @@ export function useOnboardingFlow() {
       await setOnboardingCompleted();
       router.replace('/(tabs)');
     } else {
-      // Avanzar al siguiente módulo y persistir
+      // Avanzar al siguiente módulo
       setConfigIndex(nextIndex);
-      await saveConfigStep(nextIndex);
     }
   };
 
