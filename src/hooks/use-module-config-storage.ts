@@ -1,44 +1,22 @@
 import { logger } from '@/src/utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback } from 'react';
-import { Module } from '../types/user';
 import { HealthProfilePayload } from '../types/health';
 import { FitnessConfigDraft } from '../types/fitness';
 import { NutritionConfigDraft } from '../types/nutrition';
 
-const SELECTED_MODULES_KEY = '@onboarding_selected_modules';
 const HEALTH_CONFIG_KEY = '@onboarding_health_config';
 const FITNESS_CONFIG_KEY = '@onboarding_fitness_config';
 const NUTRITION_CONFIG_KEY = '@onboarding_nutrition_config';
-const MODULE_CONFIG_STEP_KEY = '@onboarding_module_config_step';
 const ONBOARDING_COMPLETED_KEY = '@onboarding_completed';
 
 /**
- * Hook para persistir y recuperar los datos de configuración de módulos
- * durante el onboarding. Permite restaurar el progreso si el usuario
- * cierra la app a mitad de la configuración.
+ * Hook para persistir y recuperar los drafts de configuración de cada módulo
+ * durante el onboarding (Health/Fitness/Nutrition), más el flag de completado.
+ * Qué módulos están activos y cuáles ya se configuraron NO se persiste acá: eso
+ * lo dicta el backend vía `GET /api/onboarding/status` en cada arranque.
  */
 export function useModuleConfigStorage() {
-  // ── Módulos activos ──────────────────────────────────────────────
-
-  const saveSelectedModules = useCallback(async (modules: Module[]) => {
-    try {
-      await AsyncStorage.setItem(SELECTED_MODULES_KEY, JSON.stringify(modules));
-    } catch (error) {
-      logger.error('Error guardando módulos seleccionados:', error);
-    }
-  }, []);
-
-  const loadSelectedModules = useCallback(async (): Promise<Module[] | null> => {
-    try {
-      const raw = await AsyncStorage.getItem(SELECTED_MODULES_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (error) {
-      logger.error('Error cargando módulos seleccionados:', error);
-      return null;
-    }
-  }, []);
-
   // ── Configuración de Health ──────────────────────────────────────
 
   const saveHealthConfig = useCallback(
@@ -114,36 +92,14 @@ export function useModuleConfigStorage() {
       }
     }, []);
 
-  // ── Sub-paso de configuración ────────────────────────────────────
-
-  const saveConfigStep = useCallback(async (step: number) => {
-    try {
-      await AsyncStorage.setItem(MODULE_CONFIG_STEP_KEY, String(step));
-    } catch (error) {
-      logger.error('Error guardando config step:', error);
-    }
-  }, []);
-
-  const loadConfigStep = useCallback(async (): Promise<number | null> => {
-    try {
-      const raw = await AsyncStorage.getItem(MODULE_CONFIG_STEP_KEY);
-      return raw !== null ? parseInt(raw, 10) : null;
-    } catch (error) {
-      logger.error('Error cargando config step:', error);
-      return null;
-    }
-  }, []);
-
   // ── Limpieza total ───────────────────────────────────────────────
 
   const clearAllModuleConfig = useCallback(async () => {
     try {
       await AsyncStorage.multiRemove([
-        SELECTED_MODULES_KEY,
         HEALTH_CONFIG_KEY,
         FITNESS_CONFIG_KEY,
         NUTRITION_CONFIG_KEY,
-        MODULE_CONFIG_STEP_KEY,
       ]);
     } catch (error) {
       logger.error('Error limpiando config de módulos:', error);
@@ -179,16 +135,12 @@ export function useModuleConfigStorage() {
   }, []);
 
   return {
-    saveSelectedModules,
-    loadSelectedModules,
     saveHealthConfig,
     loadHealthConfig,
     saveFitnessConfig,
     loadFitnessConfig,
     saveNutritionConfig,
     loadNutritionConfig,
-    saveConfigStep,
-    loadConfigStep,
     clearAllModuleConfig,
     setOnboardingCompleted,
     isOnboardingCompleted,

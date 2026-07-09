@@ -82,10 +82,6 @@ export interface UpdateFitnessSubGoalRequest {
 export interface FitnessProfilePayload {
   experienceLevel: string;
   trainingHistory: string;
-  preferredWorkoutDays: number[];
-  availableEquipment: EquipmentSelection[];
-  workoutLocation?: string;
-  sessionDurationPreference: number;
   subGoals: string[];
 }
 
@@ -94,11 +90,5 @@ export interface FitnessProfilePayload {
 export interface FitnessConfigDraft {
   experienceLevel?: string;
   trainingHistory?: string;
-  preferredWorkoutDays?: number[];
-  availableEquipment?: EquipmentSelection[];
-  workoutLocation?: string;
-  sessionDurationPreference?: number;
-  /** Indica si el usuario eligió "Tengo tiempo" (true) o "Elegir tiempo" (false) */
-  hasFlexibleTime?: boolean;
   selectedSubGoalIds?: string[];
 }

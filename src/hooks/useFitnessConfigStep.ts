@@ -1,11 +1,7 @@
 import { logger } from '@/src/utils/logger';
 import { useModuleConfigStorage } from '@/src/hooks/use-module-config-storage';
-import {
-  getEquipments,
-  getSubGoals,
-  submitFitnessProfile,
-} from '@/src/services/fitness.service';
-import { Equipment, EquipmentSelection, SubGoal } from '@/src/types/fitness';
+import { getSubGoals, submitFitnessProfile } from '@/src/services/fitness.service';
+import { SubGoal } from '@/src/types/fitness';
 import { isRequestCanceled } from '@/src/utils/request-cancellation';
 import { useAuth } from '@clerk/clerk-expo';
 import { useEffect, useState } from 'react';
@@ -21,9 +17,11 @@ interface UseFitnessConfigStepArgs {
 
 /**
  * Estado y lógica del wizard de configuración de Fitness del onboarding
- * (`FitnessConfigStep`): 4 sub-pasos con su estado, restauración/auto-guardado
- * del draft local, carga de sub-objetivos y equipamiento, y envío al backend.
- * El componente solo consume estos valores para renderizar cada pantalla.
+ * (`FitnessConfigStep`): 2 sub-pasos con su estado, restauración/auto-guardado
+ * del draft local, carga de sub-objetivos y envío al backend.
+ * Los días, la duración y el equipamiento ya no se piden acá: se configuran en
+ * el modal de generación de rutina. El componente solo consume estos valores
+ * para renderizar cada pantalla.
  */
 export function useFitnessConfigStep({
   moduleId,
@@ -45,16 +43,6 @@ export function useFitnessConfigStep({
   const [selectedSubGoalIds, setSelectedSubGoalIds] = useState<string[]>([]);
   const [isLoadingSubGoals, setIsLoadingSubGoals] = useState(false);
 
-  // ── Estado pantalla 2 ──
-  const [selectedDays, setSelectedDays] = useState<number[]>([]);
-  const [hasFlexibleTime, setHasFlexibleTime] = useState(true);
-  const [sessionDuration, setSessionDuration] = useState(60);
-
-  // ── Estado pantalla 3 ──
-  const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
-  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentSelection[]>([]);
-  const [isLoadingEquipment, setIsLoadingEquipment] = useState(false);
-
   /**
    * Carga inicial: restaurar draft local.
    */
@@ -65,14 +53,6 @@ export function useFitnessConfigStep({
         if (draft.experienceLevel) setExperienceLevel(draft.experienceLevel);
         if (draft.trainingHistory) setTrainingHistory(draft.trainingHistory);
         if (draft.selectedSubGoalIds) setSelectedSubGoalIds(draft.selectedSubGoalIds);
-        if (draft.preferredWorkoutDays)
-          setSelectedDays(draft.preferredWorkoutDays);
-        if (draft.hasFlexibleTime !== undefined)
-          setHasFlexibleTime(draft.hasFlexibleTime);
-        if (draft.sessionDurationPreference)
-          setSessionDuration(draft.sessionDurationPreference);
-        if (draft.availableEquipment)
-          setSelectedEquipment(Array.isArray(draft.availableEquipment) ? draft.availableEquipment : []);
       }
     };
     restoreDraft();
@@ -109,36 +89,6 @@ export function useFitnessConfigStep({
   }, [subStep]);
 
   /**
-   * Carga equipamiento cuando se llega a la pantalla 3.
-   */
-  useEffect(() => {
-    if (subStep === 3 && equipmentList.length === 0) {
-      const controller = new AbortController();
-      const { signal } = controller;
-
-      const fetchEquipments = async () => {
-        setIsLoadingEquipment(true);
-        try {
-          const token = await getToken();
-          if (signal.aborted) return;
-          const data = await getEquipments(token, signal);
-          if (!signal.aborted) setEquipmentList(Array.isArray(data) ? data : []);
-        } catch (e) {
-          if (signal.aborted || isRequestCanceled(e)) return;
-          logger.error('Error cargando equipamiento:', e);
-          alert('No se pudo cargar el equipamiento.');
-        } finally {
-          if (!signal.aborted) setIsLoadingEquipment(false);
-        }
-      };
-      fetchEquipments();
-      return () => {
-        controller.abort();
-      };
-    }
-  }, [subStep]);
-
-  /**
    * Auto-guarda el draft en local al cambiar cualquier valor.
    */
   useEffect(() => {
@@ -146,20 +96,8 @@ export function useFitnessConfigStep({
       experienceLevel,
       trainingHistory,
       selectedSubGoalIds,
-      preferredWorkoutDays: selectedDays,
-      hasFlexibleTime,
-      sessionDurationPreference: hasFlexibleTime ? 0 : sessionDuration,
-      availableEquipment: selectedEquipment,
     });
-  }, [
-    experienceLevel,
-    trainingHistory,
-    selectedSubGoalIds,
-    selectedDays,
-    hasFlexibleTime,
-    sessionDuration,
-    selectedEquipment,
-  ]);
+  }, [experienceLevel, trainingHistory, selectedSubGoalIds]);
 
   // ── Handlers de navegación ──
 
@@ -184,12 +122,6 @@ export function useFitnessConfigStep({
         {
           experienceLevel: String(experienceLevel),
           trainingHistory: String(trainingHistory),
-          preferredWorkoutDays: selectedDays,
-          availableEquipment: selectedEquipment.map((e) => ({
-            id: String(e.id),
-            qty: Number(e.qty),
-          })),
-          sessionDurationPreference: hasFlexibleTime ? 0 : sessionDuration,
           subGoals: selectedSubGoalIds,
         },
         token
@@ -212,21 +144,6 @@ export function useFitnessConfigStep({
     );
   };
 
-  const setEquipmentQty = (id: string, qty: number) => {
-    setSelectedEquipment((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, qty } : e))
-    );
-  };
-
-  const removeEquipment = (id: string) => {
-    setSelectedEquipment((prev) => prev.filter((e) => e.id !== id));
-  };
-
-  const selectedWithDetails = selectedEquipment.map((sel) => ({
-    ...sel,
-    name: equipmentList.find((eq) => eq.id === sel.id)?.name ?? '',
-  }));
-
   return {
     subStep,
     setSubStep,
@@ -241,21 +158,6 @@ export function useFitnessConfigStep({
     selectedSubGoalIds,
     isLoadingSubGoals,
     toggleSubGoal,
-    // pantalla 2
-    selectedDays,
-    setSelectedDays,
-    hasFlexibleTime,
-    setHasFlexibleTime,
-    sessionDuration,
-    setSessionDuration,
-    // pantalla 3
-    equipmentList,
-    selectedEquipment,
-    setSelectedEquipment,
-    isLoadingEquipment,
-    selectedWithDetails,
-    setEquipmentQty,
-    removeEquipment,
     // envío
     handleSubmit,
   };
