@@ -23,7 +23,6 @@ export function SessionExerciseCard({
 }: SessionExerciseCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
-  console.log('[SessionExerciseCard] exercise:', JSON.stringify(exercise, null, 2));
   const displayName = exercise.exerciseNameEs || exercise.exerciseName || 'Ejercicio sin nombre';
   const completedSets = exercise.sets.filter((s) => s.isCompleted).length;
 
@@ -49,14 +48,7 @@ export function SessionExerciseCard({
           </Text>
         </View>
 
-        {/* Badge RPE */}
-        {exercise.rpe > 0 && (
-          <View className="bg-zinc-800 rounded-lg px-3 py-1.5 mr-2">
-            <Text className="text-lime-400 text-sm font-semibold">RPE {exercise.rpe}</Text>
-          </View>
-        )}
-
-        {/* Toggle chevron */}
+        {/* Toggle chevron (el RPE ahora se muestra por set dentro de SetsTable) */}
         <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={20} color="#a3e635" />
       </TouchableOpacity>
 

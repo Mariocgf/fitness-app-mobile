@@ -40,8 +40,6 @@ export default function HomeScreen() {
     routine,
     trainedToday,
     isLoadingRoutine,
-    isGeneratingRoutine,
-    generateFitnessRoutine,
     wellness,
     isLoadingWellness,
     nutrition,
@@ -172,8 +170,8 @@ export default function HomeScreen() {
                   accentColor="#a3e635"
                   ctaLabel="Generar rutina"
                   generatingLabel="Generando..."
-                  onGenerate={generateFitnessRoutine}
-                  isGenerating={isGeneratingRoutine}
+                  onGenerate={() => router.push({ pathname: '/fitness', params: { openGenerate: '1' } })}
+                  isGenerating={false}
                 />
               ) : null}
 

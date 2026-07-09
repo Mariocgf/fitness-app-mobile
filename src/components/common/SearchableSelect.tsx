@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     DeviceEventEmitter,
+    Dimensions,
     Keyboard,
     ScrollView,
     Text,
@@ -9,6 +10,9 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+
+/** Alto máximo del dropdown (coincide con el maxHeight del estilo). */
+const DROPDOWN_MAX_HEIGHT = 200;
 
 /**
  * Forma mínima de un ítem seleccionable. `severity` es OPCIONAL: las lesiones
@@ -77,6 +81,10 @@ export default function SearchableSelect({
 
   const componentId = useRef(Math.random().toString()).current;
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  /** true = la lista se abre hacia ARRIBA (cuando el teclado taparía la de abajo). */
+  const [openUp, setOpenUp] = useState(false);
+  const searchBoxRef = useRef<View>(null);
 
   const safeItems = Array.isArray(items) ? items : [];
   const safeSelectedIds = Array.isArray(selectedIds) ? selectedIds : [];
@@ -94,10 +102,37 @@ export default function SearchableSelect({
   );
 
   useEffect(() => {
-    const s1 = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
-    const s2 = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    const s1 = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardVisible(true);
+      setKeyboardHeight(e.endCoordinates?.height ?? 0);
+    });
+    const s2 = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+      setKeyboardHeight(0);
+    });
     return () => { s1.remove(); s2.remove(); };
   }, []);
+
+  /**
+   * Decide si la lista se abre hacia arriba o hacia abajo: mide la posición del
+   * input y, si abajo no entra el dropdown por encima del teclado, la abre hacia
+   * arriba. Así el teclado nunca tapa las opciones. (El dropdown es absoluto, por
+   * lo que no altera la altura medida del recuadro del input.)
+   */
+  const decideOpenDirection = useCallback(() => {
+    searchBoxRef.current?.measureInWindow((_x, y, _w, h) => {
+      const screenH = Dimensions.get('window').height;
+      // Estimación del teclado mientras aún está subiendo (keyboardDidShow llega tarde).
+      const kb = keyboardHeight || screenH * 0.38;
+      const spaceBelow = screenH - kb - (y + h);
+      setOpenUp(spaceBelow < DROPDOWN_MAX_HEIGHT + 12);
+    });
+  }, [keyboardHeight]);
+
+  // Recalcula la dirección cuando cambia la altura real del teclado con la lista abierta.
+  useEffect(() => {
+    if (isOpen) decideOpenDirection();
+  }, [keyboardHeight, isOpen, decideOpenDirection]);
 
   useEffect(() => {
     const sub1 = DeviceEventEmitter.addListener('closeDropdowns', () => {
@@ -128,6 +163,7 @@ export default function SearchableSelect({
   const handleFocus = () => {
     DeviceEventEmitter.emit('closeOtherDropdowns', componentId);
     setIsOpen(true);
+    decideOpenDirection();
   };
 
   const handleChangeText = (text: string) => {
@@ -136,7 +172,15 @@ export default function SearchableSelect({
   };
 
   return (
-    <View className="bg-zinc-900 rounded-3xl p-5 border border-zinc-800">
+    // Al abrir la lista elevamos el zIndex de toda la card para que el dropdown
+    // (absoluto) quede por ENCIMA de las cards siguientes. Sin esto, en PWA la lista
+    // se pierde detrás de la card de abajo y en nativo el input de la otra card queda
+    // encima de la lista. RNW pone position:relative + zIndex:0 por defecto en cada
+    // View, así que subirlo acá reordena entre hermanos en ambas plataformas.
+    <View
+      className="bg-zinc-900 rounded-3xl p-5 border border-zinc-800"
+      style={{ zIndex: isOpen ? 20 : 0 }}
+    >
       {/* Encabezado opcional (sin ícono = look maqueta onboarding) */}
       {cardTitle && (
         <View className="flex-row items-center gap-3 mb-4">
@@ -155,7 +199,7 @@ export default function SearchableSelect({
       )}
 
       {/* Buscador con lupa */}
-      <View style={{ zIndex: 50 }}>
+      <View ref={searchBoxRef} style={{ zIndex: 50 }}>
         <TouchableOpacity
           activeOpacity={1}
           onPress={() => inputRef.current?.focus()}
@@ -192,8 +236,9 @@ export default function SearchableSelect({
           <View
             className="absolute left-0 right-0 rounded-2xl overflow-hidden border border-zinc-700 bg-zinc-800"
             style={{
-              top: 58,
-              maxHeight: 200,
+              // Hacia abajo (top) o hacia arriba (bottom) según el espacio disponible.
+              ...(openUp ? { bottom: 58 } : { top: 58 }),
+              maxHeight: DROPDOWN_MAX_HEIGHT,
               zIndex: 100,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 4 },

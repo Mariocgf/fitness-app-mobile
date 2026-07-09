@@ -2,6 +2,7 @@ import { logger } from '@/src/utils/logger';
 import { AxiosError } from 'axios';
 import apiClient from '../api/client';
 import {
+    CreateManualSessionPayload,
     PagedTrainingHistoryResponse,
     PagedTrainingHistoryResponseDto,
     TrainingHistoryExerciseDto,
@@ -12,6 +13,16 @@ import {
 } from '../types/training-history';
 import { withRequestSignal } from '../utils/request-cancellation';
 
+/** Convierte segundos totales a "hh:mm:ss" (con ceros a la izquierda) */
+const secondsToHms = (totalSeconds: number): string => {
+  const safe = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(safe / 3600);
+  const m = Math.floor((safe % 3600) / 60);
+  const s = safe % 60;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
+};
+
 /** Convierte "HH:mm:ss" o "H:mm:ss" a segundos totales */
 const parseHmsToSeconds = (hms: string): number => {
   if (!hms) return 0;
@@ -21,25 +32,41 @@ const parseHmsToSeconds = (hms: string): number => {
   return h * 3600 + m * 60 + s;
 };
 
-/** Mapea un SetDto a modelo de dominio */
-const mapSetDto = (dto: TrainingHistorySetDto) => ({
+/** Parsea un valor numérico que puede venir como string, number o null. */
+const toNumber = (value: string | number | null | undefined): number =>
+  value == null ? 0 : Number(value) || 0;
+
+/** Mapea un SetDto a modelo de dominio (el RPE ahora vive acá) */
+const mapSetDto = (dto: TrainingHistorySetDto): TrainingHistorySession['exercises'][number]['sets'][number] => ({
   setNumber: parseInt(dto.setNumber, 10) || 0,
   repsPerformed: parseInt(dto.repsPerformed, 10) || 0,
   weightUsed: parseFloat(dto.weightUsed) || 0,
   durationSeconds: parseInt(dto.durationSeconds, 10) || 0,
+  rpe: toNumber(dto.rpe),
   isCompleted: dto.isCompleted,
 });
 
-/** Mapea un ExerciseDto a modelo de dominio */
-const mapExerciseDto = (dto: TrainingHistoryExerciseDto) => ({
-  exerciseId: dto.exerciseId,
-  exerciseName: dto.exerciseName,
-  exerciseNameEs: dto.exerciseNameEs,
-  gifUrl: dto.gifUrl,
-  targetMuscles: dto.targetMuscles ?? [],
-  rpe: parseFloat(dto.rpe) || 0,
-  sets: (dto.sets ?? []).map(mapSetDto),
-});
+/** Mapea un ExerciseDto a modelo de dominio. El `rpe` del ejercicio ya no lo manda
+ * el back: se deriva como promedio de los sets con esfuerzo cargado (fallback al
+ * `rpe` legacy si aún viniera a este nivel). */
+const mapExerciseDto = (dto: TrainingHistoryExerciseDto) => {
+  const sets = (dto.sets ?? []).map(mapSetDto);
+  const rpeValues = sets.map((s) => s.rpe).filter((r) => r > 0);
+  const derivedRpe =
+    rpeValues.length > 0
+      ? Math.round(rpeValues.reduce((sum, r) => sum + r, 0) / rpeValues.length)
+      : toNumber(dto.rpe);
+
+  return {
+    exerciseId: dto.exerciseId,
+    exerciseName: dto.exerciseName,
+    exerciseNameEs: dto.exerciseNameEs,
+    gifUrl: dto.gifUrl,
+    targetMuscles: dto.targetMuscles ?? [],
+    rpe: derivedRpe,
+    sets,
+  };
+};
 
 /** Mapea un SessionDto a modelo de dominio */
 const mapSessionDto = (dto: TrainingHistorySessionDto): TrainingHistorySession => ({
@@ -123,6 +150,59 @@ export const getTrainingSessionById = async (
       logger.error('[training-history.service] getTrainingSessionById FAIL', {
         id,
         status: error.response?.status,
+      });
+    }
+    throw error;
+  }
+};
+
+/**
+ * Registra una sesión histórica manual (sin rutina asociada).
+ * POST /api/routine/sessions/manual
+ * Filosofía del contrato: sin campos obligatorios salvo el ejercicio; los opcionales
+ * vacíos se omiten para que el back aplique sus defaults (trainedAt = ahora, etc.).
+ * Devuelve el Guid de la sesión creada.
+ */
+export const createManualTrainingSession = async (
+  payload: CreateManualSessionPayload,
+  token: string | null,
+): Promise<string> => {
+  if (!token) throw new Error('No autenticado');
+
+  const url = '/api/routine/sessions/manual';
+
+  // Solo mando lo que el usuario cargó; el resto lo resuelve el back con sus defaults.
+  const body: Record<string, unknown> = {
+    exercises: payload.exercises.map((exercise) => ({
+      exerciseId: exercise.exerciseId,
+      ...(exercise.exerciseNameSnapshot
+        ? { exerciseNameSnapshot: exercise.exerciseNameSnapshot }
+        : {}),
+      sets: exercise.sets.map((set) => ({
+        reps: set.reps,
+        rpe: set.rpe,
+        weight: set.weight,
+        ...(set.durationSeconds != null ? { durationSeconds: set.durationSeconds } : {}),
+      })),
+    })),
+  };
+
+  if (payload.trainedAt) body.trainedAt = payload.trainedAt.toISOString();
+  if (payload.totalSeconds && payload.totalSeconds > 0) {
+    body.totalTime = secondsToHms(payload.totalSeconds);
+  }
+
+  try {
+    const { data } = await apiClient.post<string>(url, body, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    // El endpoint devuelve el Guid plano; contemplamos { data } por si el back lo envuelve.
+    return typeof data === 'string' ? data : ((data as any)?.data ?? '');
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      logger.error('[training-history.service] createManualTrainingSession FAIL', {
+        status: error.response?.status,
+        data: error.response?.data,
       });
     }
     throw error;

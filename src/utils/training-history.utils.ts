@@ -10,6 +10,23 @@ export const formatSessionDate = (d: Date): string =>
     year: 'numeric',
   });
 
+/** Formatea una fecha a "dd/mm/yy" (ej: 08/07/26) */
+export const formatDateDdMmYy = (d: Date): string => {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${String(d.getFullYear()).slice(-2)}`;
+};
+
+/**
+ * Título a mostrar para una sesión del historial.
+ * - Rutina → el nombre de la rutina tal cual.
+ * - Manual (routineId === null) → la etiqueta del back ("Sesión manual") + la fecha
+ *   en formato dd/mm/yy, ej: "Sesión manual · 08/07/26".
+ */
+export const getSessionTitle = (session: TrainingHistorySession): string =>
+  session.routineId === null
+    ? `${session.routineName} · ${formatDateDdMmYy(session.trainedAt)}`
+    : session.routineName;
+
 const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 /** Formatea una fecha a "22 jun. 2026" (día mes abreviado con punto, año) */
@@ -97,10 +114,11 @@ export const computeSessionStats = (session: TrainingHistorySession): SessionSta
     for (const set of exercise.sets) {
       if (set.isCompleted) completedSets += 1;
       totalReps += set.repsPerformed;
-    }
-    if (exercise.rpe > 0) {
-      rpeSum += exercise.rpe;
-      rpeCount += 1;
+      // El RPE ahora vive en el set: promediamos los sets con esfuerzo cargado.
+      if (set.rpe > 0) {
+        rpeSum += set.rpe;
+        rpeCount += 1;
+      }
     }
   }
 
@@ -112,12 +130,13 @@ export const computeSessionStats = (session: TrainingHistorySession): SessionSta
   };
 };
 
-/** Detalle de un set para el listado: "12 rep • 20 kg", "45 s" o "—" si no hay datos */
+/** Detalle de un set para el listado: "12 rep • 20 kg • RPE 8", "45 s" o "—" si no hay datos */
 export const formatSetDetail = (set: TrainingHistorySet): string => {
   const parts: string[] = [];
   if (set.repsPerformed > 0) parts.push(`${set.repsPerformed} rep`);
   if (set.weightUsed > 0) parts.push(formatWeightKg(set.weightUsed));
   if (set.durationSeconds > 0) parts.push(`${set.durationSeconds} s`);
+  if (set.rpe > 0) parts.push(`RPE ${set.rpe}`);
   return parts.length > 0 ? parts.join(' • ') : '—';
 };
 

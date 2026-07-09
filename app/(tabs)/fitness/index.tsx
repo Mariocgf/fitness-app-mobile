@@ -2,11 +2,13 @@ import { logger } from '@/src/utils/logger';
 import { SegmentedControl } from '@/src/components/common/SegmentedControl';
 import { ActionCard, CardState } from '@/src/components/features/home/ActionCard';
 import { CreateRoutineView } from '@/src/components/features/routine/CreateRoutineView';
+import { GenerateRoutineModal } from '@/src/components/features/routine/GenerateRoutineModal';
 import { CardLayout, RoutineDetailView } from '@/src/components/features/routine/RoutineDetailView';
 import { ConflictResolutionModal } from '@/src/components/features/routine/ConflictResolutionModal';
 import { RoutineLibraryCard } from '@/src/components/features/routine/RoutineLibraryCard';
 import { DraftCard } from '@/src/components/features/routine/DraftCard';
 import { RecentActivityCard } from '@/src/components/features/training-history/RecentActivityCard';
+import { RegisterManualSessionView } from '@/src/components/features/training-history/RegisterManualSessionView';
 import { useRoutineDraft } from '@/src/hooks/useRoutineDraft';
 import { useOfflineModuleStatus } from '@/src/hooks/useOfflineModuleStatus';
 import { useNetworkStatus } from '@/src/hooks/useNetworkStatus';
@@ -23,7 +25,7 @@ import {
 import { OfflineOperation, RoutineUpdateOperationPayload } from '@/src/offline/types';
 import { activateRoutine, deleteRoutine, generateRoutine, getActiveRoutine, getRoutineById, regenerateRoutine } from '@/src/services/routine.service';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
-import { Routine, RoutineSource, RoutineSummary } from '@/src/types/routine';
+import { GenerateRoutinePayload, Routine, RoutineSource, RoutineSummary } from '@/src/types/routine';
 import { TrainingHistorySession } from '@/src/types/training-history';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
@@ -59,6 +61,10 @@ export default function FitnessScreen() {
   const [showRoutineDetail, setShowRoutineDetail] = useState(false);
   const [cardLayout, setCardLayout] = useState<CardLayout | null>(null);
   const [showCreateRoutine, setShowCreateRoutine] = useState(false);
+  /** Modal de generación de rutina con IA (lugar/nivel/tiempo/días). */
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  /** Draft de la última generación: se conserva si falla (para reabrir con los datos). */
+  const [generateDraft, setGenerateDraft] = useState<GenerateRoutinePayload | null>(null);
 
   const cardRef = useRef<View>(null);
   const detailRoutineRef = useRef<Routine | null>(null);
@@ -160,7 +166,7 @@ export default function FitnessScreen() {
   }, [setDetailVisible, setViewingActiveRoutine]);
 
   /* ── Apertura automática del detalle al venir desde el Home ───────────── */
-  const { openRoutineId, openCreate } = useLocalSearchParams<{ openRoutineId?: string; openCreate?: string }>();
+  const { openRoutineId, openCreate, openGenerate } = useLocalSearchParams<{ openRoutineId?: string; openCreate?: string; openGenerate?: string }>();
 
   useEffect(() => {
     if (!openRoutineId || isFetchingData || !routine) return;
@@ -179,22 +185,43 @@ export default function FitnessScreen() {
     requestAnimationFrame(() => handleViewPlan());
   }, [openRoutineId, routine, isFetchingData, handleViewPlan, router, setIsCreatingRoutine]);
 
-  const handleGenerate = async () => {
+  /** Abre el modal de generación (lugar/nivel/tiempo/días); ya no genera directo. */
+  const handleGenerate = useCallback(() => {
+    setShowGenerateModal(true);
+  }, []);
+
+  /**
+   * Hand-off del modal: cierra la vista de una y pone la card en "generando"
+   * mientras corre persist() (lesiones/condiciones) + la generación. Al terminar,
+   * la rutina queda activa y la card pasa a success.
+   */
+  const handleGenerateSubmit = useCallback(async (
+    payload: GenerateRoutinePayload,
+    persistHealth: () => Promise<void>,
+  ) => {
+    setGenerateDraft(payload); // guardamos por si falla, para reabrir con los datos
+    setShowGenerateModal(false);
     setCardState('loading');
     try {
       const token = await getToken();
-      const newRoutine = await generateRoutine(token);
+      // Persistir lesiones/condiciones ANTES de generar: el backend las lee del perfil.
+      await persistHealth();
+      const newRoutine = await generateRoutine(payload, token);
       setRoutine(newRoutine);
       setActiveRoutine(newRoutine);
       setCardState('success');
+      setGenerateDraft(null); // éxito → descartamos el draft
+      refreshPreview();
     } catch (error) {
       logger.error(error);
       setCardState('initial');
-      toast.error('No pudimos generar tu rutina. Intentá de nuevo.', {
+      toast.error('No pudimos generar tu rutina. Volvé a intentar.', {
         title: 'Algo salió mal',
       });
+      // Fallo → reabrimos el modal con los campos ya cargados (draft conservado).
+      setShowGenerateModal(true);
     }
-  };
+  }, [getToken, setActiveRoutine, refreshPreview]);
 
   const handleRegenerate = useCallback(async () => {
     setCardState('loading');
@@ -366,10 +393,53 @@ export default function FitnessScreen() {
     requestAnimationFrame(() => handleOpenCreate());
   }, [openCreate, handleOpenCreate, router]);
 
+  /* ── Apertura automática del modal de generación al venir desde el Home ─ */
+  useEffect(() => {
+    if (!openGenerate) return;
+    router.setParams({ openGenerate: undefined });
+    setShowGenerateModal(true);
+  }, [openGenerate, router]);
+
   const { draft, saveDraft, clearDraft } = useRoutineDraft();
 
   /* ── Hook para preview del historial de entrenamiento ─────────────────── */
-  const { sessions: historyPreview, isLoading: isLoadingHistory } = useTrainingHistoryPreview();
+  const { sessions: historyPreview, isLoading: isLoadingHistory, refresh: refreshHistoryPreview } =
+    useTrainingHistoryPreview();
+
+  /* ── Registro de sesión manual (overlay desde la card del Home) ────────── */
+  const [showManualSession, setShowManualSession] = useState(false);
+  const [manualCardLayout, setManualCardLayout] = useState<CardLayout | null>(null);
+  const manualCardRef = useRef<View>(null);
+
+  const handleOpenManualSession = useCallback(() => {
+    const open = (layout: CardLayout) => {
+      setManualCardLayout(layout);
+      setShowManualSession(true);
+      setDetailVisible(true);
+    };
+    if (manualCardRef.current) {
+      manualCardRef.current.measureInWindow((x, y, width, height) => {
+        open(width > 0 ? { x, y, width, height } : {
+          x: SCREEN_WIDTH * 0.1,
+          y: SCREEN_HEIGHT * 0.5,
+          width: SCREEN_WIDTH * 0.8,
+          height: 60,
+        });
+      });
+    } else {
+      open({ x: SCREEN_WIDTH * 0.1, y: SCREEN_HEIGHT * 0.5, width: SCREEN_WIDTH * 0.8, height: 60 });
+    }
+  }, [setDetailVisible]);
+
+  const handleCloseManualSession = useCallback(() => {
+    setShowManualSession(false);
+    setDetailVisible(false);
+  }, [setDetailVisible]);
+
+  const handleManualSessionCreated = useCallback(() => {
+    // La sesión ya está en el back: refrescamos el preview para verla en "Actividad reciente".
+    refreshHistoryPreview();
+  }, [refreshHistoryPreview]);
 
   const handleViewAllHistory = useCallback(() => {
     router.push('/fitness/training-history' as any);
@@ -637,6 +707,18 @@ export default function FitnessScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Registrar sesión manual (histórica, sin rutina) */}
+        <View ref={manualCardRef} collapsable={false} className="px-4 mt-3">
+          <TouchableOpacity
+            onPress={handleOpenManualSession}
+            activeOpacity={0.85}
+            className="flex-row items-center justify-center py-4 rounded-2xl border border-lime-400 bg-lime-400/10"
+          >
+            <Ionicons name="create-outline" size={20} color="#a3e635" />
+            <Text className="text-lime-400 font-bold text-base ml-2">Registrar sesión manual</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Generar rutina con IA */}
         <View className="px-4 mt-3">
           <TouchableOpacity
@@ -690,6 +772,15 @@ export default function FitnessScreen() {
         />
       )}
 
+      {/* Modal de generación de rutina con IA (lugar/nivel/tiempo/días) */}
+      {showGenerateModal && (
+        <GenerateRoutineModal
+          initialDraft={generateDraft}
+          onClose={() => { setShowGenerateModal(false); setGenerateDraft(null); }}
+          onSubmit={handleGenerateSubmit}
+        />
+      )}
+
       {/* Overlay de creación de rutina manual */}
       {showCreateRoutine && createCardLayout && (
         <CreateRoutineView
@@ -702,6 +793,15 @@ export default function FitnessScreen() {
             setIsCreatingRoutine(false);
             handleRoutineCreated(r);
           }}
+        />
+      )}
+
+      {/* Overlay de registro de sesión manual */}
+      {showManualSession && manualCardLayout && (
+        <RegisterManualSessionView
+          cardLayout={manualCardLayout}
+          onClose={handleCloseManualSession}
+          onCreated={handleManualSessionCreated}
         />
       )}
 
