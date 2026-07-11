@@ -3,9 +3,8 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { GradientText } from '@/src/components/common/GradientText';
-import { toast } from '@/src/components/ui/feedback';
 import { usePlans } from '@/src/hooks/usePlans';
-import { BillingInterval } from '@/src/types/subscription';
+import { BillingInterval, PlanViewModel } from '@/src/types/subscription';
 
 import { BillingIntervalToggle } from './BillingIntervalToggle';
 import { PlanCard } from './PlanCard';
@@ -14,13 +13,21 @@ import { PlanCardSkeleton } from './PlanCardSkeleton';
 /** Acento premium puntual (violeta → índigo) para el clímax "Premium". */
 const PREMIUM_GRADIENT = ['#a78bfa', '#818cf8'] as const;
 
+interface PaywallViewProps {
+  /**
+   * Se invoca al confirmar la selección con "Elegir plan". La pantalla dueña
+   * abre la hoja de compra (`MockPurchaseSheet`) fuera del `ScrollView` para que
+   * el overlay cubra la pantalla; ver `subscription.tsx`.
+   */
+  onChoosePlan?: (plan: PlanViewModel) => void;
+}
+
 /**
  * Paywall: compara los planes disponibles combinando la estructura del backend
- * (`GET /plans`) con el precio vivo del store/emulador. En Fase 2 no hay compra
- * todavía — el CTA queda como placeholder hasta que la Fase 3 abra el sheet de
- * compra (`provider.purchase` → `POST /validate`).
+ * (`GET /plans`) con el precio vivo del store/emulador. La selección es única y
+ * el CTA "Elegir plan" delega la compra en la pantalla vía `onChoosePlan`.
  */
-export const PaywallView: React.FC = () => {
+export const PaywallView: React.FC<PaywallViewProps> = ({ onChoosePlan }) => {
   const { plans, isLoading, error, refresh } = usePlans();
   const [billingInterval, setBillingInterval] = useState<BillingInterval>('Monthly');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
@@ -58,8 +65,9 @@ export const PaywallView: React.FC = () => {
   }
 
   const handleChoosePlan = () => {
-    // Fase 3: acá se abre el sheet de compra (provider.purchase → POST /validate).
-    toast.info('La compra estará disponible muy pronto.');
+    // El CTA está deshabilitado sin selección, así que acá siempre hay un plan.
+    const selectedPlan = visiblePlans.find((plan) => plan.productId === selectedProductId);
+    if (selectedPlan) onChoosePlan?.(selectedPlan);
   };
 
   return (

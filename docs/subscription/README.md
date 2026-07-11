@@ -78,7 +78,7 @@ violeta/índigo) en el clímax "Premium". CTA principal `zinc-50`.
 | 0 | ✅ Hecha | [`fase-0-fundamentos.md`](./fase-0-fundamentos.md) | Env vars, tipos, service, adapter. Sin UI. |
 | 1 | ✅ Hecha | [`fase-1-estado.md`](./fase-1-estado.md) | `SubscriptionProvider` + `GET /me`. Perfil con tier real. |
 | 2 | ✅ Hecha | [`fase-2-paywall.md`](./fase-2-paywall.md) | Paywall: `GET /plans` + precios del emulador. |
-| 3 | ⬜ Pendiente | [`fase-3-compra.md`](./fase-3-compra.md) | Compra emulada (iOS/Android/PWA) + `POST /validate`. |
+| 3 | ✅ Hecha | [`fase-3-compra.md`](./fase-3-compra.md) | Compra emulada (iOS/Android/PWA) + `POST /validate`. |
 | 4 | ⬜ Pendiente | [`fase-4-addon.md`](./fase-4-addon.md) | Add-on de créditos + `POST /credits/addon`. |
 | 5 | ⬜ Pendiente | [`fase-5-402-gating.md`](./fase-5-402-gating.md) | Manejo del 402 en acciones de IA + CTAs de upgrade. |
 

@@ -3,7 +3,16 @@
 > Seguí las **reglas obligatorias** del [`README.md`](./README.md) (agent.md + lecciones).
 > Depende de: **Fase 2**.
 
-**Estado: ⬜ Pendiente.**
+**Estado: ✅ Hecha.**
+
+> Implementación: `src/hooks/usePurchaseFlow.ts` (orquesta compra → `POST /validate` →
+> `refresh`), `src/components/features/subscription/MockPurchaseSheet.tsx` (overlay
+> emulado platform-aware), y el cableado en `PaywallView` (callback `onChoosePlan`) +
+> `app/profile/subscription.tsx` (dueño del hook y del sheet).
+>
+> **Nota de arquitectura:** el sheet se renderiza a nivel de pantalla, **hermano del
+> `ScrollView`**, NO dentro de `PaywallView`. Un overlay absoluto dentro del ScrollView
+> queda atrapado en el contenido y scrollea con él (ver lección registrada).
 
 ## Objetivo
 Cerrar el ciclo de compra emulado para las 3 plataformas (iOS / Android / PWA),
