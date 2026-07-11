@@ -3,7 +3,7 @@
 > Seguí las **reglas obligatorias** del [`README.md`](./README.md) (agent.md + lecciones).
 > Depende de: **Fase 1**.
 
-**Estado: ⬜ Pendiente.**
+**Estado: ✅ Hecha.**
 
 ## Objetivo
 Mostrar el paywall combinando la estructura de planes del backend (`GET /plans`)

@@ -136,3 +136,21 @@ export interface PurchaseResult {
   productId: string;
   receiptOrToken: string;
 }
+
+// ── View model del paywall (merge backend + store) ──
+
+/**
+ * Plan listo para pintar en el paywall: estructura del backend (`GET /plans`) +
+ * precio localizado del store/emulador. `localizedPrice` ya viene resuelto
+ * ("Gratis" para Free, precio del store para tiers pagos).
+ */
+export interface PlanViewModel {
+  tier: SubscriptionTier;
+  name: string;
+  monthlyCredits: number;
+  billingInterval: BillingInterval;
+  productId: string | null;
+  unlockedModules: string[];
+  /** Precio ya resuelto para mostrar: "Gratis" | precio del store | referencia. */
+  localizedPrice: string;
+}
