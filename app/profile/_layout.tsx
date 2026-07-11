@@ -10,6 +10,7 @@ export default function ProfileStackLayout() {
   return (
     <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="subscription" />
       <Stack.Screen name="fitness" />
       <Stack.Screen name="fitness-equipment" />
       <Stack.Screen name="fitness-training" />

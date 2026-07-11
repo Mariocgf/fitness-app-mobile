@@ -23,6 +23,7 @@ import { useColorScheme } from '@/src/hooks/use-color-scheme';
 import { useIsOffline } from '@/src/hooks/useIsOffline';
 import { getOnboardingStatus, syncAuthenticatedUser } from '@/src/services/onboarding.service';
 import { destroyOfflineData } from '@/src/offline/repository';
+import { SubscriptionProvider } from '@/src/store/subscription-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
@@ -392,9 +393,13 @@ export default function RootLayout() {
             tokenCache={tokenCache}
           >
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <AppFrame>
-                <RootNavigator />
-              </AppFrame>
+              {/* Estado global de suscripción (GET /me). Dentro de Clerk para que useAuth resuelva;
+                  en el layout raíz porque Perfil vive fuera de (tabs) y también lo consume. */}
+              <SubscriptionProvider>
+                <AppFrame>
+                  <RootNavigator />
+                </AppFrame>
+              </SubscriptionProvider>
               {/* Hosts de feedback no bloqueante (toasts + confirmaciones in-app) */}
               <FeedbackHost />
               {/* Prompt de instalación PWA (solo web; no-op en nativo) */}

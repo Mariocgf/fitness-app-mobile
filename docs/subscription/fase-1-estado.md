@@ -3,7 +3,13 @@
 > Seguí las **reglas obligatorias** del [`README.md`](./README.md) (agent.md + lecciones).
 > Depende de: **Fase 0**.
 
-**Estado: ⬜ Pendiente.**
+**Estado: ✅ Hecha.**
+
+> Módulos: resueltos con un mapa estático `tier → módulos` en el provider
+> (`Fitness→['fitness']`, `Nutrition→['nutrition']`, `Full→ambos`, `Free→[]`).
+> El status DTO de `GET /me` no trae `unlockedModules`; se derivan del tier.
+> Provider montado en `app/_layout.tsx` (dentro de `ClerkProvider`), no en `(tabs)`,
+> porque Perfil vive fuera de las tabs y también lo consume.
 
 ## Objetivo
 Que la app conozca el estado real de suscripción (`GET /me`) y lo refleje en el
