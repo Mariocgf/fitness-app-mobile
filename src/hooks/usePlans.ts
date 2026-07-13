@@ -49,6 +49,20 @@ const resolvePrice = (
   return formatReferencePrice(plan.price, plan.currency);
 };
 
+/**
+ * Monto numérico del MISMO precio que se muestra, con la misma cadena de fallback
+ * que `resolvePrice`. Solo se usa para comparar mensual vs anual (ahorro del ciclo
+ * anual); el texto visible sigue saliendo del store.
+ */
+const resolveAmount = (
+  plan: SubscriptionPlanDto,
+  storeByProductId: Map<string, StoreProduct>,
+): number => {
+  if (plan.productId === null) return 0;
+  const store = storeByProductId.get(plan.productId);
+  return store ? store.amount : plan.price;
+};
+
 /** Arma el view model del paywall a partir del plan del backend + precio del store. */
 const toViewModel = (
   plan: SubscriptionPlanDto,
@@ -61,6 +75,7 @@ const toViewModel = (
   productId: plan.productId,
   unlockedModules: plan.unlockedModules,
   localizedPrice: resolvePrice(plan, storeByProductId),
+  amount: resolveAmount(plan, storeByProductId),
 });
 
 /**

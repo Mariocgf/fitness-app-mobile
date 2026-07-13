@@ -3,81 +3,134 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { GradientText } from '@/src/components/common/GradientText';
+import { SegmentedControl, SegmentedOption } from '@/src/components/common/SegmentedControl';
 import { usePlans } from '@/src/hooks/usePlans';
 import { useSubscription } from '@/src/store/subscription-context';
-import { BillingInterval, PlanViewModel } from '@/src/types/subscription';
+import { BillingInterval, PlanViewModel, SubscriptionTier } from '@/src/types/subscription';
+import { computeAnnualSavingsPercent } from '@/src/utils/pricing';
 
-import { BillingIntervalToggle } from './BillingIntervalToggle';
-import { PlanCard } from './PlanCard';
-import { PlanCardSkeleton } from './PlanCardSkeleton';
+import { BillingOptionRow } from './BillingOptionRow';
+import { PaywallSkeleton } from './PaywallSkeleton';
+import { PlanFeatureList } from './PlanFeatureList';
 
 /** Acento premium puntual (violeta → índigo) para el clímax "Premium". */
 const PREMIUM_GRADIENT = ['#a78bfa', '#818cf8'] as const;
 
+/** Orden de presentación de los tiers pagos (de más acotado a más completo). */
+const TIER_ORDER: SubscriptionTier[] = ['Fitness', 'Nutrition', 'Full'];
+
+/** Etiqueta ES del tier para el selector. */
+const TIER_LABEL: Record<SubscriptionTier, string> = {
+  Free: 'Free',
+  Fitness: 'Fitness',
+  Nutrition: 'Nutrición',
+  Full: 'Full',
+};
+
+/** El anual primero: es el que conviene y el que lleva el badge de ahorro. */
+const INTERVAL_ORDER: BillingInterval[] = ['Annual', 'Monthly'];
+
 interface PaywallViewProps {
   /**
-   * Se invoca al confirmar la selección con "Elegir plan". La pantalla dueña
-   * abre la hoja de compra (`MockPurchaseSheet`) fuera del `ScrollView` para que
-   * el overlay cubra la pantalla; ver `subscription.tsx`.
+   * Se invoca al confirmar la selección con "Suscribirme". La pantalla dueña abre la
+   * hoja de compra (`MockPurchaseSheet`) fuera del `ScrollView` para que el overlay
+   * cubra la pantalla; ver `subscription.tsx`.
    */
   onChoosePlan?: (plan: PlanViewModel) => void;
 }
 
 /**
- * Paywall: compara los planes disponibles combinando la estructura del backend
- * (`GET /plans`) con el precio vivo del store/emulador. La selección es única y
- * el CTA "Elegir plan" delega la compra en la pantalla vía `onChoosePlan`.
+ * Paywall: primero se elige el PLAN (tier), que define los beneficios; después el
+ * CICLO de cobro (anual/mensual) dentro de ese plan. Un solo CTA cierra el flujo.
  *
- * El plan que el usuario ya tiene contratado NO se ofrece de nuevo (lo muestra
- * `SubscriptionStatusCard`, arriba en la misma pantalla).
+ * Free no aparece: no es una compra, es el estado por defecto, y el plan vigente ya
+ * lo muestra `SubscriptionStatusCard` arriba en la misma pantalla.
  */
 export const PaywallView: React.FC<PaywallViewProps> = ({ onChoosePlan }) => {
   const { plans, isLoading, error, refresh } = usePlans();
   const { status } = useSubscription();
-  const [billingInterval, setBillingInterval] = useState<BillingInterval>('Monthly');
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [pickedTier, setPickedTier] = useState<SubscriptionTier | null>(null);
+  const [pickedInterval, setPickedInterval] = useState<BillingInterval>('Annual');
 
   /**
    * Plan ya contratado, por `productId` (identidad del store) y NO por tier: Fitness
-   * Mensual y Fitness Anual son productos distintos, así que ocultar por tier le
-   * sacaría al usuario el pase a anual.
-   *
-   * Solo cuenta si la suscripción está ACTIVA: vencida o inválida tiene que poder
-   * volver a comprarse, o el usuario queda sin forma de renovar.
+   * Mensual y Fitness Anual son productos distintos, así que ocultar el tier entero le
+   * sacaría al usuario el pase a anual. Solo cuenta si la suscripción está ACTIVA:
+   * vencida o inválida tiene que poder volver a comprarse.
    */
   const ownedProductId = status.status === 'active' ? status.productId : null;
 
-  // Filtro estricto por ciclo de cobro (el contrato manda variantes separadas),
-  // menos el plan ya contratado.
-  const visiblePlans = useMemo(
-    () =>
-      plans.filter(
-        (plan) =>
-          plan.billingInterval === billingInterval &&
-          !(plan.productId !== null && plan.productId === ownedProductId),
-      ),
-    [plans, billingInterval, ownedProductId],
+  // Free (`productId: null`) no se ofrece: no se compra.
+  const paidPlans = useMemo(() => plans.filter((plan) => plan.productId !== null), [plans]);
+
+  const tiers = useMemo(
+    () => TIER_ORDER.filter((tier) => paidPlans.some((plan) => plan.tier === tier)),
+    [paidPlans],
   );
 
   /**
-   * La selección se resuelve SIEMPRE contra la lista visible. Al cambiar de ciclo —o
-   * al desaparecer el plan recién comprado— el id seleccionado queda huérfano, y sin
+   * El tier se deriva, no se sincroniza con un effect: si todavía no se eligió (o el
+   * elegido ya no está en la lista), se arranca en el que el usuario tiene contratado
+   * —para que vea su camino de upgrade— y si no, en el primero disponible.
+   */
+  const activeTier = useMemo(() => {
+    if (pickedTier !== null && tiers.includes(pickedTier)) return pickedTier;
+    return tiers.find((tier) => tier === status.tier) ?? tiers[0] ?? null;
+  }, [pickedTier, tiers, status.tier]);
+
+  // TODOS los planes del tier (incluido el ya contratado): el ahorro anual se calcula
+  // contra el precio mensual real, exista o no como opción comprable ahora mismo.
+  const tierPlans = useMemo(
+    () => paidPlans.filter((plan) => plan.tier === activeTier),
+    [paidPlans, activeTier],
+  );
+
+  const savingsPercent = useMemo(() => {
+    const monthly = tierPlans.find((plan) => plan.billingInterval === 'Monthly');
+    const annual = tierPlans.find((plan) => plan.billingInterval === 'Annual');
+    if (!monthly || !annual) return null;
+    return computeAnnualSavingsPercent(monthly.amount, annual.amount);
+  }, [tierPlans]);
+
+  // Opciones comprables: el plan vigente no se vuelve a ofrecer.
+  const billingOptions = useMemo(
+    () =>
+      INTERVAL_ORDER.map((interval) =>
+        tierPlans.find(
+          (plan) => plan.billingInterval === interval && plan.productId !== ownedProductId,
+        ),
+      ).filter((plan): plan is PlanViewModel => plan !== undefined),
+    [tierPlans, ownedProductId],
+  );
+
+  /**
+   * La selección se resuelve SIEMPRE contra la lista visible. Al cambiar de tier —o al
+   * desaparecer el plan recién comprado— el ciclo elegido puede quedar huérfano, y sin
    * esto el CTA quedaba habilitado apuntando a un plan que ya no está.
    */
   const selectedPlan = useMemo(
     () =>
-      selectedProductId === null
-        ? null
-        : (visiblePlans.find((plan) => plan.productId === selectedProductId) ?? null),
-    [visiblePlans, selectedProductId],
+      billingOptions.find((plan) => plan.billingInterval === pickedInterval) ??
+      billingOptions[0] ??
+      null,
+    [billingOptions, pickedInterval],
+  );
+
+  /**
+   * Los beneficios son del TIER, no del ciclo, así que se pueden mostrar aunque no
+   * quede ninguna opción comprable (ej. el usuario ya tiene la única variante del plan).
+   */
+  const featurePlan = selectedPlan ?? tierPlans[0] ?? null;
+
+  const tierOptions: SegmentedOption<SubscriptionTier>[] = useMemo(
+    () => tiers.map((tier) => ({ label: TIER_LABEL[tier], value: tier })),
+    [tiers],
   );
 
   if (isLoading) {
     return (
-      <View className="gap-3 px-5 pt-8">
-        <PlanCardSkeleton />
-        <PlanCardSkeleton />
-        <PlanCardSkeleton />
+      <View className="px-5 pt-8">
+        <PaywallSkeleton />
       </View>
     );
   }
@@ -98,7 +151,10 @@ export const PaywallView: React.FC<PaywallViewProps> = ({ onChoosePlan }) => {
     );
   }
 
-  const handleChoosePlan = () => {
+  // Sin planes pagos no hay paywall que mostrar (el estado vigente ya está arriba).
+  if (activeTier === null || featurePlan === null) return null;
+
+  const handleSubscribe = () => {
     if (selectedPlan) onChoosePlan?.(selectedPlan);
   };
 
@@ -115,23 +171,41 @@ export const PaywallView: React.FC<PaywallViewProps> = ({ onChoosePlan }) => {
         <Text className="mt-1 text-sm text-zinc-500">Elegí el plan que mejor se adapte a vos.</Text>
       </View>
 
-      <BillingIntervalToggle value={billingInterval} onChange={setBillingInterval} />
+      {/* 1) Plan: define los beneficios de abajo */}
+      <SegmentedControl<SubscriptionTier>
+        options={tierOptions}
+        value={activeTier}
+        onChange={setPickedTier}
+        accent="mono"
+      />
 
-      {/* Lista de planes del ciclo elegido — selección única */}
-      <View className="mt-5 gap-3">
-        {visiblePlans.map((plan) => (
-          <PlanCard
-            key={`${plan.tier}-${plan.billingInterval}`}
-            plan={plan}
-            isSelected={plan.productId !== null && plan.productId === selectedProductId}
-            onPress={() => setSelectedProductId(plan.productId)}
-          />
-        ))}
+      {/* 2) Qué trae el plan elegido */}
+      <View className="mt-5">
+        <PlanFeatureList plan={featurePlan} />
       </View>
 
-      {/* CTA — Fase 2: deshabilitado sin selección; compra real en Fase 3 */}
+      {/* 3) Ciclo de cobro dentro de ese plan */}
+      {billingOptions.length > 0 ? (
+        <View className="mt-5 gap-3">
+          {billingOptions.map((plan) => (
+            <BillingOptionRow
+              key={plan.productId}
+              plan={plan}
+              isSelected={plan.productId === selectedPlan?.productId}
+              savingsPercent={plan.billingInterval === 'Annual' ? savingsPercent : null}
+              onPress={() => setPickedInterval(plan.billingInterval)}
+            />
+          ))}
+        </View>
+      ) : (
+        <Text className="mt-5 text-center text-sm text-zinc-500">
+          Ya tenés este plan activo.
+        </Text>
+      )}
+
+      {/* CTA — abre la hoja de compra (Fase 3) con el plan + ciclo elegidos */}
       <Pressable
-        onPress={handleChoosePlan}
+        onPress={handleSubscribe}
         disabled={selectedPlan === null}
         className={`mt-6 items-center rounded-2xl px-6 py-4 ${
           selectedPlan === null ? 'bg-zinc-800' : 'bg-zinc-50'
@@ -143,9 +217,13 @@ export const PaywallView: React.FC<PaywallViewProps> = ({ onChoosePlan }) => {
             selectedPlan === null ? 'text-zinc-500' : 'text-zinc-950'
           }`}
         >
-          Elegir plan
+          Suscribirme
         </Text>
       </Pressable>
+
+      <Text className="mt-3 text-center text-xs text-zinc-600">
+        Se cobra a través de tu tienda. Podés cancelar cuando quieras.
+      </Text>
     </View>
   );
 };

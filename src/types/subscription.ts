@@ -212,4 +212,10 @@ export interface PlanViewModel {
   unlockedModules: string[];
   /** Precio ya resuelto para mostrar: "Gratis" | precio del store | referencia. */
   localizedPrice: string;
+  /**
+   * Monto numérico del MISMO precio que muestra `localizedPrice`. Existe solo para
+   * comparar mensual vs anual y calcular el ahorro real (nunca para mostrarlo crudo:
+   * el texto visible siempre sale del store, por la regla Apple/Google). Free → 0.
+   */
+  amount: number;
 }
