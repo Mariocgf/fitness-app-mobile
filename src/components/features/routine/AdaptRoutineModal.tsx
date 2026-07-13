@@ -1,9 +1,11 @@
 import { logger } from '@/src/utils/logger';
 import { adaptRoutineWithAi, confirmRoutineAdaptation, rejectRoutineAdaptation } from '@/src/services/routine.service';
+import { isInsufficientCreditsError } from '@/src/services/subscription.service';
 import { AdaptRoutineDay, AdaptRoutineResponseDto, Routine } from '@/src/types/routine';
 import { formatExerciseLoad } from '@/src/utils/format.utils';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -59,17 +61,32 @@ export const AdaptRoutineModal: React.FC<AdaptRoutineModalProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const { getToken } = useAuth();
+  const router = useRouter();
 
   const [step, setStep] = useState<Step>('loading');
   const [loadingText, setLoadingText] = useState('Analizando tu rutina con IA...');
   const [adaptationData, setAdaptationData] = useState<AdaptRoutineResponseDto | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  /**
+   * El error del step 'error' es un 402 (sin créditos). No alcanza con el mensaje: hay
+   * que ofrecer comprar créditos. No usamos `toast` acá porque este componente vive
+   * dentro de un `Modal` nativo, que se renderiza por encima del `FeedbackHost` del
+   * layout raíz — el toast quedaría invisible en iOS/Android.
+   */
+  const [isCreditsError, setIsCreditsError] = useState(false);
   const [isActionPending, setIsActionPending] = useState(false);
+
+  /** Cierra el modal (el Modal nativo taparía el paywall) y lleva a comprar créditos. */
+  const handleBuyCredits = () => {
+    onClose();
+    router.push('/profile/subscription');
+  };
 
   // Inicia la carga del análisis de la rutina
   const loadAnalysis = async () => {
     setStep('loading');
     setErrorMessage('');
+    setIsCreditsError(false);
     setLoadingText('Analizando tu rutina con IA...');
     
     try {
@@ -88,8 +105,19 @@ export const AdaptRoutineModal: React.FC<AdaptRoutineModalProps> = ({
         setStep('no-changes');
       }
     } catch (error: any) {
-      logger.error('[AdaptRoutineModal] Error en análisis:', error);
-      setErrorMessage(error.message || 'No se pudo procesar la adaptación. Intentalo de nuevo.');
+      // Adaptar con IA cuesta créditos: si se agotaron, el backend responde 402 y hay
+      // que decírselo al usuario con una salida, no con el error genérico. Es una
+      // condición esperada, así que no la logueamos como fallo.
+      const noCredits = isInsufficientCreditsError(error);
+      if (!noCredits) {
+        logger.error('[AdaptRoutineModal] Error en análisis:', error);
+      }
+      setIsCreditsError(noCredits);
+      setErrorMessage(
+        noCredits
+          ? 'Te quedaste sin créditos para adaptar tu rutina con IA.'
+          : error.message || 'No se pudo procesar la adaptación. Intentalo de nuevo.',
+      );
       setStep('error');
     }
   };
@@ -184,25 +212,54 @@ export const AdaptRoutineModal: React.FC<AdaptRoutineModalProps> = ({
           {/* STEP: ERROR */}
           {step === 'error' && (
             <View className="flex-1 justify-center items-center gap-6 px-4">
-              <View className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/30 items-center justify-center">
-                <Ionicons name="alert-circle" size={36} className="text-red-500" />
+              <View
+                className={
+                  isCreditsError
+                    ? 'w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-950/30 items-center justify-center'
+                    : 'w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/30 items-center justify-center'
+                }
+              >
+                <Ionicons
+                  name={isCreditsError ? 'flash-off' : 'alert-circle'}
+                  size={36}
+                  className={isCreditsError ? 'text-amber-500' : 'text-red-500'}
+                />
               </View>
               <View className="gap-2">
                 <Text className="text-slate-900 dark:text-slate-50 text-xl font-bold text-center">
-                  Ocurrió un inconveniente
+                  {isCreditsError ? 'Sin créditos' : 'Ocurrió un inconveniente'}
                 </Text>
                 <Text className="text-slate-500 dark:text-slate-400 text-center text-sm">
                   {errorMessage}
                 </Text>
               </View>
-              <TouchableOpacity 
-                onPress={loadAnalysis}
-                className="bg-lime-400 py-3 px-6 rounded-full"
-              >
-                <Text className="text-slate-950 font-bold text-center">
-                  Reintentar análisis
-                </Text>
-              </TouchableOpacity>
+              {isCreditsError ? (
+                // Sin créditos, reintentar vuelve a fallar: la única salida real es comprar.
+                <View className="gap-3 items-center">
+                  <TouchableOpacity
+                    onPress={handleBuyCredits}
+                    className="bg-lime-400 py-3 px-6 rounded-full"
+                  >
+                    <Text className="text-slate-950 font-bold text-center">
+                      Comprar créditos
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={onClose} className="py-2 px-4">
+                    <Text className="text-slate-500 dark:text-slate-400 font-semibold text-center text-sm">
+                      Ahora no
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={loadAnalysis}
+                  className="bg-lime-400 py-3 px-6 rounded-full"
+                >
+                  <Text className="text-slate-950 font-bold text-center">
+                    Reintentar análisis
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 

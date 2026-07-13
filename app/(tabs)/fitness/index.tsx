@@ -24,6 +24,9 @@ import {
 } from '@/src/offline/service';
 import { OfflineOperation, RoutineUpdateOperationPayload } from '@/src/offline/types';
 import { activateRoutine, deleteRoutine, generateRoutine, getActiveRoutine, getRoutineById, regenerateRoutine } from '@/src/services/routine.service';
+import { isInsufficientCreditsError } from '@/src/services/subscription.service';
+import { CreditsBadge } from '@/src/components/features/subscription/CreditsBadge';
+import { notifyInsufficientCredits } from '@/src/components/features/subscription/notifyInsufficientCredits';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { GenerateRoutinePayload, Routine, RoutineSource, RoutineSummary } from '@/src/types/routine';
 import { TrainingHistorySession } from '@/src/types/training-history';
@@ -213,11 +216,16 @@ export default function FitnessScreen() {
       setGenerateDraft(null); // éxito → descartamos el draft
       refreshPreview();
     } catch (error) {
-      logger.error(error);
       setCardState('initial');
-      toast.error('No pudimos generar tu rutina. Volvé a intentar.', {
-        title: 'Algo salió mal',
-      });
+      if (isInsufficientCreditsError(error)) {
+        // Condición esperada y ya notificada al usuario: no es un fallo que loguear.
+        notifyInsufficientCredits('Te quedaste sin créditos para generar rutinas.');
+      } else {
+        logger.error(error);
+        toast.error('No pudimos generar tu rutina. Volvé a intentar.', {
+          title: 'Algo salió mal',
+        });
+      }
       // Fallo → reabrimos el modal con los campos ya cargados (draft conservado).
       setShowGenerateModal(true);
     }
@@ -232,11 +240,16 @@ export default function FitnessScreen() {
       setActiveRoutine(newRoutine);
       setCardState('success');
     } catch (error) {
-      logger.error(error);
       setCardState('success');
-      toast.error('No pudimos regenerar tu rutina. Intentá de nuevo.', {
-        title: 'Algo salió mal',
-      });
+      if (isInsufficientCreditsError(error)) {
+        // Condición esperada y ya notificada al usuario: no es un fallo que loguear.
+        notifyInsufficientCredits('Te quedaste sin créditos para regenerar tu rutina.');
+      } else {
+        logger.error(error);
+        toast.error('No pudimos regenerar tu rutina. Intentá de nuevo.', {
+          title: 'Algo salió mal',
+        });
+      }
     }
   }, [getToken, setActiveRoutine]);
 
@@ -586,9 +599,10 @@ export default function FitnessScreen() {
   return (
     <SafeAreaView className="flex-1 bg-zinc-950">
       <ScrollView contentContainerClassName="pt-8 pb-32" showsVerticalScrollIndicator={false}>
-        {/* Título */}
-        <View className="px-4 mb-2">
+        {/* Título + saldo de créditos, al mismo nivel */}
+        <View className="px-4 mb-2 flex-row items-center justify-between">
           <Text className="text-3xl font-bold text-white">Fitness</Text>
+          <CreditsBadge />
         </View>
 
         {/* Tu rutina activa */}

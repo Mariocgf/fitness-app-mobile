@@ -18,7 +18,13 @@ export const storePurchaseProvider: PurchaseProvider = {
     );
   },
 
-  async purchase(_productId: string, _platform: PurchasePlatform): Promise<PurchaseResult> {
+  async purchase(
+    _productId: string,
+    _platform: PurchasePlatform,
+    _externalUserId?: string,
+  ): Promise<PurchaseResult> {
+    // En prod el SDK del store resuelve la identidad del comprador solo, por eso
+    // `externalUserId` se ignora acá (es un dato que solo necesita el emulador).
     throw new Error(
       'El pago real del store no está implementado todavía. Requiere un dev build con el SDK del store.',
     );

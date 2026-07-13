@@ -4,6 +4,7 @@ import { Pressable, Text, View } from 'react-native';
 
 import { GradientText } from '@/src/components/common/GradientText';
 import { usePlans } from '@/src/hooks/usePlans';
+import { useSubscription } from '@/src/store/subscription-context';
 import { BillingInterval, PlanViewModel } from '@/src/types/subscription';
 
 import { BillingIntervalToggle } from './BillingIntervalToggle';
@@ -26,16 +27,49 @@ interface PaywallViewProps {
  * Paywall: compara los planes disponibles combinando la estructura del backend
  * (`GET /plans`) con el precio vivo del store/emulador. La selección es única y
  * el CTA "Elegir plan" delega la compra en la pantalla vía `onChoosePlan`.
+ *
+ * El plan que el usuario ya tiene contratado NO se ofrece de nuevo (lo muestra
+ * `SubscriptionStatusCard`, arriba en la misma pantalla).
  */
 export const PaywallView: React.FC<PaywallViewProps> = ({ onChoosePlan }) => {
   const { plans, isLoading, error, refresh } = usePlans();
+  const { status } = useSubscription();
   const [billingInterval, setBillingInterval] = useState<BillingInterval>('Monthly');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
-  // Filtro estricto por ciclo de cobro (el contrato manda variantes separadas).
+  /**
+   * Plan ya contratado, por `productId` (identidad del store) y NO por tier: Fitness
+   * Mensual y Fitness Anual son productos distintos, así que ocultar por tier le
+   * sacaría al usuario el pase a anual.
+   *
+   * Solo cuenta si la suscripción está ACTIVA: vencida o inválida tiene que poder
+   * volver a comprarse, o el usuario queda sin forma de renovar.
+   */
+  const ownedProductId = status.status === 'active' ? status.productId : null;
+
+  // Filtro estricto por ciclo de cobro (el contrato manda variantes separadas),
+  // menos el plan ya contratado.
   const visiblePlans = useMemo(
-    () => plans.filter((plan) => plan.billingInterval === billingInterval),
-    [plans, billingInterval],
+    () =>
+      plans.filter(
+        (plan) =>
+          plan.billingInterval === billingInterval &&
+          !(plan.productId !== null && plan.productId === ownedProductId),
+      ),
+    [plans, billingInterval, ownedProductId],
+  );
+
+  /**
+   * La selección se resuelve SIEMPRE contra la lista visible. Al cambiar de ciclo —o
+   * al desaparecer el plan recién comprado— el id seleccionado queda huérfano, y sin
+   * esto el CTA quedaba habilitado apuntando a un plan que ya no está.
+   */
+  const selectedPlan = useMemo(
+    () =>
+      selectedProductId === null
+        ? null
+        : (visiblePlans.find((plan) => plan.productId === selectedProductId) ?? null),
+    [visiblePlans, selectedProductId],
   );
 
   if (isLoading) {
@@ -65,8 +99,6 @@ export const PaywallView: React.FC<PaywallViewProps> = ({ onChoosePlan }) => {
   }
 
   const handleChoosePlan = () => {
-    // El CTA está deshabilitado sin selección, así que acá siempre hay un plan.
-    const selectedPlan = visiblePlans.find((plan) => plan.productId === selectedProductId);
     if (selectedPlan) onChoosePlan?.(selectedPlan);
   };
 
@@ -100,15 +132,15 @@ export const PaywallView: React.FC<PaywallViewProps> = ({ onChoosePlan }) => {
       {/* CTA — Fase 2: deshabilitado sin selección; compra real en Fase 3 */}
       <Pressable
         onPress={handleChoosePlan}
-        disabled={selectedProductId === null}
+        disabled={selectedPlan === null}
         className={`mt-6 items-center rounded-2xl px-6 py-4 ${
-          selectedProductId === null ? 'bg-zinc-800' : 'bg-zinc-50'
+          selectedPlan === null ? 'bg-zinc-800' : 'bg-zinc-50'
         }`}
         style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
       >
         <Text
           className={`text-base font-semibold ${
-            selectedProductId === null ? 'text-zinc-500' : 'text-zinc-950'
+            selectedPlan === null ? 'text-zinc-500' : 'text-zinc-950'
           }`}
         >
           Elegir plan

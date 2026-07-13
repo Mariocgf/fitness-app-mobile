@@ -13,6 +13,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CreditsBadge } from '@/src/components/features/subscription/CreditsBadge';
+
 type Tab = 'resumen' | 'plan';
 
 const TAB_OPTIONS: { label: string; value: Tab }[] = [
@@ -81,6 +83,9 @@ export default function NutritionScreen() {
           offline vive a la derecha, al nivel del título. */}
       <View className="px-4 pt-8 pb-3 flex-row items-center justify-between">
         <Text className="text-white text-4xl font-bold">Nutrición</Text>
+        {/* Saldo de créditos + descarga offline, al nivel del título */}
+        <View className="flex-row items-center gap-2">
+        <CreditsBadge />
         {showOfflineButton && (
           <TouchableOpacity
             onPress={offline.download}
@@ -109,6 +114,7 @@ export default function NutritionScreen() {
             </Text>
           </TouchableOpacity>
         )}
+        </View>
       </View>
 
       {/* Toggle Resumen / Plan */}

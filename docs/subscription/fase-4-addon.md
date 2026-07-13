@@ -3,7 +3,14 @@
 > Seguí las **reglas obligatorias** del [`README.md`](./README.md) (agent.md + lecciones).
 > Depende de: **Fase 3** (reusa el flujo de compra emulada).
 
-**Estado: ⬜ Pendiente.**
+**Estado: ✅ Hecha.**
+
+> Implementación: `src/hooks/useCreditsAddon.ts` (carga el precio del store + orquesta
+> compra → `POST /credits/addon`, ramifica por `granted`/`reason`),
+> `src/components/features/subscription/CreditsAddonCard.tsx` (card siempre visible) y el
+> cableado en `app/profile/subscription.tsx`. La hoja de compra emulada de Fase 3
+> (`MockPurchaseSheet`) se **generalizó** a un `PurchaseSheetItem` para reutilizarla con
+> el add-on. El upsell del usuario Free (`granted:false`) baja el scroll al paywall.
 
 ## Objetivo
 Permitir comprar el pack consumible de **+10 créditos** (`credits_addon`) sobre un

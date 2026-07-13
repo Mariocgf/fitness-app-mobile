@@ -10,6 +10,14 @@ import { useSyncExternalStore } from 'react';
 
 export type ToastVariant = 'success' | 'error' | 'info' | 'warning';
 
+/** CTA opcional del toast. Usarlo solo cuando hay una salida concreta para el usuario. */
+export interface ToastAction {
+  /** Texto del botón. Corto y en imperativo: "Comprar créditos", "Reintentar". */
+  label: string;
+  /** Handler del botón. El toast se cierra solo antes de ejecutarlo. */
+  onPress: () => void;
+}
+
 export interface ToastOptions {
   /** Título opcional en negrita arriba del mensaje. Omitir si el mensaje se basta solo. */
   title?: string;
@@ -17,6 +25,8 @@ export interface ToastOptions {
   variant?: ToastVariant;
   /** Duración en ms antes de auto-cerrarse. 0 = no se cierra solo. Default: 3500. */
   duration?: number;
+  /** Botón de acción opcional. Si lo usás, dale al usuario tiempo de tocarlo (`duration` alta o 0). */
+  action?: ToastAction;
 }
 
 export interface ToastEntry extends ToastOptions {
@@ -45,6 +55,7 @@ function show(message: string, options: ToastOptions = {}): number {
     title: options.title,
     variant: options.variant ?? 'info',
     duration: options.duration ?? DEFAULT_DURATION,
+    action: options.action,
   };
 
   // Mantenemos a lo sumo MAX_VISIBLE: el más viejo se descarta.

@@ -1,6 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect } from 'react';
-import { ActivityIndicator, Pressable, Text, useWindowDimensions, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import Animated, {
   Easing,
   interpolate,
@@ -14,7 +21,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GradientText } from '@/src/components/common/GradientText';
 import { IconTile } from '@/src/components/common/IconTile';
 import { getPurchasePlatform } from '@/src/services/purchase';
-import { PlanViewModel, PurchasePlatform } from '@/src/types/subscription';
+import { PurchasePlatform } from '@/src/types/subscription';
+
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 /** Acento premium puntual (violeta → índigo) para el clímax "Premium". */
 const PREMIUM_GRADIENT = ['#a78bfa', '#818cf8'] as const;
@@ -23,12 +32,52 @@ const PREMIUM_GRADIENT = ['#a78bfa', '#818cf8'] as const;
 const platformLabel = (platform: PurchasePlatform): string =>
   platform === 'Ios' ? 'iOS · App Store' : 'Android · Google Play';
 
+/**
+ * Layout del overlay en `StyleSheet` y NO en `className`.
+ *
+ * Un `Animated.View` que recibe estilos animados ignora las clases de NativeWind
+ * en web (reanimated toma el control del prop `style`): sin esto la hoja pierde
+ * `position: absolute` y su fondo, cae en el flujo normal y se apila arriba.
+ * Misma lección que `ExerciseDetailView` / `RoutineDetailView`.
+ */
+const styles = StyleSheet.create({
+  backdrop: { backgroundColor: 'rgba(0, 0, 0, 0.6)' },
+  sheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#09090b', // zinc-950
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+});
+
+/**
+ * Producto a comprar, ya en forma de presentación. Desacopla la hoja del modelo de
+ * plan para reutilizarla también con el add-on de créditos (u otros consumibles).
+ */
+export interface PurchaseSheetItem {
+  /** Nombre del producto (ej. "Plan Full" / "+10 créditos"). */
+  title: string;
+  /** Subtítulo bajo el nombre (ej. "Cobro anual" / "Pack consumible"). */
+  subtitle: string;
+  /** Precio localizado a mostrar (del store o de referencia). */
+  price: string;
+  /** Aplica el acento premium (gradiente violeta) al nombre y al ícono. */
+  premium: boolean;
+  /** Ícono del producto (default `diamond-outline`). */
+  icon?: IoniconName;
+}
+
 interface MockPurchaseSheetProps {
-  /** Plan seleccionado a comprar (nombre, precio localizado, tier). */
-  plan: PlanViewModel;
+  /** Producto a comprar (nombre, subtítulo, precio, acento). */
+  item: PurchaseSheetItem;
   /** Estado de compra en curso (del hook): bloquea el CTA y muestra spinner. */
   isPurchasing: boolean;
-  /** Dispara la compra (`provider.purchase` → `POST /validate`). Resuelve al terminar. */
+  /** Dispara la compra (`provider.purchase` → validación en backend). Resuelve al terminar. */
   onConfirm: () => Promise<void>;
   /** Cierra y desmonta la hoja (cancelar / backdrop / post-compra). */
   onDismiss: () => void;
@@ -44,11 +93,14 @@ interface MockPurchaseSheetProps {
  * dentro del `ScrollView`), para que el `absolute inset-0` cubra el área de la
  * pantalla en vez de scrollear con el contenido.
  *
+ * El layout del backdrop y de la hoja va en `StyleSheet` (ver `styles`), no en
+ * `className`: NativeWind no llega a los `Animated.View` con estilo animado en web.
+ *
  * Padding inferior = solo `insets.bottom`: la ruta de Perfil está fuera de
  * `(tabs)`, no tiene tab bar nativo.
  */
 export const MockPurchaseSheet: React.FC<MockPurchaseSheetProps> = ({
-  plan,
+  item,
   isPurchasing,
   onConfirm,
   onDismiss,
@@ -95,20 +147,15 @@ export const MockPurchaseSheet: React.FC<MockPurchaseSheetProps> = ({
     transform: [{ translateY: interpolate(progress.value, [0, 1], [screenHeight, 0]) }],
   }));
 
-  const isPremium = plan.tier !== 'Free';
-
   return (
     <View className="absolute inset-0 z-50">
       {/* Backdrop: oscurece el contenido y cierra al tocar afuera */}
-      <Animated.View style={backdropStyle} className="absolute inset-0 bg-black/60">
-        <Pressable className="flex-1" onPress={handleCancel} />
+      <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleCancel} />
       </Animated.View>
 
       {/* Hoja anclada abajo */}
-      <Animated.View
-        style={[sheetStyle, { paddingBottom: insets.bottom + 16 }]}
-        className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-zinc-950 px-5 pt-3"
-      >
+      <Animated.View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }, sheetStyle]}>
         {/* Grabber */}
         <View className="mb-4 h-1 w-10 self-center rounded-full bg-zinc-700" />
 
@@ -124,20 +171,21 @@ export const MockPurchaseSheet: React.FC<MockPurchaseSheetProps> = ({
 
         {/* Producto */}
         <View className="mt-4 flex-row items-center">
-          <IconTile name="diamond-outline" color={isPremium ? '#a78bfa' : '#a1a1aa'} />
+          <IconTile
+            name={item.icon ?? 'diamond-outline'}
+            color={item.premium ? '#a78bfa' : '#a1a1aa'}
+          />
           <View className="ml-4 flex-1">
-            {isPremium ? (
+            {item.premium ? (
               <GradientText className="text-lg font-bold" colors={PREMIUM_GRADIENT}>
-                {plan.name}
+                {item.title}
               </GradientText>
             ) : (
-              <Text className="text-lg font-bold text-zinc-100">{plan.name}</Text>
+              <Text className="text-lg font-bold text-zinc-100">{item.title}</Text>
             )}
-            <Text className="mt-0.5 text-sm text-zinc-500">
-              {plan.billingInterval === 'Annual' ? 'Cobro anual' : 'Cobro mensual'}
-            </Text>
+            <Text className="mt-0.5 text-sm text-zinc-500">{item.subtitle}</Text>
           </View>
-          <Text className="text-2xl font-bold text-zinc-50">{plan.localizedPrice}</Text>
+          <Text className="text-2xl font-bold text-zinc-50">{item.price}</Text>
         </View>
 
         {/* Aviso de emulación (no inventar un cargo real) */}

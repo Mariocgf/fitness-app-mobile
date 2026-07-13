@@ -26,9 +26,14 @@ interface UsePurchaseFlowReturn {
  * sin conceder acceso.
  */
 export function usePurchaseFlow(): UsePurchaseFlowReturn {
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
+
+  // Identidad del comprador para el emulador (`externalUserId`). En prod el SDK del
+  // store la resuelve solo; en dev la exige el emulador, así que usamos el userId de Clerk.
+  const userIdRef = useRef(userId);
+  userIdRef.current = userId;
 
   const subscription = useSubscription();
 
@@ -44,9 +49,13 @@ export function usePurchaseFlow(): UsePurchaseFlowReturn {
       setError(null);
 
       try {
-        // 1) Compra emulada contra el store/emulador → receipt/token.
+        // 1) Compra emulada contra el store/emulador → receipt/token persistido.
         const platform = getPurchasePlatform();
-        const result = await getPurchaseProvider().purchase(plan.productId, platform);
+        const result = await getPurchaseProvider().purchase(
+          plan.productId,
+          platform,
+          userIdRef.current ?? undefined,
+        );
 
         // 2) Validación contra el backend (idempotente: revalidar no duplica).
         const token = await getTokenRef.current();

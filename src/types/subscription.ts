@@ -17,6 +17,9 @@ export type BillingInterval = 'Monthly' | 'Annual';
 /** Plataforma de compra que espera el backend en `POST /validate` y `/credits/addon`. */
 export type PurchasePlatform = 'Ios' | 'Android';
 
+/** Plataforma en el formato que espera el emulador IAP (`POST /store/purchases`, en minúscula). */
+export type EmulatorPlatform = 'ios' | 'android';
+
 // ── DTOs del backend ──
 
 /** Plan del catálogo. Free aparece con `productId: null`. */
@@ -38,9 +41,27 @@ export interface SubscriptionStatusDto {
   status: SubscriptionStatusValue;
   /** ISO date; `null` si no hay período activo. */
   currentPeriodEnd: string | null;
+  /**
+   * Cupo mensual que otorga el PLAN (Free: 0, Fitness/Nutrition: 15, Full: 40).
+   * OJO: no es el saldo disponible. El saldo del wallet vive en `CreditsBalanceDto`
+   * (`GET /credits`) y se alimenta también de los créditos de bienvenida y los add-ons.
+   */
   monthlyCredits: number;
   billingInterval: BillingInterval;
   productId: string | null;
+}
+
+/**
+ * Saldo real del wallet de créditos (`GET /api/subscription/credits`).
+ *
+ * Es la ÚNICA fuente de verdad de "cuántos créditos me quedan". No confundir con
+ * `SubscriptionStatusDto.monthlyCredits`, que es el cupo del plan: un usuario Free
+ * tiene cupo 0 y aun así puede tener saldo (créditos de bienvenida, add-ons).
+ */
+export interface CreditsBalanceDto {
+  balance: number;
+  /** ISO date del último movimiento del wallet. */
+  updatedAt: string;
 }
 
 /** Resultado de comprar el add-on de créditos. `granted: false` NO es error. */
@@ -66,6 +87,11 @@ export interface PurchaseAddonRequest {
   productId: string;
   receiptOrToken: string;
 }
+
+/** ProductId del pack consumible de créditos (mismo id que espera el backend). */
+export const CREDITS_ADDON_PRODUCT_ID = 'credits_addon';
+/** Precio de referencia del add-on (fallback si el store no devuelve el producto). */
+export const CREDITS_ADDON_REFERENCE_PRICE = '$2.99';
 
 // ── Catálogo del emulador IAP (solo dev, detrás del adapter) ──
 // Forma de `GET /admin/catalog`. El paywall NO consume esto directo: lo lee el
@@ -135,6 +161,39 @@ export interface PurchaseResult {
   platform: PurchasePlatform;
   productId: string;
   receiptOrToken: string;
+}
+
+// ── Compra emulada (`POST /store/purchases`) — solo dev, detrás del adapter ──
+// En prod el receipt lo genera el SDK del store tras la compra real; acá lo genera
+// y PERSISTE el emulador, y el front solo lo reenvía a su backend para validarlo.
+
+/** Escenario que simula el emulador. `success` es el happy path de dev. */
+export type EmulatorPurchaseScenario = 'success';
+
+/** Body de `POST /store/purchases`. `planId` es el `productId` del catálogo. */
+export interface EmulatorPurchaseRequest {
+  platform: EmulatorPlatform;
+  planId: string;
+  /** Identidad "de store" del comprador (en dev, el userId de Clerk). */
+  externalUserId: string;
+  appId: string;
+  scenario: EmulatorPurchaseScenario;
+}
+
+/**
+ * Respuesta 201 de `POST /store/purchases`. El front SOLO usa `receiptOrToken` y
+ * `productId`; el resto (transaction ids, `validationPath`) lo maneja el backend
+ * al validar contra el mock de Apple/Google.
+ */
+export interface EmulatorPurchaseResponse {
+  status: string;
+  platform: EmulatorPlatform;
+  productId: string;
+  receiptOrToken: string;
+  purchaseId: string;
+  transactionId: string;
+  originalTransactionId: string;
+  validationPath: string;
 }
 
 // ── View model del paywall (merge backend + store) ──

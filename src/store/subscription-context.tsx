@@ -10,8 +10,9 @@ import React, {
   useState,
 } from 'react';
 
-import { getMySubscription } from '../services/subscription.service';
+import { getCreditsBalance, getMySubscription } from '../services/subscription.service';
 import { SubscriptionStatusDto, SubscriptionTier } from '../types/subscription';
+import { creditsEvents } from './credits-events';
 import { logger } from '../utils/logger';
 import {
   beginAbortableRequest,
@@ -54,22 +55,34 @@ interface SubscriptionContextValue {
   tier: SubscriptionTier;
   /** Módulos desbloqueados por el tier actual. */
   unlockedModules: string[];
+  /**
+   * Saldo real del wallet (`GET /credits`). `null` = TODAVÍA NO SE SABE.
+   *
+   * Nunca usar `0` como default: 0 es un valor con significado propio ("no te queda
+   * nada") y mostrarlo sin haberlo confirmado le miente al usuario. Si es `null`, la
+   * UI muestra un placeholder, no un número.
+   */
+  credits: number | null;
   isLoading: boolean;
   error: string | null;
   /** True si el tier actual desbloquea el módulo indicado (ej. "fitness"). */
   hasModuleAccess: (moduleName: string) => boolean;
   /** Vuelve a consultar `GET /me` contra el backend. */
   refresh: () => Promise<void>;
+  /** Vuelve a consultar el saldo (`GET /credits`). Llamar tras comprar o consumir IA. */
+  refreshCredits: () => Promise<void>;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextValue>({
   status: FREE_STATUS,
   tier: 'Free',
   unlockedModules: [],
+  credits: null,
   isLoading: false,
   error: null,
   hasModuleAccess: () => false,
   refresh: async () => {},
+  refreshCredits: async () => {},
 });
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
@@ -77,10 +90,15 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const getTokenRef = useRef(getToken);
   const mountedRef = useRef(true);
   const requestRef = useRef<AbortController | null>(null);
+  const creditsRequestRef = useRef<AbortController | null>(null);
 
   getTokenRef.current = getToken;
 
   const [status, setStatus] = useState<SubscriptionStatusDto>(FREE_STATUS);
+  // `null` = desconocido. NO se cachea en AsyncStorage a propósito: el wallet lo mueve
+  // el backend en cada acción de IA, así que un saldo persistido sería un dato viejo
+  // presentado como actual. Preferimos "no sé" antes que mentir.
+  const [credits, setCredits] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -103,6 +121,25 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
+  /**
+   * Consulta el saldo real del wallet. Su fallo NO ensucia el `error` del contexto:
+   * si no pudimos traer el saldo, la tarjeta de suscripción tiene que seguir viéndose
+   * (el saldo queda en `null` y la UI muestra un placeholder, no un 0 inventado).
+   */
+  const refreshCredits = useCallback(async () => {
+    const controller = beginAbortableRequest(creditsRequestRef);
+    try {
+      const token = await getTokenRef.current();
+      const next = await getCreditsBalance(token, controller.signal);
+      if (!mountedRef.current || !isCurrentRequest(creditsRequestRef, controller)) return;
+      setCredits(next.balance);
+    } catch (err: any) {
+      if (isRequestCanceled(err)) return;
+      logger.error('Error consultando el saldo de créditos:', err);
+      if (mountedRef.current) setCredits(null);
+    }
+  }, []);
+
   /** Hidratación al montar: muestra el último estado cacheado y luego sincroniza. */
   useEffect(() => {
     mountedRef.current = true;
@@ -115,12 +152,20 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       .catch((e) => logger.error('Error hidratando suscripción:', e))
       .finally(() => {
         refresh();
+        refreshCredits();
       });
 
     return () => {
       mountedRef.current = false;
     };
-  }, [refresh]);
+  }, [refresh, refreshCredits]);
+
+  /**
+   * Se suscribe al bus: cada vez que una acción de IA toca el wallet, releemos el saldo.
+   * Este es el único disparador del contador global además del montaje — el saldo NO se
+   * poletea ni se recalcula en el cliente (ver `credits-events.ts`).
+   */
+  useEffect(() => creditsEvents.subscribe(() => void refreshCredits()), [refreshCredits]);
 
   /** Persiste el último estado conocido para el arranque offline-first. */
   useEffect(() => {
@@ -139,12 +184,14 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       status,
       tier: status.tier,
       unlockedModules,
+      credits,
       isLoading,
       error,
       hasModuleAccess,
       refresh,
+      refreshCredits,
     }),
-    [status, unlockedModules, isLoading, error, hasModuleAccess, refresh],
+    [status, unlockedModules, credits, isLoading, error, hasModuleAccess, refresh, refreshCredits],
   );
 
   return <SubscriptionContext.Provider value={value}>{children}</SubscriptionContext.Provider>;

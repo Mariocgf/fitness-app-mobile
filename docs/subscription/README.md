@@ -49,6 +49,7 @@ valida y concede acceso/créditos. El front **solo refleja** el estado que devue
 |---|---|---|
 | `EXPO_PUBLIC_IAP_EMULATOR_URL` | Base del emulador IAP (mock del store) | `http://localhost:5247` |
 | `EXPO_PUBLIC_IAP_EMULATOR_KEY` | Header `X-Mock-Key` para `GET /admin/catalog` | `<tu-key-local>` |
+| `EXPO_PUBLIC_IAP_EMULATOR_APP_ID` | `appId` del body de `POST /store/purchases` | `wellium-app` (default) |
 
 > Distintas de `EXPO_PUBLIC_API_URL` (backend, ej. `:5233`). La `X-Mock-Key` es
 > **solo dev**: no va en un bundle público de prod/staging.
@@ -79,7 +80,7 @@ violeta/índigo) en el clímax "Premium". CTA principal `zinc-50`.
 | 1 | ✅ Hecha | [`fase-1-estado.md`](./fase-1-estado.md) | `SubscriptionProvider` + `GET /me`. Perfil con tier real. |
 | 2 | ✅ Hecha | [`fase-2-paywall.md`](./fase-2-paywall.md) | Paywall: `GET /plans` + precios del emulador. |
 | 3 | ✅ Hecha | [`fase-3-compra.md`](./fase-3-compra.md) | Compra emulada (iOS/Android/PWA) + `POST /validate`. |
-| 4 | ⬜ Pendiente | [`fase-4-addon.md`](./fase-4-addon.md) | Add-on de créditos + `POST /credits/addon`. |
+| 4 | ✅ Hecha | [`fase-4-addon.md`](./fase-4-addon.md) | Add-on de créditos + `POST /credits/addon`. |
 | 5 | ⬜ Pendiente | [`fase-5-402-gating.md`](./fase-5-402-gating.md) | Manejo del 402 en acciones de IA + CTAs de upgrade. |
 
 > Cadena de dependencias: **0 → 1 → 2 → 3 → 4 → 5**. Cada fase deja `tsc`/ESLint

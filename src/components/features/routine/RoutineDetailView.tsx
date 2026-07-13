@@ -42,6 +42,8 @@ import {
   View,
 } from 'react-native';
 import { toast } from '@/src/components/ui/feedback';
+import { isInsufficientCreditsError } from '@/src/services/subscription.service';
+import { notifyInsufficientCredits } from '@/src/components/features/subscription/notifyInsufficientCredits';
 import Animated, {
   Easing,
   Extrapolation,
@@ -336,7 +338,7 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
           setSoftWarning({ warnings: response.warnings, level: response.warningLevel });
         }
       }
-    } catch {
+    } catch (error) {
       setLoadingItems(prev => {
         const next = new Set(prev);
         ids.forEach(id => next.delete(id));
@@ -347,6 +349,10 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
         ids.forEach(id => next.add(id));
         return next;
       });
+      // El swap con IA consume créditos; sin ellos el backend responde 402.
+      if (isInsufficientCreditsError(error)) {
+        notifyInsufficientCredits('Te quedaste sin créditos para pedir sugerencias con IA.');
+      }
     }
   }, [selectedForSwap, getToken]);
 

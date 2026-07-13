@@ -15,7 +15,16 @@ export interface PurchaseProvider {
 
   /**
    * Ejecuta la compra de un producto y devuelve el receipt/token para mandar a
-   * `POST /validate`. En dev es un token simulado; en prod, el real del store.
+   * `POST /validate`. En prod lo genera el SDK del store tras la compra real; en dev
+   * lo genera y persiste el emulador (`POST /store/purchases`).
+   *
+   * `externalUserId` es la identidad "de store" del comprador. En prod el SDK la
+   * resuelve solo (por eso es OPCIONAL acá), pero el emulador la exige en el body,
+   * así que en dev se pasa el userId de Clerk.
    */
-  purchase(productId: string, platform: PurchasePlatform): Promise<PurchaseResult>;
+  purchase(
+    productId: string,
+    platform: PurchasePlatform,
+    externalUserId?: string,
+  ): Promise<PurchaseResult>;
 }

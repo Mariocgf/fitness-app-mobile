@@ -1,11 +1,21 @@
 import {
   AdminCatalogDto,
+  EmulatorPlatform,
   PurchasePlatform,
   PurchaseResult,
   StoreProduct,
 } from '../../types/subscription';
-import { getAdminCatalog } from './emulator-client';
+import { logger } from '../../utils/logger';
+import { createStorePurchase, getAdminCatalog } from './emulator-client';
 import { PurchaseProvider } from './purchase-provider';
+
+/** `appId` del emulador (configurable por env, con default del proyecto). */
+const EMULATOR_APP_ID =
+  process.env.EXPO_PUBLIC_IAP_EMULATOR_APP_ID || 'wellium-app';
+
+/** El emulador espera la plataforma en minúscula (`ios`/`android`). */
+const toEmulatorPlatform = (platform: PurchasePlatform): EmulatorPlatform =>
+  platform === 'Ios' ? 'ios' : 'android';
 
 /** Formatea un monto + moneda para mostrar (ej. "$49.90" / "49.90 EUR"). */
 const formatLocalizedPrice = (amount: number, currency: string): string => {
@@ -54,17 +64,60 @@ const indexCatalogByProductId = (catalog: AdminCatalogDto): Map<string, StorePro
  */
 export const mockPurchaseProvider: PurchaseProvider = {
   async getProducts(productIds: string[]): Promise<StoreProduct[]> {
-    const catalog = await getAdminCatalog();
-    const index = indexCatalogByProductId(catalog);
-    return productIds
-      .map((id) => index.get(id))
-      .filter((product): product is StoreProduct => Boolean(product));
+    logger.log('[mock-purchase-provider] getProducts:', productIds);
+    try {
+      const catalog = await getAdminCatalog();
+      const index = indexCatalogByProductId(catalog);
+      const products = productIds
+        .map((id) => index.get(id))
+        .filter((product): product is StoreProduct => Boolean(product));
+
+      const missing = productIds.filter((id) => !index.has(id));
+      if (missing.length > 0) {
+        logger.error(
+          '[mock-purchase-provider] productId(s) no encontrados en el catálogo del emulador:',
+          missing,
+        );
+      }
+      logger.log('[mock-purchase-provider] getProducts OK:', products);
+      return products;
+    } catch (error) {
+      logger.error('[mock-purchase-provider] getProducts FALLÓ:', error);
+      throw error;
+    }
   },
 
-  async purchase(productId: string, platform: PurchasePlatform): Promise<PurchaseResult> {
-    // Receipt/token simulado. En prod, esto lo devuelve el SDK del store tras la
-    // compra real. El backend en dev acepta este token contra el emulador.
-    const receiptOrToken = `mock-receipt-${platform}-${productId}-${Date.now()}`;
-    return { platform, productId, receiptOrToken };
+  async purchase(
+    productId: string,
+    platform: PurchasePlatform,
+    externalUserId?: string,
+  ): Promise<PurchaseResult> {
+    // El emulador exige la identidad del comprador en el body. En prod el SDK del
+    // store la resuelve solo; acá la pasa el hook (userId de Clerk). Sin ella no se
+    // puede simular la compra de forma coherente.
+    if (!externalUserId) {
+      throw new Error(
+        'Falta externalUserId para la compra emulada. Pasá el userId de Clerk al provider.',
+      );
+    }
+
+    // Ya NO fabricamos el receipt: se lo pedimos al emulador, que lo GENERA y PERSISTE.
+    // Ese es el token que el backend después valida contra su mock de Apple/Google.
+    logger.log('[mock-purchase-provider] purchase (emulada):', { productId, platform, externalUserId });
+    const purchase = await createStorePurchase({
+      platform: toEmulatorPlatform(platform),
+      planId: productId,
+      externalUserId,
+      appId: EMULATOR_APP_ID,
+      scenario: 'success',
+    });
+
+    // Devolvemos en el shape del backend (`PurchasePlatform` en mayúscula). El
+    // `receiptOrToken` es el persistido por el emulador, no uno inventado.
+    return {
+      platform,
+      productId: purchase.productId,
+      receiptOrToken: purchase.receiptOrToken,
+    };
   },
 };

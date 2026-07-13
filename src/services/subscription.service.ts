@@ -1,11 +1,14 @@
 import apiClient from '../api/client';
+import { creditsEvents } from '../store/credits-events';
 import {
+  CreditsBalanceDto,
   PurchaseAddonRequest,
   PurchaseAddonResultDto,
   SubscriptionPlanDto,
   SubscriptionStatusDto,
   ValidatePurchaseRequest,
 } from '../types/subscription';
+import { logger } from '../utils/logger';
 import { withRequestSignal } from '../utils/request-cancellation';
 
 /**
@@ -104,6 +107,31 @@ export const getMySubscription = async (
 };
 
 /**
+ * Saldo real del wallet de créditos.
+ *
+ * Es la única fuente de verdad de "cuántos créditos me quedan". `GET /me` NO lo trae:
+ * su `monthlyCredits` es el cupo del plan (Free = 0), no el saldo. El wallet lo mueve
+ * el backend (bienvenida, renovación, add-ons, consumo y reembolsos de IA), así que
+ * siempre se consulta — nunca se calcula ni se cachea en el cliente.
+ *
+ * @param token Token de autenticación de Clerk.
+ */
+export const getCreditsBalance = async (
+  token: string | null,
+  signal?: AbortSignal,
+): Promise<CreditsBalanceDto> => {
+  try {
+    const { data } = await apiClient.get<CreditsBalanceDto | { data: CreditsBalanceDto }>(
+      '/api/subscription/credits',
+      withRequestSignal({ headers: { Authorization: `Bearer ${token}` } }, signal),
+    );
+    return unwrapApiData(data);
+  } catch (error) {
+    throw mapSubscriptionError(error);
+  }
+};
+
+/**
  * Valida una compra contra el backend (que a su vez valida contra la store).
  * Idempotente: revalidar la misma compra no duplica ni recompensa.
  * @param request Plataforma, productId y receipt/token de la compra.
@@ -122,6 +150,9 @@ export const validatePurchase = async (
     return unwrapApiData(data);
   } catch (error) {
     throw mapSubscriptionError(error);
+  } finally {
+    // Activar un plan otorga el primer pool mensual de créditos: el saldo cambió.
+    creditsEvents.emitWalletChanged();
   }
 };
 
@@ -135,14 +166,22 @@ export const purchaseCreditsAddon = async (
   request: PurchaseAddonRequest,
   token: string | null,
 ): Promise<PurchaseAddonResultDto> => {
+  logger.log('[subscription.service] POST /api/subscription/credits/addon:', request);
   try {
     const { data } = await apiClient.post<PurchaseAddonResultDto | { data: PurchaseAddonResultDto }>(
       '/api/subscription/credits/addon',
       request,
       { headers: { Authorization: `Bearer ${token}` } },
     );
-    return unwrapApiData(data);
+    const result = unwrapApiData(data);
+    logger.log('[subscription.service] credits/addon OK:', result);
+    return result;
   } catch (error) {
+    logger.error('[subscription.service] credits/addon FALLÓ:', error);
     throw mapSubscriptionError(error);
+  } finally {
+    // El add-on suma +10 al wallet. También emitimos en `granted: false` por idempotencia
+    // ("ya fue otorgado"): el saldo YA lo incluye y hay que reflejarlo igual.
+    creditsEvents.emitWalletChanged();
   }
 };

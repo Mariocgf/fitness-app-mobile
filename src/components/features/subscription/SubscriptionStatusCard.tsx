@@ -39,6 +39,20 @@ const statusLabel = (status: SubscriptionStatusValue): string => {
 const billingLabel = (interval: BillingInterval): string =>
   interval === 'Annual' ? 'Anual' : 'Mensual';
 
+/**
+ * Saldo del wallet. `null` = todavía no lo sabemos → mostramos "—", NUNCA "0":
+ * un 0 sin confirmar le dice al usuario que se quedó sin créditos cuando quizá tiene.
+ */
+const creditsLabel = (credits: number | null): string =>
+  credits === null ? '—' : String(credits);
+
+/**
+ * Cupo mensual del plan. En Free es 0, pero "0" a secas se confunde con el saldo,
+ * así que lo decimos con palabras.
+ */
+const monthlyCreditsLabel = (monthlyCredits: number): string =>
+  monthlyCredits === 0 ? 'Sin cupo mensual' : `${monthlyCredits} / mes`;
+
 /** Formatea una fecha ISO al formato corto del repo. `null` → no se muestra. */
 const formatPeriodEnd = (iso: string): string =>
   new Date(iso).toLocaleDateString('es-AR', {
@@ -61,7 +75,7 @@ const DetailRow: React.FC<{ label: string; value: string }> = ({ label, value })
  * no muestra fecha. Acento premium solo cuando el tier no es Free.
  */
 export const SubscriptionStatusCard: React.FC = () => {
-  const { status, isLoading, error, refresh } = useSubscription();
+  const { status, credits, isLoading, error, refresh } = useSubscription();
 
   if (isLoading) {
     return <FullPageLoader message="Cargando tu suscripción…" />;
@@ -111,7 +125,12 @@ export const SubscriptionStatusCard: React.FC = () => {
               value={formatPeriodEnd(status.currentPeriodEnd)}
             />
           ) : null}
-          <DetailRow label="Créditos mensuales" value={String(status.monthlyCredits)} />
+          {/* Saldo REAL del wallet: lo que el usuario puede gastar hoy. Es el número
+              que le importa, e incluye bienvenida y add-ons además del cupo del plan. */}
+          <DetailRow label="Saldo disponible" value={creditsLabel(credits)} />
+          {/* Cupo del PLAN: distinto del saldo. En Free es 0, y decir "0" a secas se lee
+              como "no tenés créditos" — que es falso si hay saldo de bienvenida. */}
+          <DetailRow label="Créditos del plan" value={monthlyCreditsLabel(status.monthlyCredits)} />
           {isPremium ? (
             <DetailRow label="Ciclo de cobro" value={billingLabel(status.billingInterval)} />
           ) : null}

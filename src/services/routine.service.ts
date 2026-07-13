@@ -16,13 +16,55 @@ import {
 } from '../types/routine';
 import { FitnessDay } from '../types/fitness';
 import { SessionLog } from '../types/session';
+import { creditsEvents } from '../store/credits-events';
 import { ExerciseLoadType, capitalize } from '../utils/format.utils';
 import { withRequestSignal } from '../utils/request-cancellation';
+import { InsufficientCreditsError } from './subscription.service';
 
 export interface OfflineRequestOptions {
   clientOperationId?: string | null;
   baseVersionId?: string | null;
 }
+
+/**
+ * True si el backend respondió 402 (créditos de IA agotados).
+ *
+ * Es una condición de negocio ESPERADA y ya manejada por la UI, no un fallo: por eso
+ * no se loguea a nivel `error`. Si todo grita "error", el log de errores deja de servir
+ * para encontrar los errores de verdad.
+ */
+const isCredits402 = (error: unknown): boolean =>
+  (error as AxiosError)?.response?.status === 402;
+
+/**
+ * Traduce el 402 del backend (créditos de IA agotados) a un error tipado.
+ *
+ * Las acciones de IA consumen créditos; al agotarse, el backend responde 402. Mapeamos
+ * acá, en el borde HTTP, para que la UI no tenga que hurgar en la respuesta de axios y
+ * pueda ofrecer comprar créditos en vez del error genérico. Cualquier otro error pasa
+ * intacto.
+ */
+const withCreditsError = (error: unknown): unknown =>
+  isCredits402(error) ? new InsufficientCreditsError() : error;
+
+/**
+ * Loguea el fallo de una acción de IA, salvo que sea el 402 de créditos (esperado).
+ * Deja una breadcrumb en `log` para no perder trazabilidad al debuggear.
+ */
+const logAiFailure = (url: string, error: unknown): void => {
+  if (isCredits402(error)) {
+    logger.log('[routine.service]', url, '402 sin créditos (manejado por la UI)');
+    return;
+  }
+  if (error instanceof AxiosError) {
+    logger.error('[routine.service]', url, 'FAIL', {
+      status: error.response?.status,
+      data: error.response?.data,
+    });
+  } else {
+    logger.error('[routine.service]', url, 'FAIL', error);
+  }
+};
 
 const buildOfflineHeaders = (options?: OfflineRequestOptions): Record<string, string> => {
   const headers: Record<string, string> = {};
@@ -159,13 +201,10 @@ export const generateRoutine = async (
     );
     return capitalizeRoutineNames(data);
   } catch (error) {
-    if (error instanceof AxiosError) {
-      logger.error('[routine.service]', url, 'FAIL', {
-        status: error.response?.status,
-        data: error.response?.data,
-      });
-    }
-    throw error;
+    logAiFailure(url, error);
+    throw withCreditsError(error);
+  } finally {
+    creditsEvents.emitWalletChanged();
   }
 };
 
@@ -177,16 +216,24 @@ export const generateRoutine = async (
 export const regenerateRoutine = async (
   token: string | null
 ): Promise<Routine> => {
-  const { data } = await apiClient.post<Routine>(
-    '/api/Routine/regenerate-routine',
-    {},
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-  return capitalizeRoutineNames(data);
+  const url = '/api/Routine/regenerate-routine';
+  try {
+    const { data } = await apiClient.post<Routine>(
+      url,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return capitalizeRoutineNames(data);
+  } catch (error) {
+    logAiFailure(url, error);
+    throw withCreditsError(error);
+  } finally {
+    creditsEvents.emitWalletChanged();
+  }
 };
 
 /**
@@ -269,16 +316,12 @@ export const getSwapSuggestions = async (
     );
     return data;
   } catch (error) {
-    if (error instanceof AxiosError) {
-      logger.error('[routine.service]', url, 'FAIL', {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message,
-      });
-    } else {
-      logger.error('[routine.service]', url, 'FAIL', error);
-    }
-    throw error;
+    logAiFailure(url, error);
+    // Solo el modo IA consume créditos, pero mapear el 402 acá es inocuo para el determinista.
+    throw withCreditsError(error);
+  } finally {
+    // El modo determinista NO cobra: emitir ahí sería un request de saldo al pedo.
+    if (useAI) creditsEvents.emitWalletChanged();
   }
 };
 
@@ -530,16 +573,24 @@ export const adaptRoutineWithAi = async (
   routineId: string,
   token: string | null
 ): Promise<AdaptRoutineResponseDto> => {
-  const { data } = await apiClient.post<AdaptRoutineResponseDto>(
-    `/api/routine/${routineId}/adapt-ai`,
-    {},
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-  return data;
+  const url = `/api/routine/${routineId}/adapt-ai`;
+  try {
+    const { data } = await apiClient.post<AdaptRoutineResponseDto>(
+      url,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return data;
+  } catch (error) {
+    logAiFailure(url, error);
+    throw withCreditsError(error);
+  } finally {
+    creditsEvents.emitWalletChanged();
+  }
 };
 
 /**

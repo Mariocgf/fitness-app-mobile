@@ -15,6 +15,8 @@ import {
   getActiveNutritionRoutine,
   rejectNutritionRoutine,
 } from '../services/nutritionRoutine.service';
+import { isInsufficientCreditsError } from '../services/subscription.service';
+import { notifyInsufficientCredits } from '../components/features/subscription/notifyInsufficientCredits';
 import { getOfflineNutritionRoutine } from '../offline/service';
 import { NutritionRoutineDto } from '../types/nutritionRoutine';
 import { toast } from '../components/ui/feedback';
@@ -120,9 +122,13 @@ export function NutritionRoutineProvider({ children }: { children: React.ReactNo
       if (mountedRef.current) {
         setError(err?.message ?? 'No pudimos generar tu plan. Intentá de nuevo.');
       }
-      toast.error('No pudimos generar tu plan alimenticio. Intentá de nuevo.', {
-        title: 'Algo salió mal',
-      });
+      if (isInsufficientCreditsError(err)) {
+        notifyInsufficientCredits('Te quedaste sin créditos para generar tu plan alimenticio.');
+      } else {
+        toast.error('No pudimos generar tu plan alimenticio. Intentá de nuevo.', {
+          title: 'Algo salió mal',
+        });
+      }
     } finally {
       if (mountedRef.current) setIsGenerating(false);
     }
