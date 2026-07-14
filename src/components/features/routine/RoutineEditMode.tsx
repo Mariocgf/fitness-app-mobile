@@ -125,7 +125,7 @@ export const RoutineEditMode: React.FC<RoutineEditModeProps> = ({
 
   /** Opciones de peso filtradas por el equipamiento del ejercicio (igual que al crear). */
   const weightOptionsFor = useCallback(
-    (exercise: CreateRoutineExercise) => getWeightOptions(exercise.equipments[0], inventory),
+    (exercise: CreateRoutineExercise) => getWeightOptions(exercise.equipments, inventory),
     [inventory],
   );
 

@@ -1,12 +1,15 @@
 import { CreateRoutineDay } from '@/src/types/create-routine';
 import { WeightOption } from '@/src/utils/weight.utils';
-import React, { useMemo, useRef } from 'react';
-import { Modal, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Modal, Platform, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 /* ── Wheel picker (scroll vertical estilo iOS) — puro JS, Expo Go OK ───────── */
 
 const WHEEL_ITEM_H = 44;
 const WHEEL_VISIBLE = 5; // 2 arriba + centro + 2 abajo
+const WEB_SETTLE_MS = 140;
+
+const isWeb = Platform.OS === 'web';
 
 const WheelPicker = ({ items, value, onChange }: {
   items: { value: number | null; label: string }[];
@@ -15,13 +18,36 @@ const WheelPicker = ({ items, value, onChange }: {
 }) => {
   const ref = useRef<ScrollView>(null);
   const didInit = useRef(false);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialIndex = Math.max(0, items.findIndex(i => i.value === value));
 
-  const handleMomentumEnd = (e: { nativeEvent: { contentOffset: { y: number } } }) => {
-    const idx = Math.min(items.length - 1, Math.max(0, Math.round(e.nativeEvent.contentOffset.y / WHEEL_ITEM_H)));
+  const commitOffset = (y: number) => {
+    const idx = Math.min(items.length - 1, Math.max(0, Math.round(y / WHEEL_ITEM_H)));
     const picked = items[idx];
     if (picked && picked.value !== value) onChange(picked.value);
+    return idx;
   };
+
+  const handleMomentumEnd = (e: { nativeEvent: { contentOffset: { y: number } } }) => {
+    commitOffset(e.nativeEvent.contentOffset.y);
+  };
+
+  // react-native-web nunca emite onMomentumScrollEnd ni soporta snapToInterval:
+  // su ScrollView solo ata el evento DOM `scroll`. En web el valor se confirma
+  // cuando la rueda deja de moverse y se reencuadra al item más cercano a mano.
+  const handleWebScroll = (e: { nativeEvent: { contentOffset: { y: number } } }) => {
+    const y = e.nativeEvent.contentOffset.y;
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => {
+      const idx = commitOffset(y);
+      const snapped = idx * WHEEL_ITEM_H;
+      if (Math.abs(y - snapped) > 1) ref.current?.scrollTo({ y: snapped, animated: true });
+    }, WEB_SETTLE_MS);
+  };
+
+  useEffect(() => () => {
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+  }, []);
 
   return (
     <View style={{ height: WHEEL_ITEM_H * WHEEL_VISIBLE }}>
@@ -38,7 +64,9 @@ const WheelPicker = ({ items, value, onChange }: {
         snapToInterval={WHEEL_ITEM_H}
         decelerationRate="fast"
         contentContainerStyle={{ paddingVertical: WHEEL_ITEM_H * 2 }}
-        onMomentumScrollEnd={handleMomentumEnd}
+        onMomentumScrollEnd={isWeb ? undefined : handleMomentumEnd}
+        onScroll={isWeb ? handleWebScroll : undefined}
+        scrollEventThrottle={16}
         onLayout={() => {
           if (didInit.current) return;
           didInit.current = true;
