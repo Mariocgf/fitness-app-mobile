@@ -42,8 +42,13 @@ import {
   View,
 } from 'react-native';
 import { toast } from '@/src/components/ui/feedback';
-import { isInsufficientCreditsError } from '@/src/services/subscription.service';
+import {
+  getSubscriptionErrorMessage,
+  isInsufficientCreditsError,
+  isSubscriptionModuleError,
+} from '@/src/services/subscription.service';
 import { notifyInsufficientCredits } from '@/src/components/features/subscription/notifyInsufficientCredits';
+import { notifySubscriptionRequired } from '@/src/components/features/subscription/notifySubscriptionRequired';
 import Animated, {
   Easing,
   Extrapolation,
@@ -352,6 +357,9 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
       // El swap con IA consume créditos; sin ellos el backend responde 402.
       if (isInsufficientCreditsError(error)) {
         notifyInsufficientCredits('Te quedaste sin créditos para pedir sugerencias con IA.');
+      } else if (isSubscriptionModuleError(error)) {
+        // 403: el plan actual no incluye el módulo (ej. Fitness) que habilita esta IA.
+        notifySubscriptionRequired(getSubscriptionErrorMessage(error) ?? undefined);
       }
     }
   }, [selectedForSwap, getToken]);
@@ -504,13 +512,10 @@ export const RoutineDetailView: React.FC<RoutineDetailViewProps> = ({
 
     if (isSwapMode) {
       return [
+        // "Sugerencia automática" (modo determinista) queda oculta a propósito: el cambio
+        // de ejercicio se hace solo con IA. El handler determinista sigue existiendo, pero
+        // no se ofrece en el menú.
         ...(selectedForSwap.size > 0 || swapHasActivity ? [
-          {
-            icon: 'flash' as const,
-            label: 'Sugerencia automática',
-            onPress: () => { close(); requestSuggestions(false); },
-            destructive: false,
-          },
           {
             icon: 'sparkles' as const,
             label: 'Sugerencia con IA',

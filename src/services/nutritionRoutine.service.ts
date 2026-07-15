@@ -184,6 +184,10 @@ export const generateNutritionRoutine = async (
     // 402 = créditos de IA agotados. Va tipado para que la UI ofrezca comprar créditos
     // en vez del error genérico (generar un plan cuesta créditos).
     if (status === 402) throw new InsufficientCreditsError();
+    // 403 = el plan actual (ej. Fitness) no incluye el módulo Nutrición. Re-lanzamos el
+    // error crudo de axios para NO perder `response.status`/`response.data.Message`: la UI
+    // los lee para mostrar la advertencia de actualizar plan en vez del error genérico.
+    if (status === 403) throw err;
     if (status === 409) throw new Error('Completá la configuración del módulo Nutrición primero.');
     if (status === 404) throw new Error('Tu perfil nutricional no está configurado.');
     throw new Error('No pudimos generar tu plan de nutrición. Intentá de nuevo.');

@@ -36,6 +36,10 @@ export interface OfflineRequestOptions {
 const isCredits402 = (error: unknown): boolean =>
   (error as AxiosError)?.response?.status === 402;
 
+/** 403: el plan actual no incluye el módulo que habilita esta IA (gating de suscripción). */
+const isPlanGate403 = (error: unknown): boolean =>
+  (error as AxiosError)?.response?.status === 403;
+
 /**
  * Traduce el 402 del backend (créditos de IA agotados) a un error tipado.
  *
@@ -48,12 +52,18 @@ const withCreditsError = (error: unknown): unknown =>
   isCredits402(error) ? new InsufficientCreditsError() : error;
 
 /**
- * Loguea el fallo de una acción de IA, salvo que sea el 402 de créditos (esperado).
- * Deja una breadcrumb en `log` para no perder trazabilidad al debuggear.
+ * Loguea el fallo de una acción de IA, salvo que sea un caso ESPERADO manejado por la UI:
+ * el 402 (créditos agotados) y el 403 (función no incluida en el plan). Esos dos no son
+ * fallos —la UI ya notifica al usuario—, así que dejan solo una breadcrumb en `log` en vez
+ * de ensuciar la consola con un `error`.
  */
 const logAiFailure = (url: string, error: unknown): void => {
   if (isCredits402(error)) {
     logger.log('[routine.service]', url, '402 sin créditos (manejado por la UI)');
+    return;
+  }
+  if (isPlanGate403(error)) {
+    logger.log('[routine.service]', url, '403 plan no incluye el módulo (manejado por la UI)');
     return;
   }
   if (error instanceof AxiosError) {

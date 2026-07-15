@@ -15,8 +15,13 @@ import {
   getActiveNutritionRoutine,
   rejectNutritionRoutine,
 } from '../services/nutritionRoutine.service';
-import { isInsufficientCreditsError } from '../services/subscription.service';
+import {
+  getSubscriptionErrorMessage,
+  isInsufficientCreditsError,
+  isSubscriptionModuleError,
+} from '../services/subscription.service';
 import { notifyInsufficientCredits } from '../components/features/subscription/notifyInsufficientCredits';
+import { notifySubscriptionRequired } from '../components/features/subscription/notifySubscriptionRequired';
 import { getOfflineNutritionRoutine } from '../offline/service';
 import { NutritionRoutineDto } from '../types/nutritionRoutine';
 import { toast } from '../components/ui/feedback';
@@ -119,12 +124,19 @@ export function NutritionRoutineProvider({ children }: { children: React.ReactNo
       if (!mountedRef.current) return;
       setDraft(newDraft);
     } catch (err: any) {
-      if (mountedRef.current) {
-        setError(err?.message ?? 'No pudimos generar tu plan. Intentá de nuevo.');
-      }
       if (isInsufficientCreditsError(err)) {
+        if (mountedRef.current) setError(err?.message ?? 'No pudimos generar tu plan. Intentá de nuevo.');
         notifyInsufficientCredits('Te quedaste sin créditos para generar tu plan alimenticio.');
+      } else if (isSubscriptionModuleError(err)) {
+        // 403: el plan actual (ej. Fitness) no incluye el módulo Nutrición. No es un fallo:
+        // avisamos al usuario con salida al paywall en vez del error genérico.
+        const message =
+          getSubscriptionErrorMessage(err) ??
+          'Tu plan actual no incluye el módulo Nutrición. Actualizá tu plan para generar tu dieta.';
+        if (mountedRef.current) setError(message);
+        notifySubscriptionRequired(getSubscriptionErrorMessage(err) ?? undefined);
       } else {
+        if (mountedRef.current) setError(err?.message ?? 'No pudimos generar tu plan. Intentá de nuevo.');
         toast.error('No pudimos generar tu plan alimenticio. Intentá de nuevo.', {
           title: 'Algo salió mal',
         });

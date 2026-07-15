@@ -20,8 +20,16 @@ import {
   isRequestCanceled,
 } from '../utils/request-cancellation';
 
-/** Clave de cache del último estado conocido (arranque offline-first). */
+/**
+ * Prefijo de cache del último estado conocido (arranque offline-first). La clave real
+ * SIEMPRE lleva el `userId` (`@subscription_status:<userId>`): sin él, la cuenta B
+ * hidrataba la suscripción cacheada de la cuenta A. La cache es por usuario, no global.
+ */
 const SUBSCRIPTION_STATUS_KEY = '@subscription_status';
+
+/** Clave de cache del estado de suscripción para un usuario dado. */
+const statusKeyFor = (userId: string | null | undefined) =>
+  userId ? `${SUBSCRIPTION_STATUS_KEY}:${userId}` : null;
 
 /**
  * Estado Free por defecto. Sin suscripción NO es un error: el backend devuelve
@@ -86,7 +94,7 @@ const SubscriptionContext = createContext<SubscriptionContextValue>({
 });
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
-  const { getToken } = useAuth();
+  const { getToken, userId, isLoaded } = useAuth();
   const getTokenRef = useRef(getToken);
   const mountedRef = useRef(true);
   const requestRef = useRef<AbortController | null>(null);
@@ -140,25 +148,60 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
-  /** Hidratación al montar: muestra el último estado cacheado y luego sincroniza. */
+  /** Tracking de montaje del provider (independiente del ciclo de sesión). */
   useEffect(() => {
     mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  /**
+   * Hidrata y sincroniza CADA VEZ que cambia el usuario (login, logout, cambio de cuenta).
+   *
+   * El provider vive en el layout raíz y NUNCA se desmonta al cambiar de sesión, así que su
+   * estado sobrevive al cambio de cuenta. Sin este efecto, entrar con la cuenta B seguía
+   * mostrando la suscripción y los créditos de la cuenta A. La regla: resetear a los defaults
+   * ANTES de sincronizar — nunca mostrar los datos del usuario anterior.
+   */
+  useEffect(() => {
+    // Reset inmediato: los datos del usuario anterior no pueden sobrevivir al cambio.
+    setStatus(FREE_STATUS);
+    setCredits(null);
+    setError(null);
+
+    // Clerk todavía no resolvió la sesión: esperamos sin tocar la red.
+    if (!isLoaded) return;
+
+    // Sin usuario (logout): quedamos en Free y no consultamos al backend.
+    if (!userId) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
 
-    AsyncStorage.getItem(SUBSCRIPTION_STATUS_KEY)
+    // Guarda de cancelación: si el usuario vuelve a cambiar antes de que resuelva la lectura
+    // de cache, `stale` evita que la cache del usuario viejo pise el estado del nuevo.
+    let stale = false;
+
+    // Hidratación offline-first desde la cache DE ESTE usuario, y luego sincronización real.
+    const key = statusKeyFor(userId);
+    AsyncStorage.getItem(key!)
       .then((raw) => {
-        if (raw && mountedRef.current) setStatus(JSON.parse(raw));
+        if (raw && mountedRef.current && !stale) setStatus(JSON.parse(raw));
       })
       .catch((e) => logger.error('Error hidratando suscripción:', e))
       .finally(() => {
+        if (stale) return;
         refresh();
         refreshCredits();
       });
 
     return () => {
-      mountedRef.current = false;
+      stale = true;
     };
-  }, [refresh, refreshCredits]);
+  }, [userId, isLoaded, refresh, refreshCredits]);
 
   /**
    * Se suscribe al bus: cada vez que una acción de IA toca el wallet, releemos el saldo.
@@ -167,10 +210,13 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
    */
   useEffect(() => creditsEvents.subscribe(() => void refreshCredits()), [refreshCredits]);
 
-  /** Persiste el último estado conocido para el arranque offline-first. */
+  /** Persiste el último estado conocido para el arranque offline-first, por usuario. */
   useEffect(() => {
-    AsyncStorage.setItem(SUBSCRIPTION_STATUS_KEY, JSON.stringify(status)).catch(() => {});
-  }, [status]);
+    const key = statusKeyFor(userId);
+    // Sin usuario no persistimos: evita reintroducir una cache global compartida entre cuentas.
+    if (!key) return;
+    AsyncStorage.setItem(key, JSON.stringify(status)).catch(() => {});
+  }, [status, userId]);
 
   const unlockedModules = TIER_MODULES[status.tier];
 

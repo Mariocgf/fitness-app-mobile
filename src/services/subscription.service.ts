@@ -45,6 +45,24 @@ export const isInsufficientCreditsError = (error: unknown): boolean =>
   error instanceof InsufficientCreditsError ||
   (error as { response?: { status?: number } })?.response?.status === 402;
 
+/**
+ * True si el error es un 403 de gating por plan: la función de IA pedida no está
+ * incluida en la suscripción actual (ej. módulo Fitness/Nutrición no contratado).
+ */
+export const isSubscriptionModuleError = (error: unknown): boolean =>
+  (error as { response?: { status?: number } })?.response?.status === 403;
+
+/**
+ * Mensaje contextual del backend para el 403 de gating (viene en ES y nombra el módulo
+ * concreto). El backend usa PascalCase (`Message`); toleramos también `message`. `null`
+ * si no vino, para que el llamador use su fallback.
+ */
+export const getSubscriptionErrorMessage = (error: unknown): string | null => {
+  const data = (error as { response?: { data?: { Message?: string; message?: string } } })
+    ?.response?.data;
+  return data?.Message ?? data?.message ?? null;
+};
+
 /** Mapea errores HTTP de los endpoints de suscripción a mensajes ES amigables. */
 const mapSubscriptionError = (error: unknown): Error => {
   const status = (error as { response?: { status?: number } })?.response?.status;
