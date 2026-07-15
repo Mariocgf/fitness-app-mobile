@@ -31,12 +31,17 @@ export interface SessionSet {
   repsPerformed: number;
   weightUsed: number;
   durationSeconds: number | null;
+  /**
+   * Esfuerzo percibido de ESTA serie (1-10), o `null` si el usuario no lo registró.
+   * `0` no es un valor válido: el backend lo rechaza con 400.
+   */
+  rpe: number | null;
   isCompleted: boolean;
 }
 
+/** El RPE vive en el set, no acá: cada serie es una observación propia. */
 export type ExerciseLog = {
   exerciseId: string;
-  rpe: number; // default 5
   totalWeight: number;
   sets: SessionSet[];
 };
@@ -44,7 +49,8 @@ export type ExerciseLog = {
 /** Formato plano que espera la API: cada set es una entrada independiente */
 export type SessionExerciseEntry = {
   exerciseId: string;
-  rpe: number;
+  /** `null` = el usuario no lo registró. Nunca un default inventado. */
+  rpe: number | null;
   setNumber: number;
   repsPerformed: number;
   weightUsed: number;

@@ -8,7 +8,8 @@ import { CreateManualSessionPayload } from '../types/training-history';
 export interface DraftSet {
   key: string;
   reps: number;
-  rpe: number;
+  /** Esfuerzo percibido (1–10), o `null` si el usuario no eligió ninguno. */
+  rpe: number | null;
   weight: number;
 }
 
@@ -21,8 +22,12 @@ export interface DraftExercise {
   sets: DraftSet[];
 }
 
-/** Crea un set por defecto (todo en 0; la filosofía del back es "sin campos obligatorios"). */
-const makeDefaultSet = (key: string): DraftSet => ({ key, reps: 0, rpe: 0, weight: 0 });
+/**
+ * Crea un set por defecto. El esfuerzo arranca en `null`, NO en 0: `0` dejó de ser un
+ * valor válido y un default preseleccionado se cosecharía por inercia, describiendo al
+ * default y no al usuario.
+ */
+const makeDefaultSet = (key: string): DraftSet => ({ key, reps: 0, rpe: null, weight: 0 });
 
 export interface UseManualSessionFormReturn {
   trainedAt: Date;
@@ -110,10 +115,12 @@ export function useManualSessionForm(): UseManualSessionFormReturn {
       setExercises((prev) =>
         prev.map((e) => {
           if (e.key !== exerciseKey) return e;
-          // Replica los valores de la última serie (o defaults si no hubiera ninguna).
+          // Replica reps y peso de la última serie (ahorra tipeo), pero NUNCA el esfuerzo:
+          // copiarlo sería inventar una observación sobre una serie que el usuario todavía
+          // no describió, y quedaría indistinguible de un esfuerzo real.
           const last = e.sets[e.sets.length - 1];
           const newSet: DraftSet = last
-            ? { key: nextKey(), reps: last.reps, rpe: last.rpe, weight: last.weight }
+            ? { key: nextKey(), reps: last.reps, rpe: null, weight: last.weight }
             : makeDefaultSet(nextKey());
           return { ...e, sets: [...e.sets, newSet] };
         }),

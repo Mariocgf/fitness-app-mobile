@@ -2,7 +2,6 @@ import { useColorScheme } from '@/src/hooks/use-color-scheme';
 import { useIsOffline } from '@/src/hooks/useIsOffline';
 import { OfflineSyncGate } from '@/src/offline/OfflineSyncGate';
 import { NutritionRoutineProvider } from '@/src/store/nutrition-routine-context';
-import { RoutineDetailProvider } from '@/src/store/routine-detail-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/clerk-expo';
 import { BlurView } from 'expo-blur';
@@ -29,8 +28,12 @@ export default function TabLayout() {
   // uniforme. Nativo no se toca (sigue con blur).
   const isWeb = Platform.OS === 'web';
 
+  /* `RoutineDetailProvider` ya NO se monta acá: subió al layout raíz porque
+     `app/session.tsx` vive fuera de `(tabs)` y necesita actualizar la rutina activa
+     cuando se ajusta la carga. Los consumidores de `(tabs)` siguen siendo descendientes,
+     así que no cambia nada para ellos. */
   return (
-    <RoutineDetailProvider>
+    <>
       <NutritionRoutineProvider>
         <OfflineSyncGate />
         <Tabs
@@ -158,6 +161,6 @@ export default function TabLayout() {
           />
         )}
       </NutritionRoutineProvider>
-    </RoutineDetailProvider>
+    </>
   );
 }

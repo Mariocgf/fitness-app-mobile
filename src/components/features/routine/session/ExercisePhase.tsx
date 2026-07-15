@@ -1,5 +1,5 @@
 import { SessionExercise } from '@/src/types/session';
-import { formatExerciseLoad, formatRepRange, formatReps, formatTime } from '@/src/utils/format.utils';
+import { formatExerciseLoad, formatReps, formatTargetReps, formatTime } from '@/src/utils/format.utils';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
@@ -36,10 +36,13 @@ export const ExercisePhase: React.FC<ExercisePhaseProps> = ({
   /* Timer activo: cuenta regresiva en ejercicios por tiempo, cronómetro global en el resto */
   const timeLabel = formatTime(isTimeBased ? exerciseTimeLeft ?? 0 : globalTime);
 
-  /* Objetivo: rango de reps (o duración en ejercicios por tiempo) + carga */
+  /* Objetivo de la serie: reps (o duración si es por tiempo) + carga.
+     Los tres son los valores que el ajuste de carga puede cambiar, así que se leen
+     SIEMPRE del ejercicio en curso: apenas el backend devuelve un ajuste, el hook pisa
+     `currentRep`/`plannedWeightKg`/`durationSeconds` y esto se re-renderiza con lo nuevo. */
   const repsLabel = isTimeBased
     ? formatReps(currentExercise)
-    : `${formatRepRange(currentExercise)} repeticiones`;
+    : `${formatTargetReps(currentExercise)} repeticiones`;
   const loadLabel = formatExerciseLoad(currentExercise);
 
   return (

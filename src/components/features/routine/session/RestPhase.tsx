@@ -5,20 +5,20 @@ import { SessionExercise } from '@/src/types/session';
 import { formatTime } from '@/src/utils/format.utils';
 import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import { EffortSection } from './EffortSection';
 import { NextExerciseCard } from './NextExerciseCard';
-import { RpeSection } from './RpeSection';
 
 interface RestPhaseProps {
   restTimeLeft: number;
   initialRest: number;
   nextExercise: SessionExercise;
   isLastSession: boolean;
-  rpe: number;
+  /** Esfuerzo de la serie recién terminada; `null` si el usuario no tocó nada. */
+  rpe: number | null;
   onRpeChange: (value: number) => void;
-  onSaveRpe: () => void;
-  rpeDisabled: boolean;
+  onAdjustLoad: () => void;
+  canAdjustLoad: boolean;
   isAdjustingLoad: boolean;
-  canUpdateRpe: boolean;
   isOffline?: boolean;
   repetitionMode: RepetitionMode;
   partialReps: number;
@@ -28,10 +28,13 @@ interface RestPhaseProps {
 
 /**
  * Contenido de la fase de descanso (dark `zinc`/`lime`): timer countdown grande
- * + barra de progreso, "Siguiente ejercicio", esfuerzo percibido (slider
- * existente) y reps realizadas si la serie fue incompleta. NO incluye header ni
- * la sección de botones — esos viven en `ActiveSessionView` y quedan fijos (fuera
- * del cross-fade entre fases).
+ * + barra de progreso, "Siguiente ejercicio", el selector de esfuerzo de la serie
+ * que acaba de terminar (+ el ajuste de carga, opcional) y las reps realizadas si
+ * la serie fue incompleta. NO incluye header ni la sección de botones — esos viven
+ * en `ActiveSessionView` y quedan fijos (fuera del cross-fade entre fases).
+ *
+ * No hay botón "Omitir" y no hace falta: si el descanso termina y el usuario arranca
+ * la siguiente serie sin tocar nada, eso ya es omitir (se envía `null`).
  */
 export const RestPhase: React.FC<RestPhaseProps> = ({
   restTimeLeft,
@@ -40,10 +43,9 @@ export const RestPhase: React.FC<RestPhaseProps> = ({
   isLastSession,
   rpe,
   onRpeChange,
-  onSaveRpe,
-  rpeDisabled,
+  onAdjustLoad,
+  canAdjustLoad,
   isAdjustingLoad,
-  canUpdateRpe,
   isOffline = false,
   repetitionMode,
   partialReps,
@@ -73,17 +75,16 @@ export const RestPhase: React.FC<RestPhaseProps> = ({
         <NextExerciseCard nextExercise={nextExercise} isLastSession={isLastSession} />
       </View>
 
-      {/* Esfuerzo percibido (slider existente) */}
+      {/* Esfuerzo percibido de la serie + ajuste de carga (acciones separadas) */}
       <View className="border-t border-zinc-800 mt-6 pt-6">
-        <RpeSection
+        <EffortSection
           rpe={rpe}
           onRpeChange={onRpeChange}
-          onSave={onSaveRpe}
-          disabled={rpeDisabled}
-        isLoading={isAdjustingLoad}
-        canUpdate={canUpdateRpe}
-        isOffline={isOffline}
-      />
+          onAdjustLoad={onAdjustLoad}
+          canAdjustLoad={canAdjustLoad}
+          isAdjustingLoad={isAdjustingLoad}
+          isOffline={isOffline}
+        />
       </View>
 
       {/* Repeticiones realizadas (solo si la serie fue incompleta) */}

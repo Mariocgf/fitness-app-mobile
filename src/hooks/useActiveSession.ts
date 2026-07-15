@@ -1,8 +1,11 @@
-import { adjustExerciseLoad } from '@/src/services/exercise.service';
+import { AdjustLoadSet, adjustExerciseLoad } from '@/src/services/exercise.service';
 import { ExerciseLog, SessionDay, SessionExercise, SessionExerciseEntry, SessionLog, SessionSet } from '@/src/types/session';
+import { logger } from '@/src/utils/logger';
+import { ExerciseLoadPatch, hasLoadChanges } from '@/src/utils/routine-adjust.utils';
+import { averageRpe } from '@/src/utils/rpe';
 import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { confirm, toast } from '@/src/components/ui/feedback';
+import { alertDialog, confirm, toast } from '@/src/components/ui/feedback';
 import { useNetworkStatus } from './useNetworkStatus';
 import { useSessionAudio } from './useSessionAudio';
 
@@ -14,6 +17,14 @@ interface UseActiveSessionProps {
   day: SessionDay;
   onFinishSession?: (log: SessionLog) => void;
   onCancel?: () => void;
+  /**
+   * Avisa que el backend ajustó la carga de un ejercicio, para que el consumidor
+   * propague el cambio a la rutina cacheada (la sesión trabaja sobre un snapshot del
+   * día: sin esto, al salir el detalle mostraría el peso viejo).
+   *
+   * `exerciseEntryId` es el `id` del ejercicio DENTRO del día, no el de catálogo.
+   */
+  onExerciseAdjusted?: (exerciseEntryId: string, patch: ExerciseLoadPatch) => void;
 }
 
 interface UseActiveSessionReturn {
@@ -37,12 +48,17 @@ interface UseActiveSessionReturn {
   exerciseTimeLeft: number | null;
   initialRest: number;
 
-  /* RPE */
-  rpe: number;
-  setRpe: (rpe: number) => void;
-  rpeSaved: boolean;
+  /* Esfuerzo percibido (por SET) */
+  /** Esfuerzo de la serie que se está puntuando; `null` = el usuario no tocó nada. */
+  currentSetRpe: number | null;
+  setCurrentSetRpe: (value: number) => void;
+  /** La última serie de la sesión no tiene descanso: el resumen le pregunta por ella. */
+  isSummaryRpePending: boolean;
+
+  /* Ajuste de carga (acción SEPARADA de registrar el esfuerzo) */
+  canAdjustLoad: boolean;
   isAdjustingLoad: boolean;
-  canUpdateRpe: boolean;
+  handleAdjustLoad: () => Promise<void>;
 
   /* Repeticiones */
   repetitionMode: RepetitionMode;
@@ -66,27 +82,31 @@ interface UseActiveSessionReturn {
     setsTotal: number;
     repsDone: number;
     repsTotal: number;
-    avgRpe: number;
+    /** `null` cuando no se registró ni un esfuerzo: no se muestra un 0 inventado. */
+    avgRpe: number | null;
   };
 
   /* Handlers */
   handleFinishSet: () => void;
   handleFinishRest: () => void;
-  handleSaveRpe: () => Promise<void>;
   handleFinishSessionEarly: () => void;
   handleSaveSession: () => void;
   handleIncompleteSet: () => void;
-  handleSaveRepetitions: () => void;
-  currentSetIncomplete: boolean;
 }
 
 export function useActiveSession({
   routineId,
   day,
   onFinishSession,
+  onExerciseAdjusted,
 }: UseActiveSessionProps): UseActiveSessionReturn {
   const { getToken } = useAuth();
   const { isOnline } = useNetworkStatus();
+
+  /* Ref estable: el consumidor puede pasar una arrow nueva en cada render sin que eso
+     invalide `handleAdjustLoad` (lección del repo: callbacks inestables en deps). */
+  const onExerciseAdjustedRef = useRef(onExerciseAdjusted);
+  onExerciseAdjustedRef.current = onExerciseAdjusted;
 
 
   /* ── Estados ── */
@@ -96,20 +116,28 @@ export function useActiveSession({
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const [currentSet, setCurrentSet] = useState(1);
   const [restTimeLeft, setRestTimeLeft] = useState(0);
-  const [rpe, setRpe] = useState(5);
-  const [rpeSaved, setRpeSaved] = useState(false);
-  const [logs, setLogs] = useState<ExerciseLog[]>([]);
   const [showInstructions, setShowInstructions] = useState(false);
   const [exerciseTimeLeft, setExerciseTimeLeft] = useState<number | null>(null);
   const [isAdjustingLoad, setIsAdjustingLoad] = useState(false);
   const [repetitionMode, setRepetitionMode] = useState<RepetitionMode>('partial');
-  const [partialReps, setPartialReps] = useState(0);
+  const [partialReps, setPartialRepsState] = useState(0);
+  const [isSummaryRpePending, setIsSummaryRpePending] = useState(false);
+
+  /* Series ejecutadas por ejercicio: única fuente de verdad de la sesión. */
   const [setsPerExercise, setSetsPerExercise] = useState<Map<string, SessionSet[]>>(new Map());
   const setsPerExerciseRef = useRef<Map<string, SessionSet[]>>(new Map());
-  const [currentSetIncomplete, setCurrentSetIncomplete] = useState(false);
+
+  /**
+   * Cuántas series llevaba cada ejercicio en su último ajuste de carga.
+   * Es lo que hace cumplir la regla "cada ajuste exige un set nuevo que lo respalde":
+   * solo cuentan las series posteriores a esta marca.
+   */
+  const [adjustBaseline, setAdjustBaseline] = useState<Map<string, number>>(new Map());
+  const adjustBaselineRef = useRef<Map<string, number>>(new Map());
 
   /* ── Computed values ── */
   const currentExercise = exercises[exerciseIndex];
+  const currentExerciseKey = currentExercise?.id ?? '';
   const totalSets = parseInt(currentExercise?.sets) || 1;
   const initialRest = parseInt(currentExercise?.rest) || 60;
   const isTimeBased = currentExercise?.repType === 'Timed';
@@ -144,7 +172,61 @@ export function useActiveSession({
     [currentSet, totalSets, exerciseIndex, exercises.length]
   );
 
-  const canUpdateRpe = isOnline && !rpeSaved && !isAdjustingLoad && (rpe < 4 || rpe > 6);
+  /* Series ya ejecutadas del ejercicio en curso. */
+  const currentSets = useMemo(
+    () => setsPerExercise.get(currentExerciseKey) ?? [],
+    [setsPerExercise, currentExerciseKey]
+  );
+
+  /* La serie que se está puntuando es siempre la última registrada. */
+  const currentSetRpe = currentSets.length > 0 ? currentSets[currentSets.length - 1].rpe : null;
+
+  /**
+   * Series que se mandan como evidencia a `adjust-load`: las ejecutadas CON LA CARGA
+   * VIGENTE (o sea, desde el último ajuste) que tengan esfuerzo registrado.
+   *
+   * Las anteriores al último ajuste se hicieron con OTRA carga: mezclarlas sería
+   * comparar peras con manzanas. Las que no tienen esfuerzo no son evidencia de nada.
+   */
+  const setsForAdjust = useMemo(() => {
+    const baseline = adjustBaseline.get(currentExerciseKey) ?? 0;
+    return currentSets.slice(baseline).filter((set) => set.rpe !== null);
+  }, [currentSets, adjustBaseline, currentExerciseKey]);
+
+  /**
+   * Sin ninguna serie con esfuerzo desde el último ajuste no hay nada que mandar: el
+   * botón queda deshabilitado. No se inventa un esfuerzo para poder ajustar.
+   */
+  const canAdjustLoad = isOnline && !isAdjustingLoad && setsForAdjust.length > 0;
+
+  /**
+   * Los logs se DERIVAN de las series registradas: no hay un segundo estado que
+   * mantener sincronizado (y por lo tanto no hay forma de que se desincronice al
+   * puntuar una serie después de haberla guardado).
+   *
+   * ⚠️ NO "unificar" este id con el de `adjust-load`. Los dos endpoints esperan
+   * identificadores DISTINTOS, y está verificado contra el backend real:
+   * - `POST /api/Routine/sessions` → `exercise.id` (la clave del día de rutina). ESTE.
+   * - `POST /api/Exercise/adjust-load` → `exercise.exerciseId` (el id de catálogo).
+   *
+   * Parece una inconsistencia y no lo es. Cambiar este `id` por `exerciseId` "por
+   * coherencia" rompe el guardado de la sesión, que hoy funciona.
+   */
+  const logs = useMemo<ExerciseLog[]>(
+    () =>
+      exercises
+        .map((exercise) => {
+          const sets = setsPerExercise.get(exercise.id) ?? [];
+          if (sets.length === 0) return null;
+          return {
+            exerciseId: exercise.id,
+            totalWeight: sets.reduce((sum, set) => sum + set.weightUsed, 0),
+            sets,
+          };
+        })
+        .filter((log): log is ExerciseLog => log !== null),
+    [exercises, setsPerExercise]
+  );
 
   const summaryStats = useMemo(() => {
     const exercisesTotal = day.exercises.length;
@@ -159,9 +241,8 @@ export function useActiveSession({
     const repsDone = logs.reduce((acc, l) =>
       acc + l.sets.reduce((s, set) => s + set.repsPerformed, 0), 0
     );
-    const avgRpe = logs.length > 0
-      ? Math.round(logs.reduce((acc, l) => acc + l.rpe, 0) / logs.length)
-      : 0;
+    /* Promedia solo las series con dato: las omitidas no puntúan ni penalizan. */
+    const avgRpe = averageRpe(logs.flatMap((l) => l.sets.map((set) => set.rpe)));
     return { exercisesDone, exercisesTotal, setsDone, setsTotal, repsDone, repsTotal, avgRpe };
   }, [logs, day.exercises]);
 
@@ -231,40 +312,37 @@ export function useActiveSession({
     }
   }, [phase, isTimeBased, exerciseTimeLeft]);
 
-  /* ── Handlers ── */
+  /* ── Escritura de series (ref + state en paralelo para evitar stale closures) ── */
 
+  const commitSets = useCallback((exerciseKey: string, sets: SessionSet[]) => {
+    const updatedMap = new Map(setsPerExerciseRef.current);
+    updatedMap.set(exerciseKey, sets);
+    setsPerExerciseRef.current = updatedMap;
+    setSetsPerExercise(updatedMap);
+  }, []);
+
+  /**
+   * Registra la serie en curso. El esfuerzo arranca SIEMPRE en `null`: el usuario lo
+   * elige después, durante el descanso. Si no lo elige, queda en `null` — eso ya es
+   * omitir, y no hace falta un botón para no decir nada.
+   */
   const recordCurrentSet = useCallback((isCompleted: boolean, reps: number): SessionSet[] => {
     const exerciseKey = currentExercise.id;
     const weight = currentExercise.loadType === 'ExternalWeight'
       ? Number(currentExercise.plannedWeightKg) || 0
       : 0;
 
-    const repsPerformed = isTimeBased ? 0 : reps;
-
-    const durationSeconds = isTimeBased
-      ? timeBasedDuration - (exerciseTimeLeft ?? 0)
-      : null;
-
     const newSet: SessionSet = {
       setNumber: currentSet,
-      repsPerformed,
+      repsPerformed: isTimeBased ? 0 : reps,
       weightUsed: weight,
-      durationSeconds,
+      durationSeconds: isTimeBased ? timeBasedDuration - (exerciseTimeLeft ?? 0) : null,
+      rpe: null,
       isCompleted,
     };
 
-    /* Leer del ref (siempre sincronizado) */
-    const existing = setsPerExerciseRef.current.get(exerciseKey) ?? [];
-    const updatedSets = [...existing, newSet];
-
-    /* Actualizar ref síncronamente */
-    const updatedMap = new Map(setsPerExerciseRef.current);
-    updatedMap.set(exerciseKey, updatedSets);
-    setsPerExerciseRef.current = updatedMap;
-
-    /* Actualizar state para re-renders */
-    setSetsPerExercise(updatedMap);
-
+    const updatedSets = [...(setsPerExerciseRef.current.get(exerciseKey) ?? []), newSet];
+    commitSets(exerciseKey, updatedSets);
     return updatedSets;
   }, [
     currentExercise?.id,
@@ -274,49 +352,41 @@ export function useActiveSession({
     isTimeBased,
     timeBasedDuration,
     exerciseTimeLeft,
+    commitSets,
   ]);
 
-  const handleSaveRepetitions = useCallback(() => {
-    recordCurrentSet(false, partialReps); /* set incompleto */
-    setCurrentSetIncomplete(false);
-  }, [recordCurrentSet, partialReps]);
+  /** Aplica un patch a la última serie registrada del ejercicio en curso. */
+  const patchLastSet = useCallback((patch: Partial<SessionSet>) => {
+    const exerciseKey = currentExercise?.id;
+    if (!exerciseKey) return;
+    const sets = setsPerExerciseRef.current.get(exerciseKey) ?? [];
+    if (sets.length === 0) return;
 
-  const saveCurrentLog = useCallback(
-    (finalRpe: number, overrideSets?: SessionSet[]) => {
-      const exerciseKey = currentExercise.id;
-      /* Leer del ref para evitar stale closures */
-      const exerciseSets = overrideSets ?? setsPerExerciseRef.current.get(exerciseKey) ?? [];
-      const totalWeight = exerciseSets.reduce((sum, s) => sum + s.weightUsed, 0);
+    commitSets(
+      exerciseKey,
+      sets.map((set, i) => (i === sets.length - 1 ? { ...set, ...patch } : set)),
+    );
+  }, [currentExercise?.id, commitSets]);
 
-      setLogs((prev) => {
-        const idx = prev.findIndex((l) => l.exerciseId === exerciseKey);
-        if (idx >= 0) {
-          const copy = [...prev];
-          copy[idx] = { ...copy[idx], rpe: finalRpe, totalWeight, sets: exerciseSets };
-          return copy;
-        }
-        return [
-          ...prev,
-          { exerciseId: exerciseKey, rpe: finalRpe, totalWeight, sets: exerciseSets },
-        ];
-      });
-    },
-    [currentExercise?.id]
-  );
+  /** Registra el esfuerzo de la serie en curso. NO ajusta la carga: son dos acciones. */
+  const setCurrentSetRpe = useCallback((value: number) => {
+    patchLastSet({ rpe: value });
+  }, [patchLastSet]);
+
+  /** Las reps parciales editan la serie ya registrada (no crean una nueva). */
+  const setPartialReps = useCallback((reps: number) => {
+    setPartialRepsState(reps);
+    patchLastSet({ repsPerformed: reps });
+  }, [patchLastSet]);
+
+  /* ── Handlers de flujo ── */
 
   const advanceAfterRest = useCallback(() => {
-    /* Si hay un set incompleto pendiente sin guardar, guardarlo ahora */
-    if (currentSetIncomplete) {
-      recordCurrentSet(false, partialReps);
-      setCurrentSetIncomplete(false);
-    }
-
-    if (!rpeSaved) saveCurrentLog(rpe);
-
     const isLastSet = currentSet >= totalSets;
     const isLastExercise = exerciseIndex >= day.exercises.length - 1;
 
     if (isLastSet && isLastExercise) {
+      /* Ya tuvo su descanso para puntuar: el resumen no vuelve a preguntar. */
       setPhase('SUMMARY');
       return;
     }
@@ -327,102 +397,175 @@ export function useActiveSession({
       setExerciseIndex((i) => i + 1);
       setCurrentSet(1);
     }
-    setRpeSaved(false);
-    setRpe(5);
     setPhase('EXERCISE');
-  }, [currentSet, totalSets, exerciseIndex, day.exercises.length, rpe, rpeSaved, saveCurrentLog, currentSetIncomplete, recordCurrentSet, partialReps]);
+  }, [currentSet, totalSets, exerciseIndex, day.exercises.length]);
 
   const handleFinishSet = useCallback(() => {
-    setRepetitionMode('all'); /* verde = ocultar slider en REST */
-    const updatedSets = recordCurrentSet(true, repetitionMax); /* set completado con todas las reps */
+    setRepetitionMode('all'); /* verde = ocultar slider de reps en REST */
+    recordCurrentSet(true, repetitionMax);
 
     const isLastSet = currentSet >= totalSets;
     const isLastExercise = exerciseIndex >= day.exercises.length - 1;
 
     if (isLastSet && isLastExercise) {
-      saveCurrentLog(5, updatedSets);
+      /* La última serie no tiene descanso: si no preguntáramos acá, el usuario nunca
+         llegaría a ver el selector y ese `null` sería nuestro, no suyo. */
+      setIsSummaryRpePending(true);
       setPhase('SUMMARY');
       return;
     }
 
-    /* Pre-guardar log en último set del ejercicio para evitar stale closure en advanceAfterRest */
-    if (isLastSet) {
-      saveCurrentLog(5, updatedSets);
-    }
-
     setRestTimeLeft(initialRest);
-    setRpe(5);
-    setRpeSaved(false);
     setPhase('REST');
-  }, [currentSet, totalSets, exerciseIndex, day.exercises.length, saveCurrentLog, initialRest, recordCurrentSet, setRepetitionMode, repetitionMax]);
+  }, [currentSet, totalSets, exerciseIndex, day.exercises.length, initialRest, recordCurrentSet, repetitionMax]);
 
   const handleIncompleteSet = useCallback(() => {
-    /* Si es timed, comportamiento igual que verde (ya se captura duración automáticamente) */
+    /* Si es timed, comportamiento igual que verde (la duración ya se captura sola) */
     if (isTimeBased) {
       handleFinishSet();
       return;
     }
 
-    /* Para ejercicios de reps: transicionar a REST con slider visible */
+    /* Para ejercicios de reps: se registra la serie YA (con las reps a mitad de camino)
+       para poder puntuarla durante el descanso; el slider la va corrigiendo. */
+    const initialPartialReps = Math.round(repetitionMax / 2);
     setRepetitionMode('partial');
-    setCurrentSetIncomplete(true);
-    setPartialReps(Math.round(repetitionMax / 2));
+    setPartialRepsState(initialPartialReps);
+    recordCurrentSet(false, initialPartialReps);
 
-    /* Siempre ir a REST para que el usuario pueda ajustar las reps parciales */
     setRestTimeLeft(initialRest);
-    setRpe(5);
-    setRpeSaved(false);
     setPhase('REST');
-  }, [isTimeBased, handleFinishSet, setRepetitionMode, repetitionMax, currentSet, totalSets, exerciseIndex, day.exercises.length, setPartialReps]);
+  }, [isTimeBased, handleFinishSet, repetitionMax, initialRest, recordCurrentSet]);
 
   const handleFinishRest = useCallback(() => {
     advanceAfterRest();
   }, [advanceAfterRest]);
 
-  const handleSaveRpe = useCallback(async () => {
+  /**
+   * Ajuste de carga: SIEMPRE nace de un tap explícito del usuario, nunca como efecto
+   * secundario de registrar un esfuerzo.
+   *
+   * Dos usuarios pueden marcar "Al fallo" con intenciones opuestas: uno lo busca
+   * (hipertrofia) y el otro lo sufre. El RPE no los distingue — solo este tap.
+   */
+  const handleAdjustLoad = useCallback(async () => {
     if (!isOnline) {
       toast.info(
-        'El ajuste dinámico de carga necesita conexión. Podés completar la sesión y se guardará offline.',
+        'El ajuste de carga necesita conexión. Podés completar la sesión y se guardará offline.',
         { title: 'Sin conexión' },
       );
       return;
     }
 
-    if (rpe >= 4 && rpe <= 6) {
-      saveCurrentLog(rpe);
-      setRpeSaved(true);
-      return;
-    }
+    /* OJO, `SessionExercise` tiene DOS ids y NO son intercambiables. Cada endpoint
+       espera el suyo (verificado contra el backend real, no asumido):
+       - `id`         → clave del ejercicio DENTRO del día de rutina. Es la clave local
+                        (Map de series, línea base de ajustes) y la que espera
+                        `POST /api/Routine/sessions`.
+       - `exerciseId` → id del ejercicio en el CATÁLOGO. Es la que espera ESTE endpoint
+                        (`adjust-load`). Mandarle el `id` del día era el motivo por el
+                        que el ajuste de carga fallaba. */
+    const exerciseKey = currentExercise.id;
+    const sets = setsPerExerciseRef.current.get(exerciseKey) ?? [];
+    const baseline = adjustBaselineRef.current.get(exerciseKey) ?? 0;
+
+    /* El backend recibe las SERIES y hace él la agregación: solo las ejecutadas con la
+       carga vigente y con esfuerzo registrado. Sin evidencia no hay ajuste, y no se
+       fabrica un esfuerzo para poder llamar al endpoint. */
+    const evidence: AdjustLoadSet[] = sets
+      .slice(baseline)
+      .filter((set): set is SessionSet & { rpe: number } => set.rpe !== null)
+      .map((set) => ({
+        repsPerformed: set.repsPerformed,
+        rpe: set.rpe,
+        durationSeconds: set.durationSeconds,
+      }));
+
+    if (evidence.length === 0) return;
 
     setIsAdjustingLoad(true);
+
+    let decision: string | null = null;
+    let hasChanges = false;
+
     try {
       const token = await getToken();
-      const adjustment = await adjustExerciseLoad(currentExercise.id, day.id, rpe, token);
+      /* Viaja el id de CATÁLOGO (`exerciseId`), no la clave local del día (`id`). */
+      const adjustment = await adjustExerciseLoad(
+        currentExercise.exerciseId,
+        day.id,
+        evidence,
+        token,
+      );
 
-      if (!adjustment.loadType && adjustment.plannedWeightKg == null && !adjustment.currentRep && !adjustment.durationSeconds) {
-        toast.warning('No se pudo ajustar la carga para este ejercicio.', { title: 'Aviso' });
-      } else {
+      decision = adjustment.decision;
+
+      const patch: ExerciseLoadPatch = {
+        loadType: adjustment.loadType,
+        plannedWeightKg: adjustment.plannedWeightKg,
+        currentRep: adjustment.currentRep,
+        durationSeconds: adjustment.durationSeconds,
+      };
+      hasChanges = hasLoadChanges(patch);
+
+      /* Cada campo se aplica POR SU CUENTA. Antes el peso era rehén del `loadType`
+         (`if (loadType !== null) { loadType = ...; plannedWeightKg = ... }`), así que una
+         respuesta con `loadType: null` y un peso nuevo — que es justo lo que devuelve el
+         backend — descartaba el peso en silencio.
+
+         Se pisa todo lo que venga no-nulo: peso, repeticiones y duración. `null` significa
+         "no lo toqué", no "ponelo en cero". Las series siguientes ya usan los valores
+         nuevos (`recordCurrentSet` y `repetitionMax` leen de acá). */
+      if (hasChanges) {
         setExercises((prev) => {
           const newEx = [...prev];
           const curr = { ...newEx[exerciseIndex] };
-          if (adjustment.loadType !== null) {
-            curr.loadType = adjustment.loadType;
-            curr.plannedWeightKg = adjustment.plannedWeightKg;
-          }
-          if (adjustment.currentRep !== null) curr.currentRep = String(adjustment.currentRep);
-          if (adjustment.durationSeconds !== null) curr.durationSeconds = String(adjustment.durationSeconds);
+          if (patch.loadType !== null) curr.loadType = patch.loadType;
+          if (patch.plannedWeightKg !== null) curr.plannedWeightKg = patch.plannedWeightKg;
+          if (patch.currentRep !== null) curr.currentRep = String(patch.currentRep);
+          if (patch.durationSeconds !== null) curr.durationSeconds = String(patch.durationSeconds);
           newEx[exerciseIndex] = curr;
           return newEx;
         });
-        saveCurrentLog(rpe);
-        setRpeSaved(true);
+
+        /* La sesión trabaja sobre un snapshot del día: el consumidor propaga el ajuste
+           a la rutina cacheada para que al salir no vuelva a aparecer el peso viejo. */
+        onExerciseAdjustedRef.current?.(exerciseKey, patch);
       }
-    } catch {
+
+      /* El backend PISA la carga, así que los ajustes se acumulan: exigir una serie
+         nueva entre ajustes impide bajar el peso 4 veces respondiendo a la MISMA
+         observación. La línea base pasa a ser lo ya ejecutado, así el botón se
+         deshabilita hasta la próxima serie con esfuerzo. */
+      const updatedBaseline = new Map(adjustBaselineRef.current);
+      updatedBaseline.set(exerciseKey, sets.length);
+      adjustBaselineRef.current = updatedBaseline;
+      setAdjustBaseline(updatedBaseline);
+    } catch (error) {
+      logger.error('[useActiveSession] adjust-load FAIL', error);
       toast.error('No se pudo ajustar la carga. Intente nuevamente.');
+      return;
     } finally {
       setIsAdjustingLoad(false);
     }
-  }, [isOnline, rpe, currentExercise.id, day.id, getToken, exerciseIndex, saveCurrentLog]);
+
+    /* El feedback va DESPUÉS del `finally`: si el diálogo se abriera dentro del `try`,
+       el spinner del botón seguiría girando detrás del modal hasta que lo cierres.
+
+       La decisión la explica el backend; el front no la interpreta ni la reescribe.
+       "Te bajé la carga" y "la dejo como está" son las dos respuestas válidas. */
+    if (decision) {
+      await alertDialog({
+        title: 'Ajuste de carga',
+        message: decision,
+        confirmText: 'Entendido',
+      });
+    } else if (hasChanges) {
+      toast.success('Carga ajustada para las próximas series.');
+    } else {
+      toast.info('No hizo falta ajustar la carga.', { title: 'Sin cambios' });
+    }
+  }, [isOnline, currentExercise?.id, currentExercise?.exerciseId, day.id, getToken, exerciseIndex]);
 
   const handleFinishSessionEarly = useCallback(async () => {
     const confirmed = await confirm({
@@ -444,7 +587,8 @@ export function useActiveSession({
     const flatExercises: SessionExerciseEntry[] = logs.flatMap((ex) =>
       ex.sets.map((set) => ({
         exerciseId: ex.exerciseId,
-        rpe: ex.rpe,
+        /* El esfuerzo viaja tal cual lo registró (o no registró) el usuario. */
+        rpe: set.rpe,
         setNumber: set.setNumber,
         repsPerformed: set.repsPerformed,
         weightUsed: set.weightUsed,
@@ -477,11 +621,12 @@ export function useActiveSession({
     restTimeLeft,
     exerciseTimeLeft,
     initialRest,
-    rpe,
-    setRpe,
-    rpeSaved,
+    currentSetRpe,
+    setCurrentSetRpe,
+    isSummaryRpePending,
+    canAdjustLoad,
     isAdjustingLoad,
-    canUpdateRpe,
+    handleAdjustLoad,
     repetitionMode,
     setRepetitionMode,
     partialReps,
@@ -495,11 +640,8 @@ export function useActiveSession({
     summaryStats,
     handleFinishSet,
     handleFinishRest,
-    handleSaveRpe,
     handleFinishSessionEarly,
     handleSaveSession,
     handleIncompleteSet,
-    handleSaveRepetitions,
-    currentSetIncomplete,
   };
 }

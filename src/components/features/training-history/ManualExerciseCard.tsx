@@ -1,3 +1,4 @@
+import { EffortSelector } from '@/src/components/common/EffortSelector';
 import { QuantityStepper } from '@/src/components/common/QuantityStepper';
 import { ExerciseThumbnail } from '@/src/components/features/routine/ExerciseThumbnail';
 import { DraftExercise, DraftSet } from '@/src/hooks/useManualSessionForm';
@@ -90,7 +91,13 @@ function ManualSetRow({
         unit="kg"
         decimal
       />
-      <StepperField label="RPE" value={set.rpe} onChange={(v) => onUpdate({ rpe: v })} max={10} />
+
+      {/* Esfuerzo: mismas 4 categorías que la sesión en vivo, sin preselección.
+          Si el usuario no toca nada, la serie se registra sin esfuerzo (`null`). */}
+      <View className="mt-3">
+        <Text className="text-zinc-400 text-sm mb-2">Esfuerzo</Text>
+        <EffortSelector value={set.rpe} onChange={(v) => onUpdate({ rpe: v })} />
+      </View>
     </View>
   );
 }

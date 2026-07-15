@@ -1,5 +1,6 @@
 import { AxiosError } from 'axios';
 import { TrainingHistorySession, TrainingHistorySet } from '../types/training-history';
+import { EFFORT_UNRECORDED_LABEL, averageRpe, effortLabelFor } from './rpe';
 
 /** Formatea una fecha a "Lun 24 mar 2025" (sin hora) */
 export const formatSessionDate = (d: Date): string =>
@@ -97,8 +98,8 @@ export interface SessionStats {
   completedSets: number;
   totalSets: number;
   totalReps: number;
-  /** RPE promedio (entero) de los ejercicios con esfuerzo registrado; 0 si no hay */
-  averageRpe: number;
+  /** RPE promedio de los sets con esfuerzo registrado; `null` si no hay ninguno. */
+  averageRpe: number | null;
 }
 
 /** Calcula series completadas/total, repeticiones totales y RPE promedio de una sesión */
@@ -106,19 +107,15 @@ export const computeSessionStats = (session: TrainingHistorySession): SessionSta
   let completedSets = 0;
   let totalSets = 0;
   let totalReps = 0;
-  let rpeSum = 0;
-  let rpeCount = 0;
+  const rpeValues: (number | null)[] = [];
 
   for (const exercise of session.exercises) {
     totalSets += exercise.sets.length;
     for (const set of exercise.sets) {
       if (set.isCompleted) completedSets += 1;
       totalReps += set.repsPerformed;
-      // El RPE ahora vive en el set: promediamos los sets con esfuerzo cargado.
-      if (set.rpe > 0) {
-        rpeSum += set.rpe;
-        rpeCount += 1;
-      }
+      // El RPE vive en el set. Los `null` se ignoran: la ausencia no promedia como 0.
+      rpeValues.push(set.rpe);
     }
   }
 
@@ -126,18 +123,28 @@ export const computeSessionStats = (session: TrainingHistorySession): SessionSta
     completedSets,
     totalSets,
     totalReps,
-    averageRpe: rpeCount > 0 ? Math.round(rpeSum / rpeCount) : 0,
+    averageRpe: averageRpe(rpeValues),
   };
 };
 
-/** Detalle de un set para el listado: "12 rep • 20 kg • RPE 8", "45 s" o "—" si no hay datos */
+/**
+ * Detalle de un set para el listado: "12 rep • 20 kg • Duro", "45 s" o "—" si no hay datos.
+ *
+ * El esfuerzo se muestra con la MISMA etiqueta con la que el usuario lo eligió, nunca como
+ * número: el número es del contrato, no de la pantalla. Un set sin esfuerzo dice
+ * "Sin esfuerzo" — la ausencia se ve, no se disfraza de 0.
+ */
 export const formatSetDetail = (set: TrainingHistorySet): string => {
   const parts: string[] = [];
   if (set.repsPerformed > 0) parts.push(`${set.repsPerformed} rep`);
   if (set.weightUsed > 0) parts.push(formatWeightKg(set.weightUsed));
   if (set.durationSeconds > 0) parts.push(`${set.durationSeconds} s`);
-  if (set.rpe > 0) parts.push(`RPE ${set.rpe}`);
-  return parts.length > 0 ? parts.join(' • ') : '—';
+
+  /* Un set sin ningún dato de trabajo sigue mostrando un guion solo. */
+  if (parts.length === 0) return '—';
+
+  parts.push(effortLabelFor(set.rpe) ?? EFFORT_UNRECORDED_LABEL);
+  return parts.join(' • ');
 };
 
 /** Formatea un peso en kg a "12,5 kg" o "—" si es 0 */

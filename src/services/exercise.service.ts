@@ -45,28 +45,76 @@ export const getExerciseInstructions = async (
   return data;
 };
 
+/** Una serie ejecutada que se manda como evidencia del ajuste. */
+export interface AdjustLoadSet {
+  repsPerformed: number;
+  /** Obligatorio: una serie sin esfuerzo no es evidencia de nada, no se manda. */
+  rpe: number;
+  /** Solo para ejercicios por tiempo; `null` si no aplica. */
+  durationSeconds: number | null;
+}
+
 export interface AdjustLoadResponse {
+  /** Explicación del backend sobre qué decidió y por qué. Se le muestra al usuario. */
+  decision: string | null;
   loadType: ExerciseLoadType | null;
   plannedWeightKg: number | null;
   currentRep: number | null;
   durationSeconds: number | null;
 }
 
+/** DTO crudo: el backend serializa los números como strings (igual que el resto de la API). */
+interface AdjustLoadResponseDto {
+  decision?: string | null;
+  loadType?: ExerciseLoadType | null;
+  plannedWeightKg?: string | number | null;
+  currentRep?: string | number | null;
+  durationSeconds?: string | number | null;
+}
+
 /**
- * Ajusta la carga de un ejercicio en base al RPE reportado.
+ * Parsea un número que puede venir como string, `null`, ausente o `""`.
+ * No se usa `Number(x) || null` a propósito: un `0` legítimo (peso corporal) se perdería.
+ */
+const toNullableNumber = (value: string | number | null | undefined): number | null => {
+  if (value == null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+/**
+ * Ajusta la carga de un ejercicio en base a las series ya ejecutadas.
+ *
+ * El backend recibe las SERIES (reps + esfuerzo + duración) y hace él la agregación:
+ * el front no le manda un promedio pre-calculado.
+ *
+ * Solo se mandan las series ejecutadas con la CARGA VIGENTE (o sea, posteriores al
+ * último ajuste) y que tengan esfuerzo registrado — una serie sin RPE no es evidencia
+ * de nada. Si no queda ninguna, NO se llama a este endpoint: no hay ajuste sin dato, y
+ * no se inventa un esfuerzo para poder llamarlo.
+ *
  * @param exerciseId ID del ejercicio
- * @param rpe Valor de RPE reportado (0-10)
+ * @param routineDayId ID del día de rutina
+ * @param sets Series con esfuerzo registrado desde el último ajuste (al menos una)
  * @param token Token de autenticación de Clerk
  */
 export const adjustExerciseLoad = async (
   exerciseId: string,
   routineDayId: string,
-  rpe: number,
+  sets: AdjustLoadSet[],
   token: string | null
 ): Promise<AdjustLoadResponse> => {
-  const { data } = await apiClient.post<AdjustLoadResponse>(
+  const { data } = await apiClient.post<AdjustLoadResponseDto>(
     '/api/Exercise/adjust-load',
-    { exerciseId, routineDayId, rpe },
+    {
+      exerciseId,
+      routineDayId,
+      sets: sets.map((set) => ({
+        repsPerformed: set.repsPerformed,
+        rpe: set.rpe,
+        ...(set.durationSeconds != null ? { durationSeconds: set.durationSeconds } : {}),
+      })),
+    },
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -74,7 +122,13 @@ export const adjustExerciseLoad = async (
     }
   );
 
-  return data;
+  return {
+    decision: data?.decision?.trim() ? data.decision.trim() : null,
+    loadType: data?.loadType ?? null,
+    plannedWeightKg: toNullableNumber(data?.plannedWeightKg),
+    currentRep: toNullableNumber(data?.currentRep),
+    durationSeconds: toNullableNumber(data?.durationSeconds),
+  };
 };
 
 // ── Funciones para búsqueda de ejercicios en la creación de rutinas ──

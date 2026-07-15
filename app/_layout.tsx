@@ -19,6 +19,7 @@ import { AppFrame } from '@/src/components/common/AppFrame';
 import { FullPageLoader } from '@/src/components/common/FullPageLoader';
 import { InstallPrompt } from '@/src/components/common/InstallPrompt';
 import { FeedbackHost } from '@/src/components/ui/feedback';
+import { RoutineDetailProvider } from '@/src/store/routine-detail-context';
 import { useColorScheme } from '@/src/hooks/use-color-scheme';
 import { useIsOffline } from '@/src/hooks/useIsOffline';
 import { getOnboardingStatus, syncAuthenticatedUser } from '@/src/services/onboarding.service';
@@ -396,9 +397,15 @@ export default function RootLayout() {
               {/* Estado global de suscripción (GET /me). Dentro de Clerk para que useAuth resuelva;
                   en el layout raíz porque Perfil vive fuera de (tabs) y también lo consume. */}
               <SubscriptionProvider>
-                <AppFrame>
-                  <RootNavigator />
-                </AppFrame>
+                {/* En el layout RAÍZ (no en `(tabs)`) porque `app/session.tsx` vive fuera
+                    del grupo de tabs y necesita actualizar la rutina activa cuando el
+                    backend ajusta la carga. Desde `(tabs)` habría devuelto el contexto por
+                    defecto y `setActiveRoutine` habría sido un no-op silencioso. */}
+                <RoutineDetailProvider>
+                  <AppFrame>
+                    <RootNavigator />
+                  </AppFrame>
+                </RoutineDetailProvider>
               </SubscriptionProvider>
               {/* Hosts de feedback no bloqueante (toasts + confirmaciones in-app) */}
               <FeedbackHost />

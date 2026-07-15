@@ -94,6 +94,28 @@ const buildRange = (from: number, to: number, step = 1): { value: number | null;
   return arr;
 };
 
+/**
+ * Garantiza que el peso ya guardado esté entre las opciones del picker.
+ *
+ * Las opciones se derivan del inventario del usuario y del equipamiento del ejercicio,
+ * que carga async: mientras tanto la lista es solo "Peso corporal". Si el ejercicio ya
+ * tenía un peso, sin esto el picker abriría en corporal y cualquier scroll confirmaría
+ * `null` — sobrescribiendo el peso guardado. Se inserta el valor (ordenado, después de
+ * "Peso corporal") para que el picker abra EN él y no se pierda.
+ */
+const ensureCurrentWeight = (
+  options: WeightOption[],
+  current: number | null,
+): WeightOption[] => {
+  if (current == null || options.some((o) => o.value === current)) return options;
+
+  const [bodyweight, ...weights] = options;
+  const withCurrent = [...weights, { value: current, label: `${current} kg` }].sort(
+    (a, b) => (a.value ?? 0) - (b.value ?? 0),
+  );
+  return bodyweight?.value == null ? [bodyweight, ...withCurrent] : withCurrent;
+};
+
 interface StatPickerSheetProps {
   picker: { exId: string; field: 'sets' | 'reps' | 'restSeconds' | 'weight' } | null;
   days: CreateRoutineDay[];
@@ -131,7 +153,11 @@ export const StatPickerSheet: React.FC<StatPickerSheetProps> = ({
       case 'restSeconds':
         return { title: 'Descanso (seg)', items: buildRange(0, 300, 5), value: exercise.restSeconds as number | null };
       case 'weight':
-        return { title: 'Peso', items: weightOptions as { value: number | null; label: string }[], value: exercise.plannedWeightKg };
+        return {
+          title: 'Peso',
+          items: ensureCurrentWeight(weightOptions, exercise.plannedWeightKg),
+          value: exercise.plannedWeightKg,
+        };
       default:
         return null;
     }
