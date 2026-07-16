@@ -36,14 +36,14 @@ const freePlan: SubscriptionPlanDto = {
 };
 
 const paidPlan: SubscriptionPlanDto = {
-  tier: 'Pro',
-  name: 'Pro',
+  tier: 'Full',
+  name: 'Full',
   price: 49.9,
   currency: 'USD',
   monthlyCredits: 100,
   billingInterval: 'Monthly',
-  productId: 'pro_monthly',
-  unlockedModules: ['fitness'],
+  productId: 'full_monthly',
+  unlockedModules: ['fitness', 'nutrition'],
 };
 
 const mockGetProducts = (impl: jest.Mock) => {
@@ -74,7 +74,7 @@ describe('usePlans — degradación cuando el store no responde', () => {
   it('usa el precio localizado del store cuando está disponible', async () => {
     mockGetProducts(
       jest.fn().mockResolvedValue([
-        { productId: 'pro_monthly', localizedPrice: '$59.90', currency: 'USD', amount: 59.9 },
+        { productId: 'full_monthly', localizedPrice: '$59.90', currency: 'USD', amount: 59.9 },
       ]),
     );
 
