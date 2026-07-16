@@ -63,6 +63,27 @@ const resolveAmount = (
   return store ? store.amount : plan.price;
 };
 
+/**
+ * Precio del store, DEGRADABLE. Si el store/emulador no responde (red, CORS, catálogo
+ * incompleto), el paywall NO se cae: se devuelve `[]` y `resolvePrice` pinta cada plan
+ * con el precio de referencia del backend. La lista de planes es el dato; el precio del
+ * store es un adorno — perder el adorno no puede costar la pantalla entera.
+ *
+ * La cancelación SÍ se propaga: no es una falla del store, es que el hook se desmontó o
+ * llegó un request más nuevo, y de eso se encarga el `catch` de `load`.
+ */
+const fetchStoreProducts = async (productIds: string[]): Promise<StoreProduct[]> => {
+  if (!productIds.length) return [];
+
+  try {
+    return await getPurchaseProvider().getProducts(productIds);
+  } catch (err) {
+    if (isRequestCanceled(err)) throw err;
+    logger.error('[usePlans] Store no disponible, se usa el precio de referencia:', err);
+    return [];
+  }
+};
+
 /** Arma el view model del paywall a partir del plan del backend + precio del store. */
 const toViewModel = (
   plan: SubscriptionPlanDto,
@@ -113,12 +134,11 @@ export function usePlans(): UsePlansReturn {
       if (!isCurrentRequest(requestRef, controller)) return;
 
       // 2) Precio localizado del store/emulador por productId (regla Apple/Google).
+      //    Si el store falla, degrada a `[]` y seguimos con el precio de referencia.
       const productIds = backendPlans
         .map((plan) => plan.productId)
         .filter((id): id is string => id !== null);
-      const storeProducts = productIds.length
-        ? await getPurchaseProvider().getProducts(productIds)
-        : [];
+      const storeProducts = await fetchStoreProducts(productIds);
       if (!isCurrentRequest(requestRef, controller)) return;
 
       // 3) Merge → view models listos para pintar.
