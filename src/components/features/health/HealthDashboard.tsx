@@ -20,6 +20,7 @@ interface HealthDashboardProps {
   evolutionDashboard: BodyEvolutionDashboardDto | null;
   isEvolutionLoading: boolean;
   evolutionError: string | null;
+  evolutionPlanWarning: string | null;
   isLoading: boolean;
   error: string | null;
   clinicalProfile: ClinicalProfileDto | null;
@@ -49,6 +50,7 @@ export function HealthDashboard({
   evolutionDashboard,
   isEvolutionLoading,
   evolutionError,
+  evolutionPlanWarning,
   isLoading,
   error,
   clinicalProfile,
@@ -157,6 +159,7 @@ export function HealthDashboard({
         dashboard={evolutionDashboard}
         isLoading={isEvolutionLoading}
         error={evolutionError}
+        planWarning={evolutionPlanWarning}
         onRefresh={onRefreshEvolution}
         onViewMore={onViewEvolution}
       />

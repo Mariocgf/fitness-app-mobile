@@ -5,8 +5,11 @@ export interface TrainingHistorySet {
   repsPerformed: number;
   weightUsed: number;
   durationSeconds: number;
-  /** Esfuerzo percibido (0–10). Movido del ejercicio al set en el nuevo contrato. */
-  rpe: number;
+  /**
+   * Esfuerzo percibido (1–10), o `null` si el usuario no lo registró.
+   * `0` ya no es un valor: la UI tiene que renderizar la ausencia, no un cero.
+   */
+  rpe: number | null;
   isCompleted: boolean;
 }
 
@@ -16,8 +19,8 @@ export interface TrainingHistoryExercise {
   exerciseNameEs: string | null;
   gifUrl: string | null;
   targetMuscles: string[];
-  /** RPE representativo del ejercicio, derivado de los sets (el back ya no lo manda a este nivel). */
-  rpe: number;
+  /** RPE representativo, derivado de los sets. `null` si ningún set tiene esfuerzo. */
+  rpe: number | null;
   sets: TrainingHistorySet[];
 }
 
@@ -150,7 +153,8 @@ export interface TrainingSessionComparison {
 /** Un set dentro del form de sesión manual. Todo opcional salvo por construcción. */
 export interface ManualSessionSet {
   reps: number;
-  rpe: number;
+  /** Esfuerzo percibido (1–10), o `null` si el usuario no lo eligió. Nunca `0`. */
+  rpe: number | null;
   weight: number;
   /** Para ejercicios por tiempo; null si no aplica. */
   durationSeconds: number | null;

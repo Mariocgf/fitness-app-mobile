@@ -95,6 +95,29 @@ export const getOfflineFitnessRoutine = async (): Promise<Routine | null> => {
   return snapshot?.payload ?? null;
 };
 
+/**
+ * Refresca el snapshot offline de la rutina tras un cambio local (ej. un ajuste de carga
+ * durante la sesión), para que la copia guardada no quede con el peso viejo.
+ *
+ * Solo actualiza si YA existe un snapshot de esa misma rutina: descargarla para usar
+ * offline es una decisión explícita del usuario, no un efecto secundario de entrenar.
+ */
+export const refreshOfflineFitnessRoutine = async (routine: Routine): Promise<void> => {
+  const existing = await getOfflineSnapshot<Routine>('fitness-active-routine');
+  if (!existing || existing.entityId !== routine.id) return;
+
+  await saveOfflineSnapshot<Routine>({
+    type: 'fitness-active-routine',
+    entityId: routine.id,
+    versionId: routine.activeVersionId ?? null,
+    payload: routine,
+    metadata: {
+      name: routine.name,
+      versionNumber: routine.versionNumber ?? null,
+    },
+  });
+};
+
 export const downloadNutritionRoutineOffline = async (token: string | null) => {
   const bundle = await getOfflineNutritionRoutineBundle(token);
 

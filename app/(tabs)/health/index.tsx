@@ -19,6 +19,7 @@ export default function HealthScreen() {
     dashboard: evolutionDashboard,
     isLoading: isEvolutionLoading,
     error: evolutionError,
+    planWarning: evolutionPlanWarning,
     refresh: refreshEvolution,
   } = useBodyEvolutionDashboard();
   const {
@@ -111,6 +112,7 @@ export default function HealthScreen() {
           evolutionDashboard={evolutionDashboard}
           isEvolutionLoading={isEvolutionLoading}
           evolutionError={evolutionError}
+          evolutionPlanWarning={evolutionPlanWarning}
           isLoading={isLoading}
           error={error}
           clinicalProfile={clinicalProfile}

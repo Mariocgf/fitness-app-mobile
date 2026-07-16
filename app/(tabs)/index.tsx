@@ -19,6 +19,7 @@ import { useHomeDashboard } from '@/src/hooks/useHomeDashboard';
 import { getNutritionDataVersion } from '@/src/store/nutrition-sync';
 import { useNutritionRoutineContext } from '@/src/store/nutrition-routine-context';
 import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
+import { useSubscription } from '@/src/store/subscription-context';
 import { getTodayDateKey } from '@/src/utils/nutrition.utils';
 
 /** Encabezado de sección del Home (eyebrow en mayúsculas). */
@@ -35,6 +36,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const tabBarHeight = useBottomTabBarHeight();
   const { setActiveRoutine } = useRoutineDetailContext();
+  const { refreshCredits } = useSubscription();
 
   const {
     routine,
@@ -101,6 +103,13 @@ export default function HomeScreen() {
     router.push({ pathname: '/(tabs)/nutrition' as any, params: { tab: 'plan' } });
   }, [generateNutritionRoutine, router]);
 
+  // Pull-to-refresh: además del dashboard, releemos el saldo de créditos. El badge vive en
+  // el header del Home, así que estirar hacia abajo también tiene que actualizarlo.
+  const handleRefresh = useCallback(() => {
+    refresh();
+    refreshCredits();
+  }, [refresh, refreshCredits]);
+
   return (
     <SafeAreaView className="flex-1 bg-zinc-950">
       <ScrollView
@@ -110,7 +119,7 @@ export default function HomeScreen() {
         refreshControl={
           <RefreshControl
             refreshing={false}
-            onRefresh={refresh}
+            onRefresh={handleRefresh}
             tintColor="#a1a1aa"
           />
         }

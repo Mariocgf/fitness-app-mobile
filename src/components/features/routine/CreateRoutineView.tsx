@@ -59,7 +59,7 @@ export const CreateRoutineView: React.FC<CreateRoutineViewProps> = ({
 
   /** Al crear, las opciones de peso se filtran por el equipamiento del ejercicio. */
   const weightOptionsFor = useCallback(
-    (exercise: CreateRoutineExercise) => getWeightOptions(exercise.equipments[0], inventory),
+    (exercise: CreateRoutineExercise) => getWeightOptions(exercise.equipments, inventory),
     [inventory],
   );
 

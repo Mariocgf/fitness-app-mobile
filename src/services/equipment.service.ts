@@ -30,5 +30,7 @@ export const getWeightInventory = async (
       headers: { Authorization: `Bearer ${token}` },
     }, signal),
   );
+  console.log(JSON.stringify(data));
+  
   return data;
 };

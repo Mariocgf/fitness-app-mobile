@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 
+import { CreditsBadge } from '@/src/components/features/subscription/CreditsBadge';
 import { getGreetingByTime } from '@/src/utils/time';
 
 interface GreetingHeaderProps {
@@ -26,17 +27,22 @@ export const GreetingHeader: React.FC<GreetingHeaderProps> = ({ userName, avatar
         </Text>
       </View>
 
-      {/* Avatar → Perfil */}
-      <Pressable
-        onPress={() => router.push('/profile')}
-        className="w-11 h-11 rounded-full overflow-hidden items-center justify-center bg-zinc-800"
-      >
-        {avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} className="w-11 h-11 rounded-full" />
-        ) : (
-          <Ionicons name="person" size={22} className="text-zinc-400" />
-        )}
-      </Pressable>
+      {/* Créditos + avatar, alineados a la misma altura */}
+      <View className="flex-row items-center gap-2">
+        <CreditsBadge />
+
+        {/* Avatar → Perfil */}
+        <Pressable
+          onPress={() => router.push('/profile')}
+          className="w-11 h-11 rounded-full overflow-hidden items-center justify-center bg-zinc-800"
+        >
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} className="w-11 h-11 rounded-full" />
+          ) : (
+            <Ionicons name="person" size={22} className="text-zinc-400" />
+          )}
+        </Pressable>
+      </View>
     </View>
   );
 };

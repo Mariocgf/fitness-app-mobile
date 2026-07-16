@@ -2,6 +2,10 @@ import { useAuth } from '@clerk/clerk-expo';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getBodyEvolutionDashboard } from '../services/health.service';
+import {
+  getSubscriptionErrorMessage,
+  isSubscriptionModuleError,
+} from '../services/subscription.service';
 import { BodyEvolutionDashboardDto } from '../types/health';
 import {
   abortRequest,
@@ -22,6 +26,12 @@ interface UseBodyEvolutionDashboardReturn {
   dashboard: BodyEvolutionDashboardDto | null;
   isLoading: boolean;
   error: string | null;
+  /**
+   * Mensaje de gating por plan (403): la evolución física no está incluida en la
+   * suscripción actual. Separado de `error` porque no es un fallo de carga sino un
+   * límite del plan — la UI muestra una advertencia para actualizar, no un "reintentar".
+   */
+  planWarning: string | null;
   /** Recarga las series de evolución física desde el backend. */
   refresh: () => void;
 }
@@ -43,6 +53,7 @@ export function useBodyEvolutionDashboard(
   const [dashboard, setDashboard] = useState<BodyEvolutionDashboardDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [planWarning, setPlanWarning] = useState<string | null>(null);
   const loadRequestRef = useRef<AbortController | null>(null);
 
   /** Carga las métricas de evolución corporal desde el backend. */
@@ -52,6 +63,7 @@ export function useBodyEvolutionDashboard(
 
     setIsLoading(true);
     setError(null);
+    setPlanWarning(null);
     try {
       const token = await getTokenRef.current();
       if (signal.aborted) return;
@@ -60,6 +72,16 @@ export function useBodyEvolutionDashboard(
       setDashboard(result);
     } catch (err) {
       if (signal.aborted || isRequestCanceled(err)) return;
+      // 403: la evolución física no está incluida en el plan. No es un fallo de red:
+      // mostramos la advertencia de actualización, no el estado de "reintentar".
+      if (isSubscriptionModuleError(err)) {
+        setDashboard(null);
+        setPlanWarning(
+          getSubscriptionErrorMessage(err) ??
+            'Tu plan actual no incluye la evolución física. Actualizá tu plan para desbloquearla.',
+        );
+        return;
+      }
       setError('No pudimos cargar la evolución física. Intentá nuevamente.');
     } finally {
       if (isCurrentRequest(loadRequestRef, controller)) {
@@ -80,6 +102,7 @@ export function useBodyEvolutionDashboard(
     dashboard,
     isLoading,
     error,
+    planWarning,
     refresh: load,
   };
 }

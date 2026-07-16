@@ -74,6 +74,26 @@ export const formatRepRange = (exercise: {
 
 export type ExerciseLoadType = 'BodyWeight' | 'ExternalWeight';
 
+/**
+ * Objetivo de repeticiones de la serie EN CURSO.
+ *
+ * Prioriza `currentRep` sobre el rango `min–max`, al revés que `formatRepRange`: el
+ * `currentRep` es el valor que el **ajuste de carga actualiza**. Mostrando el rango del
+ * plan (que nunca cambia), un ajuste de repeticiones sería invisible para el usuario.
+ * Si el ejercicio no tiene `currentRep`, se cae al rango.
+ */
+export const formatTargetReps = (exercise: {
+  minRep?: string | number | null;
+  maxRep?: string | number | null;
+  currentRep?: string | number | null;
+}): string => {
+  const current =
+    exercise.currentRep != null ? parseInt(String(exercise.currentRep), 10) : NaN;
+
+  if (Number.isFinite(current) && current > 0) return String(current);
+  return formatRepRange(exercise);
+};
+
 export const formatExerciseLoad = (exercise: {
   loadType?: ExerciseLoadType | string | null;
   plannedWeightKg?: number | string | null;

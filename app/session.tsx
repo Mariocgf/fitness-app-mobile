@@ -1,15 +1,17 @@
 import { logger } from '@/src/utils/logger';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { toast } from '@/src/components/ui/feedback';
+import { FeedbackHost, toast } from '@/src/components/ui/feedback';
 import { ActiveSessionView } from '@/src/components/features/routine/session/ActiveSessionView';
 import { CountdownOverlay } from '@/src/components/features/routine/session/CountdownOverlay';
 import { useNetworkStatus } from '@/src/hooks/useNetworkStatus';
-import { enqueueTrainingSessionOffline } from '@/src/offline/service';
+import { enqueueTrainingSessionOffline, refreshOfflineFitnessRoutine } from '@/src/offline/service';
 import { saveSession } from '@/src/services/routine.service';
+import { useRoutineDetailContext } from '@/src/store/routine-detail-context';
 import { useAuth } from '@clerk/clerk-expo';
 import { SessionDay, SessionLog } from '@/src/types/session';
+import { ExerciseLoadPatch, applyLoadAdjustmentToRoutine } from '@/src/utils/routine-adjust.utils';
 import { useMutation } from '@tanstack/react-query';
 
 export default function SessionScreen() {
@@ -22,11 +24,37 @@ export default function SessionScreen() {
   const { getToken } = useAuth();
   const router = useRouter();
   const { isOnline } = useNetworkStatus();
+  const { activeRoutine, setActiveRoutine } = useRoutineDetailContext();
 
   const [isSaving, setIsSaving] = useState(false);
   const [showCountdown, setShowCountdown] = useState(true);
 
   const day: SessionDay | null = dayData ? JSON.parse(dayData) : null;
+  const dayId = day?.id;
+
+  /**
+   * La sesión trabaja sobre un SNAPSHOT del día (`dayData` llega serializado por params),
+   * así que un ajuste de carga solo vivía dentro de la sesión y se perdía al salir: el
+   * detalle seguía mostrando el peso viejo y la próxima sesión arrancaba de ahí.
+   *
+   * Acá se propaga a la rutina cacheada — en memoria (contexto) y en el snapshot offline
+   * si el usuario lo tenía descargado.
+   */
+  const handleExerciseAdjusted = useCallback(
+    (exerciseEntryId: string, patch: ExerciseLoadPatch) => {
+      if (!activeRoutine || !dayId || activeRoutine.id !== routineId) return;
+
+      const updated = applyLoadAdjustmentToRoutine(activeRoutine, dayId, exerciseEntryId, patch);
+      setActiveRoutine(updated);
+
+      /* El snapshot offline es best-effort: si falla, la sesión NO se rompe (el backend ya
+         tiene el ajuste persistido y la próxima descarga lo trae). */
+      refreshOfflineFitnessRoutine(updated).catch((error) => {
+        logger.error('[SessionScreen] No se pudo refrescar el snapshot offline', error);
+      });
+    },
+    [activeRoutine, setActiveRoutine, dayId, routineId],
+  );
 
   const mutation = useMutation({
     mutationFn: async (log: SessionLog) => {
@@ -82,6 +110,7 @@ export default function SessionScreen() {
           nextSessionDay={nextSessionDay}
           onFinishSession={handleFinishSession}
           onCancel={() => router.back()}
+          onExerciseAdjusted={handleExerciseAdjusted}
         />
       )}
       {showCountdown && (
@@ -92,6 +121,14 @@ export default function SessionScreen() {
           <ActivityIndicator size="large" color="#d9f99d" />
         </View>
       )}
+
+      {/* Esta pantalla se presenta como `fullScreenModal` (ver `app/_layout.tsx`), o sea
+          en un view controller POR ENCIMA del árbol raíz. El `FeedbackHost` del layout
+          raíz queda debajo: sus toasts se ven tapados y su diálogo no se puede presentar
+          (aparecería recién al salir de la sesión). Montando el host acá, el feedback
+          vive en el árbol de arriba y se ve donde tiene que verse.
+          Solo renderiza el host más alto de la pila, así que el raíz se apaga solo. */}
+      <FeedbackHost />
     </View>
   );
 }

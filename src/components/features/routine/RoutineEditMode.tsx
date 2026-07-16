@@ -19,7 +19,7 @@ import { Routine, RoutineDay, RoutineExercise } from '@/src/types/routine';
 import { calcDayApproxTime, routineToDraftDays } from '@/src/utils/routine-editor.utils';
 import { getWeightOptions } from '@/src/utils/weight.utils';
 import { useAuth } from '@clerk/clerk-expo';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { confirm, toast } from '@/src/components/ui/feedback';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -84,6 +84,11 @@ export const RoutineEditMode: React.FC<RoutineEditModeProps> = ({
   const { getToken } = useAuth();
   const { inventory } = useWeightInventory();
 
+  /* `getToken` cambia de identidad cuando Clerk refresca (lección del repo): si va en
+     las deps de un effect, lo re-dispara. Se lee de un ref estable. */
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+
   const editor = useRoutineEditor({
     initialName: routine.name,
     initialDays: routineToDraftDays(routine.days),
@@ -105,27 +110,30 @@ export const RoutineEditMode: React.FC<RoutineEditModeProps> = ({
 
     let cancelled = false;
     (async () => {
-      const token = await getToken();
+      const token = await getTokenRef.current();
       const entries = await Promise.all(
         exerciseIds.map(async (id) => {
           try {
             const info = await getExerciseInfo(id, token);
             return [id, info.equipments] as const;
           } catch {
-            return [id, [] as string[]] as const;
+            // Un fetch fallido NO debe pisar el equipamiento con `[]`: eso colapsaría las
+            // opciones de peso a solo "corporal". Se devuelve null y se descarta.
+            return [id, null] as const;
           }
         }),
       );
       if (cancelled) return;
-      setExercisesEquipments(Object.fromEntries(entries));
+      const resolved = Object.fromEntries(entries.filter(([, eq]) => eq !== null));
+      if (Object.keys(resolved).length > 0) setExercisesEquipments(resolved as Record<string, string[]>);
     })();
 
     return () => { cancelled = true; };
-  }, [routine.id, getToken, setExercisesEquipments]);
+  }, [routine.id, setExercisesEquipments]);
 
   /** Opciones de peso filtradas por el equipamiento del ejercicio (igual que al crear). */
   const weightOptionsFor = useCallback(
-    (exercise: CreateRoutineExercise) => getWeightOptions(exercise.equipments[0], inventory),
+    (exercise: CreateRoutineExercise) => getWeightOptions(exercise.equipments, inventory),
     [inventory],
   );
 

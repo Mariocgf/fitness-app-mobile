@@ -2,6 +2,7 @@ import { SessionHeader } from '@/src/components/common/SessionHeader';
 import { useActiveSession } from '@/src/hooks/useActiveSession';
 import { useNetworkStatus } from '@/src/hooks/useNetworkStatus';
 import { SessionDay, SessionLog } from '@/src/types/session';
+import { ExerciseLoadPatch } from '@/src/utils/routine-adjust.utils';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { View } from 'react-native';
@@ -21,6 +22,8 @@ interface ActiveSessionViewProps {
   nextSessionDay?: string;
   onFinishSession?: (log: SessionLog) => void;
   onCancel?: () => void;
+  /** Propaga a la rutina cacheada un ajuste de carga hecho durante la sesión. */
+  onExerciseAdjusted?: (exerciseEntryId: string, patch: ExerciseLoadPatch) => void;
 }
 
 export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
@@ -30,10 +33,11 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
   nextSessionDay,
   onFinishSession,
   onCancel,
+  onExerciseAdjusted,
 }) => {
   const insets = useSafeAreaInsets();
   const { isOnline } = useNetworkStatus();
-  const session = useActiveSession({ routineId, day, onFinishSession, onCancel });
+  const session = useActiveSession({ routineId, day, onFinishSession, onCancel, onExerciseAdjusted });
 
   if (!session.currentExercise && session.phase !== 'SUMMARY') return null;
 
@@ -45,6 +49,21 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
         stats={session.summaryStats}
         routineName={routineName}
         nextSessionDay={nextSessionDay}
+        /* La última serie salta directo acá sin descanso: es el único momento en que
+           el usuario puede puntuarla. Si no toca nada, va como `null`. */
+        pendingEffort={
+          session.isSummaryRpePending && session.currentExercise
+            ? {
+                exerciseName: session.currentExercise.name,
+                rpe: session.currentSetRpe,
+                onRpeChange: session.setCurrentSetRpe,
+                onAdjustLoad: session.handleAdjustLoad,
+                canAdjustLoad: session.canAdjustLoad,
+                isAdjustingLoad: session.isAdjustingLoad,
+                isOffline: !isOnline,
+              }
+            : undefined
+        }
         onSave={session.handleSaveSession}
       />
     );
@@ -83,12 +102,11 @@ export const ActiveSessionView: React.FC<ActiveSessionViewProps> = ({
             initialRest={session.initialRest}
             nextExercise={session.nextExercise}
             isLastSession={session.isLastExerciseAndSet}
-            rpe={session.rpe}
-            onRpeChange={session.setRpe}
-            onSaveRpe={session.handleSaveRpe}
-            rpeDisabled={session.rpeSaved}
+            rpe={session.currentSetRpe}
+            onRpeChange={session.setCurrentSetRpe}
+            onAdjustLoad={session.handleAdjustLoad}
+            canAdjustLoad={session.canAdjustLoad}
             isAdjustingLoad={session.isAdjustingLoad}
-            canUpdateRpe={session.canUpdateRpe}
             isOffline={!isOnline}
             repetitionMode={session.repetitionMode}
             partialReps={session.partialReps}

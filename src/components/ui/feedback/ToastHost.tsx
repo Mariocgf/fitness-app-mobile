@@ -50,6 +50,23 @@ function ToastCard({ entry }: { entry: ToastEntry }) {
           <Text className={entry.title ? 'text-sm leading-5 text-zinc-400' : 'text-sm leading-5 text-zinc-100'}>
             {entry.message}
           </Text>
+          {entry.action ? (
+            // Pressable anidado: en RN el hijo toma el responder, así que tocar el CTA
+            // no dispara el onPress de la card (que solo descarta el toast).
+            <Pressable
+              onPress={() => {
+                toast.dismiss(entry.id);
+                entry.action?.onPress();
+              }}
+              hitSlop={8}
+              className="mt-2 self-start rounded-lg border px-3 py-1.5"
+              style={{ borderColor: variant.accent }}
+            >
+              <Text className="text-xs font-semibold" style={{ color: variant.accent }}>
+                {entry.action.label}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       </Pressable>
     </Animated.View>

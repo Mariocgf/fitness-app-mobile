@@ -1,11 +1,16 @@
 import React from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { resolveConfirm, useConfirmRequest } from './confirm';
 
 /**
- * Renderiza el diálogo de confirmación activo (si hay). Se monta una vez en el
- * layout raíz. Centrado, dark-only, coherente con el resto de la app.
+ * Renderiza el diálogo activo (si hay). Se monta una vez en el layout raíz. Centrado,
+ * dark-only, coherente con el resto de la app. Sirve para confirmaciones (dos botones)
+ * y para avisos informativos (`hideCancel`: un solo botón).
+ *
+ * El mensaje va en un `ScrollView` acotado: los textos que vienen del backend (ej. la
+ * decisión del ajuste de carga) pueden ser varios párrafos y no deben empujar los
+ * botones fuera de la pantalla.
  */
 export function ConfirmHost() {
   const request = useConfirmRequest();
@@ -31,18 +36,26 @@ export function ConfirmHost() {
               <Text className="text-lg font-bold text-zinc-100">{request.title}</Text>
             ) : null}
             {request.message ? (
-              <Text className="mt-2 text-sm leading-5 text-zinc-400">{request.message}</Text>
+              <ScrollView
+                style={{ maxHeight: 260 }}
+                showsVerticalScrollIndicator={false}
+                className="mt-2"
+              >
+                <Text className="text-sm leading-5 text-zinc-400">{request.message}</Text>
+              </ScrollView>
             ) : null}
 
             <View className="mt-6 flex-row gap-3">
-              <Pressable
-                onPress={() => resolveConfirm(false)}
-                className="flex-1 items-center justify-center rounded-2xl border border-zinc-700 py-3 active:bg-zinc-800"
-              >
-                <Text className="text-base font-semibold text-zinc-200">
-                  {request.cancelText ?? 'Cancelar'}
-                </Text>
-              </Pressable>
+              {!request.hideCancel && (
+                <Pressable
+                  onPress={() => resolveConfirm(false)}
+                  className="flex-1 items-center justify-center rounded-2xl border border-zinc-700 py-3 active:bg-zinc-800"
+                >
+                  <Text className="text-base font-semibold text-zinc-200">
+                    {request.cancelText ?? 'Cancelar'}
+                  </Text>
+                </Pressable>
+              )}
 
               <Pressable
                 onPress={() => resolveConfirm(true)}

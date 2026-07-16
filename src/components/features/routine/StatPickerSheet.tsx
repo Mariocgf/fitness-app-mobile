@@ -1,12 +1,15 @@
 import { CreateRoutineDay } from '@/src/types/create-routine';
 import { WeightOption } from '@/src/utils/weight.utils';
-import React, { useMemo, useRef } from 'react';
-import { Modal, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Modal, Platform, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 /* ── Wheel picker (scroll vertical estilo iOS) — puro JS, Expo Go OK ───────── */
 
 const WHEEL_ITEM_H = 44;
 const WHEEL_VISIBLE = 5; // 2 arriba + centro + 2 abajo
+const WEB_SETTLE_MS = 140;
+
+const isWeb = Platform.OS === 'web';
 
 const WheelPicker = ({ items, value, onChange }: {
   items: { value: number | null; label: string }[];
@@ -15,13 +18,36 @@ const WheelPicker = ({ items, value, onChange }: {
 }) => {
   const ref = useRef<ScrollView>(null);
   const didInit = useRef(false);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialIndex = Math.max(0, items.findIndex(i => i.value === value));
 
-  const handleMomentumEnd = (e: { nativeEvent: { contentOffset: { y: number } } }) => {
-    const idx = Math.min(items.length - 1, Math.max(0, Math.round(e.nativeEvent.contentOffset.y / WHEEL_ITEM_H)));
+  const commitOffset = (y: number) => {
+    const idx = Math.min(items.length - 1, Math.max(0, Math.round(y / WHEEL_ITEM_H)));
     const picked = items[idx];
     if (picked && picked.value !== value) onChange(picked.value);
+    return idx;
   };
+
+  const handleMomentumEnd = (e: { nativeEvent: { contentOffset: { y: number } } }) => {
+    commitOffset(e.nativeEvent.contentOffset.y);
+  };
+
+  // react-native-web nunca emite onMomentumScrollEnd ni soporta snapToInterval:
+  // su ScrollView solo ata el evento DOM `scroll`. En web el valor se confirma
+  // cuando la rueda deja de moverse y se reencuadra al item más cercano a mano.
+  const handleWebScroll = (e: { nativeEvent: { contentOffset: { y: number } } }) => {
+    const y = e.nativeEvent.contentOffset.y;
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => {
+      const idx = commitOffset(y);
+      const snapped = idx * WHEEL_ITEM_H;
+      if (Math.abs(y - snapped) > 1) ref.current?.scrollTo({ y: snapped, animated: true });
+    }, WEB_SETTLE_MS);
+  };
+
+  useEffect(() => () => {
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+  }, []);
 
   return (
     <View style={{ height: WHEEL_ITEM_H * WHEEL_VISIBLE }}>
@@ -38,7 +64,9 @@ const WheelPicker = ({ items, value, onChange }: {
         snapToInterval={WHEEL_ITEM_H}
         decelerationRate="fast"
         contentContainerStyle={{ paddingVertical: WHEEL_ITEM_H * 2 }}
-        onMomentumScrollEnd={handleMomentumEnd}
+        onMomentumScrollEnd={isWeb ? undefined : handleMomentumEnd}
+        onScroll={isWeb ? handleWebScroll : undefined}
+        scrollEventThrottle={16}
         onLayout={() => {
           if (didInit.current) return;
           didInit.current = true;
@@ -64,6 +92,28 @@ const buildRange = (from: number, to: number, step = 1): { value: number | null;
   const arr: { value: number | null; label: string }[] = [];
   for (let n = from; n <= to; n += step) arr.push({ value: n, label: String(n) });
   return arr;
+};
+
+/**
+ * Garantiza que el peso ya guardado esté entre las opciones del picker.
+ *
+ * Las opciones se derivan del inventario del usuario y del equipamiento del ejercicio,
+ * que carga async: mientras tanto la lista es solo "Peso corporal". Si el ejercicio ya
+ * tenía un peso, sin esto el picker abriría en corporal y cualquier scroll confirmaría
+ * `null` — sobrescribiendo el peso guardado. Se inserta el valor (ordenado, después de
+ * "Peso corporal") para que el picker abra EN él y no se pierda.
+ */
+const ensureCurrentWeight = (
+  options: WeightOption[],
+  current: number | null,
+): WeightOption[] => {
+  if (current == null || options.some((o) => o.value === current)) return options;
+
+  const [bodyweight, ...weights] = options;
+  const withCurrent = [...weights, { value: current, label: `${current} kg` }].sort(
+    (a, b) => (a.value ?? 0) - (b.value ?? 0),
+  );
+  return bodyweight?.value == null ? [bodyweight, ...withCurrent] : withCurrent;
 };
 
 interface StatPickerSheetProps {
@@ -103,7 +153,11 @@ export const StatPickerSheet: React.FC<StatPickerSheetProps> = ({
       case 'restSeconds':
         return { title: 'Descanso (seg)', items: buildRange(0, 300, 5), value: exercise.restSeconds as number | null };
       case 'weight':
-        return { title: 'Peso', items: weightOptions as { value: number | null; label: string }[], value: exercise.plannedWeightKg };
+        return {
+          title: 'Peso',
+          items: ensureCurrentWeight(weightOptions, exercise.plannedWeightKg),
+          value: exercise.plannedWeightKg,
+        };
       default:
         return null;
     }

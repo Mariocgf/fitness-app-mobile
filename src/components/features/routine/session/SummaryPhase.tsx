@@ -1,9 +1,11 @@
 import { IconTile } from '@/src/components/common/IconTile';
 import { formatTimeSpan } from '@/src/utils/format.utils';
+import { effortLabelFor } from '@/src/utils/rpe';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { EffortSection } from './EffortSection';
 
 const LIME = '#a3e635'; // lime-400
 
@@ -14,7 +16,24 @@ interface SummaryStats {
   setsTotal: number;
   repsDone: number;
   repsTotal: number;
-  avgRpe: number;
+  /** `null` cuando no se registró ni un esfuerzo en toda la sesión. */
+  avgRpe: number | null;
+}
+
+/**
+ * Bloque de esfuerzo de la ÚLTIMA serie. Solo aparece cuando la sesión terminó por
+ * completarla (esa serie salta directo al resumen y nunca tuvo descanso, así que es
+ * el único momento en que el usuario puede puntuarla).
+ */
+interface PendingEffort {
+  /** Nombre del ejercicio de esa última serie. */
+  exerciseName: string;
+  rpe: number | null;
+  onRpeChange: (value: number) => void;
+  onAdjustLoad: () => void;
+  canAdjustLoad: boolean;
+  isAdjustingLoad: boolean;
+  isOffline: boolean;
 }
 
 interface SummaryPhaseProps {
@@ -24,6 +43,8 @@ interface SummaryPhaseProps {
   routineName?: string;
   /** Etiqueta cruda del próximo día de la rutina (ej. "Día 2 - Espalda") */
   nextSessionDay?: string;
+  /** Si falta puntuar la última serie (sin descanso previo). */
+  pendingEffort?: PendingEffort;
   onSave: () => void;
 }
 
@@ -36,7 +57,8 @@ const formatNextSessionDay = (raw: string): string =>
 
 interface StatCellProps {
   label: string;
-  value: number;
+  /** `null` se muestra como "—": la ausencia de dato no es un cero. */
+  value: number | string | null;
   /** Total opcional; si se omite, se muestra solo el valor (ej. esfuerzo promedio) */
   total?: number;
 }
@@ -45,8 +67,10 @@ interface StatCellProps {
 const StatCell: React.FC<StatCellProps> = ({ label, value, total }) => (
   <View className="flex-1 items-center py-5">
     <Text className="text-zinc-500 text-sm mb-2">{label}</Text>
-    <Text className="text-white text-3xl font-bold">
-      {value}
+    {/* El esfuerzo llega como etiqueta ("Al fallo"), no como número: se auto-ajusta
+        para que una palabra larga entre en la celda igual que un dígito. */}
+    <Text adjustsFontSizeToFit numberOfLines={1} className="text-white text-3xl font-bold px-2">
+      {value ?? '—'}
       {total !== undefined && (
         <Text className="text-zinc-600 font-bold"> / {total}</Text>
       )}
@@ -59,6 +83,7 @@ export const SummaryPhase: React.FC<SummaryPhaseProps> = ({
   stats,
   routineName,
   nextSessionDay,
+  pendingEffort,
   onSave,
 }) => {
   const insets = useSafeAreaInsets();
@@ -97,6 +122,22 @@ export const SummaryPhase: React.FC<SummaryPhaseProps> = ({
           {stats.exercisesDone} {stats.exercisesDone === 1 ? 'ejercicio completado' : 'ejercicios completados'}
         </Text>
 
+        {/* Esfuerzo de la última serie: no tuvo descanso, así que se pregunta acá.
+            Si el usuario toca "Continuar" sin elegir nada, esa serie va como `null`. */}
+        {pendingEffort && (
+          <View className="bg-zinc-900 rounded-3xl mt-8 p-5">
+            <EffortSection
+              title={`¿Cómo te fue la última serie? · ${pendingEffort.exerciseName}`}
+              rpe={pendingEffort.rpe}
+              onRpeChange={pendingEffort.onRpeChange}
+              onAdjustLoad={pendingEffort.onAdjustLoad}
+              canAdjustLoad={pendingEffort.canAdjustLoad}
+              isAdjustingLoad={pendingEffort.isAdjustingLoad}
+              isOffline={pendingEffort.isOffline}
+            />
+          </View>
+        )}
+
         {/* Grid de estadísticas 2×2 */}
         <View className="bg-zinc-900 rounded-3xl mt-8 overflow-hidden">
           <View className="flex-row">
@@ -108,7 +149,7 @@ export const SummaryPhase: React.FC<SummaryPhaseProps> = ({
           <View className="flex-row">
             <StatCell label="Repeticiones" value={stats.repsDone} total={stats.repsTotal} />
             <View className="w-px bg-zinc-800" />
-            <StatCell label="Esfuerzo promedio" value={stats.avgRpe} />
+            <StatCell label="Esfuerzo promedio" value={effortLabelFor(stats.avgRpe)} />
           </View>
         </View>
 

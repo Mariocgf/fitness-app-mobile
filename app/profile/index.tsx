@@ -8,11 +8,12 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { confirm, toast } from '@/src/components/ui/feedback';
+import { confirm } from '@/src/components/ui/feedback';
 import { ProfileIdentityHeader } from '@/src/components/features/profile/ProfileIdentityHeader';
 import { ProfileModuleCard } from '@/src/components/features/profile/ProfileModuleCard';
 import { destroyOfflineData, getOfflineOperationCounts } from '@/src/offline/repository';
 import { getActiveModules } from '@/src/services/module.service';
+import { useSubscription } from '@/src/store/subscription-context';
 import { ActiveModule } from '@/src/types/module';
 
 export default function ProfileScreen() {
@@ -20,6 +21,11 @@ export default function ProfileScreen() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { status: subscription } = useSubscription();
+
+  const isFreeTier = subscription.tier === 'Free';
+  const planLabel = `Plan ${subscription.tier}`;
+  const subscriptionSubtitle = isFreeTier ? 'Sin plan activo' : `${planLabel} activo`;
 
   const [activeModules, setActiveModules] = useState<ActiveModule[]>([]);
   const [isLoadingModules, setIsLoadingModules] = useState(true);
@@ -132,7 +138,12 @@ export default function ProfileScreen() {
         </View>
 
         {/* Identidad */}
-        <ProfileIdentityHeader fullName={fullName} email={email} avatarUrl={avatarUrl} plan="Premium" />
+        <ProfileIdentityHeader
+          fullName={fullName}
+          email={email}
+          avatarUrl={avatarUrl}
+          plan={planLabel}
+        />
 
         {/* Cuenta */}
         <Text className="px-5 mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
@@ -141,8 +152,8 @@ export default function ProfileScreen() {
         <ProfileModuleCard
           icon="diamond-outline"
           title="Suscripción"
-          subtitle="Plan Premium activo"
-          onPress={() => toast.info('Próximamente.')}
+          subtitle={subscriptionSubtitle}
+          onPress={() => router.push('/profile/subscription')}
         />
 
         {/* Mis módulos — solo módulos activos */}

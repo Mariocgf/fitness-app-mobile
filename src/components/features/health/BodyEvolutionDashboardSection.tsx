@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 
@@ -6,10 +7,18 @@ import { BodyEvolutionDashboardDto, BodyMetricTrend } from '@/src/types/health';
 
 import { BodyMetricTrendCard } from './BodyMetricTrendCard';
 
+/** Paywall: ahí el usuario ve/activa el plan que incluye la evolución física. */
+const SUBSCRIPTION_ROUTE = '/profile/subscription';
+
 interface BodyEvolutionDashboardSectionProps {
   dashboard: BodyEvolutionDashboardDto | null;
   isLoading: boolean;
   error: string | null;
+  /**
+   * Mensaje de gating por plan (403). Cuando está presente, tiene precedencia sobre
+   * `error` y el contenido: la evolución no está incluida en la suscripción actual.
+   */
+  planWarning?: string | null;
   onRefresh: () => void;
   /** Navega a la pantalla con todas las métricas de evolución física. */
   onViewMore: () => void;
@@ -30,6 +39,7 @@ export function BodyEvolutionDashboardSection({
   dashboard,
   isLoading,
   error,
+  planWarning,
   onRefresh,
   onViewMore,
 }: BodyEvolutionDashboardSectionProps) {
@@ -56,7 +66,37 @@ export function BodyEvolutionDashboardSection({
           </View>
         )}
 
-        {!isLoading && error != null && (
+        {/* Gating por plan (403): tiene precedencia sobre error/vacío/contenido. */}
+        {!isLoading && planWarning != null && (
+          <View className="bg-amber-400/10 border border-amber-400/30 rounded-3xl p-5">
+            <View className="flex-row items-start gap-3">
+              <Ionicons
+                name="lock-closed"
+                size={22}
+                className="text-amber-400"
+              />
+              <View className="flex-1">
+                <Text className="text-white font-bold text-base">
+                  Función no incluida en tu plan
+                </Text>
+                <Text className="text-zinc-300 text-sm mt-1">
+                  {planWarning}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={() => router.push(SUBSCRIPTION_ROUTE)}
+              activeOpacity={0.85}
+              className="mt-4 py-3 rounded-2xl items-center bg-amber-400"
+            >
+              <Text className="text-zinc-900 font-bold">
+                Actualizar plan
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!isLoading && planWarning == null && error != null && (
           <View className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
             <View className="flex-row items-start gap-3">
               <Ionicons
@@ -85,7 +125,7 @@ export function BodyEvolutionDashboardSection({
           </View>
         )}
 
-        {!isLoading && error == null && metrics.length === 0 && (
+        {!isLoading && planWarning == null && error == null && metrics.length === 0 && (
           <View className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
             <View className="flex-row items-start gap-3">
               <Ionicons

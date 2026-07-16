@@ -12,6 +12,7 @@ import {
     TrainingHistorySetDto,
 } from '../types/training-history';
 import { withRequestSignal } from '../utils/request-cancellation';
+import { averageRpe } from '../utils/rpe';
 
 /** Convierte segundos totales a "hh:mm:ss" (con ceros a la izquierda) */
 const secondsToHms = (totalSeconds: number): string => {
@@ -32,30 +33,34 @@ const parseHmsToSeconds = (hms: string): number => {
   return h * 3600 + m * 60 + s;
 };
 
-/** Parsea un valor numérico que puede venir como string, number o null. */
-const toNumber = (value: string | number | null | undefined): number =>
-  value == null ? 0 : Number(value) || 0;
+/**
+ * Parsea un RPE que puede venir como string, number, `null` o ausente.
+ *
+ * `null` = el usuario no lo registró. El `0` también cae en `null` a propósito: era el
+ * centinela viejo de "no registrado" y ya no es un valor válido, así que un backend que
+ * todavía lo mande no debe contaminar promedios ni pintarse como un esfuerzo real.
+ */
+const toNullableRpe = (value: string | number | null | undefined): number | null => {
+  if (value == null) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
 
-/** Mapea un SetDto a modelo de dominio (el RPE ahora vive acá) */
+/** Mapea un SetDto a modelo de dominio (el RPE ahora vive acá, y puede ser `null`) */
 const mapSetDto = (dto: TrainingHistorySetDto): TrainingHistorySession['exercises'][number]['sets'][number] => ({
   setNumber: parseInt(dto.setNumber, 10) || 0,
   repsPerformed: parseInt(dto.repsPerformed, 10) || 0,
   weightUsed: parseFloat(dto.weightUsed) || 0,
   durationSeconds: parseInt(dto.durationSeconds, 10) || 0,
-  rpe: toNumber(dto.rpe),
+  rpe: toNullableRpe(dto.rpe),
   isCompleted: dto.isCompleted,
 });
 
 /** Mapea un ExerciseDto a modelo de dominio. El `rpe` del ejercicio ya no lo manda
- * el back: se deriva como promedio de los sets con esfuerzo cargado (fallback al
- * `rpe` legacy si aún viniera a este nivel). */
+ * el back: se deriva como promedio de los sets con esfuerzo cargado, ignorando los
+ * `null` (fallback al `rpe` legacy si aún viniera a este nivel). */
 const mapExerciseDto = (dto: TrainingHistoryExerciseDto) => {
   const sets = (dto.sets ?? []).map(mapSetDto);
-  const rpeValues = sets.map((s) => s.rpe).filter((r) => r > 0);
-  const derivedRpe =
-    rpeValues.length > 0
-      ? Math.round(rpeValues.reduce((sum, r) => sum + r, 0) / rpeValues.length)
-      : toNumber(dto.rpe);
 
   return {
     exerciseId: dto.exerciseId,
@@ -63,7 +68,7 @@ const mapExerciseDto = (dto: TrainingHistoryExerciseDto) => {
     exerciseNameEs: dto.exerciseNameEs,
     gifUrl: dto.gifUrl,
     targetMuscles: dto.targetMuscles ?? [],
-    rpe: derivedRpe,
+    rpe: averageRpe(sets.map((set) => set.rpe)) ?? toNullableRpe(dto.rpe),
     sets,
   };
 };
@@ -180,8 +185,11 @@ export const createManualTrainingSession = async (
         : {}),
       sets: exercise.sets.map((set) => ({
         reps: set.reps,
-        rpe: set.rpe,
         weight: set.weight,
+        // El RPE se omite si el usuario no lo eligió: `null`/ausente = "no registrado".
+        // Mandar un default inventado sería peor que el viejo `0` (indistinguible de
+        // un esfuerzo real), y el `0` en sí ahora es un 400.
+        ...(set.rpe != null ? { rpe: set.rpe } : {}),
         ...(set.durationSeconds != null ? { durationSeconds: set.durationSeconds } : {}),
       })),
     })),

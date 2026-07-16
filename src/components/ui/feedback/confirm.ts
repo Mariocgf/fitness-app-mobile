@@ -21,6 +21,8 @@ export interface ConfirmOptions {
   cancelText?: string;
   /** Pinta la acción en rojo (borrados / acciones irreversibles). */
   destructive?: boolean;
+  /** Diálogo informativo: un solo botón, sin "Cancelar" (no hay nada que cancelar). */
+  hideCancel?: boolean;
 }
 
 export interface ConfirmRequest extends ConfirmOptions {
@@ -44,6 +46,18 @@ export function confirm(options: ConfirmOptions): Promise<boolean> {
     current = { id: ++counter, resolve, ...options };
     emit();
   });
+}
+
+/**
+ * Diálogo informativo de un solo botón (el equivalente in-app de `Alert.alert(msg)`).
+ *
+ * Reusa el mismo host que `confirm` — no hay un modal paralelo — así que se renderiza
+ * igual en nativo y en PWA, y por encima de cualquier pantalla.
+ */
+export function alertDialog(
+  options: Omit<ConfirmOptions, 'cancelText' | 'destructive' | 'hideCancel'>,
+): Promise<void> {
+  return confirm({ ...options, hideCancel: true }).then(() => undefined);
 }
 
 /** Lo llama el host al tocar un botón o el backdrop. */
