@@ -21,11 +21,16 @@ const EMULATOR_KEY = process.env.EXPO_PUBLIC_IAP_EMULATOR_KEY || '';
 
 logger.log('[emulator-client] EMULATOR_URL:', EMULATOR_URL, '| key set:', Boolean(EMULATOR_KEY));
 
+/**
+ * NO agregar headers custom sin sumarlos al `Access-Control-Allow-Headers` del
+ * emulador: su lista es FIJA (`Content-Type,X-Mock-Key`), no echoea como la API.
+ * Cada header custom de más dispara un preflight que el emulador rechaza, y en el
+ * browser eso se ve como un `Network Error` opaco, sin pista del header culpable.
+ */
 const emulatorClient = axios.create({
   baseURL: EMULATOR_URL,
   headers: {
     'Content-Type': 'application/json',
-    'ngrok-skip-browser-warning': 'true',
     'X-Mock-Key': EMULATOR_KEY,
   },
 });
