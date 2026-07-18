@@ -140,6 +140,20 @@ export default function TabLayout() {
                 ),
               }}
             />
+
+            <Tabs.Screen
+              name="community"
+              options={{
+                title: 'Comunidad',
+                tabBarIcon: ({ focused, color }) => (
+                  <Ionicons
+                    name={focused ? 'people' : 'people-outline'}
+                    size={24}
+                    color={color}
+                  />
+                ),
+              }}
+            />
         </Tabs>
         {/* Web: relleno del safe-area del home indicator. react-navigation no cubre esa
             franja en web y queda una "barra negra" debajo del tab bar. Este View, pegado
