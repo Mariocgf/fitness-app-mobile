@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import AddInlineButton from '@/src/components/common/AddInlineButton';
+import InfoChips from '@/src/components/common/InfoChips';
 import SearchableSelect from '@/src/components/common/SearchableSelect';
 import SectionCard from '@/src/components/common/SectionCard';
 import { SegmentedControl } from '@/src/components/common/SegmentedControl';
@@ -57,33 +59,6 @@ const DIFFICULTY_LABELS: Record<string, string> = {
 };
 
 const DEFAULT_SESSION_MINUTES = 60;
-
-/** Chips informativos de solo lectura (equipamiento, lesiones, afecciones). */
-function InfoChips({ items }: { items: string[] }) {
-  return (
-    <View className="flex-row flex-wrap gap-2 mb-3">
-      {items.map((label) => (
-        <View key={label} className="px-3 py-1.5 rounded-full bg-zinc-800 border border-zinc-700">
-          <Text className="text-zinc-200 text-sm">{label}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-/** Botón "Agregar" con acento lime (abre el editor inline o navega). */
-function AddInlineButton({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.85}
-      className="flex-row items-center justify-center py-3 rounded-2xl border border-lime-400 bg-lime-400/10"
-    >
-      <Ionicons name="add" size={18} color="#a3e635" />
-      <Text className="text-lime-400 font-semibold text-sm ml-1.5">{label}</Text>
-    </TouchableOpacity>
-  );
-}
 
 /**
  * Overlay full-screen (dark-only `zinc` + acento `lime-400`) para generar una rutina
