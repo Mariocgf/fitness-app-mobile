@@ -2,7 +2,7 @@ import { SessionExercise } from '@/src/types/session';
 import { formatExerciseLoad, formatReps, formatTargetReps, formatTime } from '@/src/utils/format.utils';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { ExerciseGif } from './ExerciseGif';
 import { InstructionsModal } from './InstructionsModal';
 
@@ -47,32 +47,39 @@ export const ExercisePhase: React.FC<ExercisePhaseProps> = ({
 
   return (
     <>
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* GIF hero */}
-        <View className="w-full aspect-square rounded-3xl overflow-hidden bg-zinc-900 mt-2">
-          {currentExercise.gifUrl ? (
-            <ExerciseGif uri={currentExercise.gifUrl} />
-          ) : (
-            <View className="flex-1 items-center justify-center">
-              <Ionicons name="image-outline" size={48} color="#52525b" />
-            </View>
-          )}
+      {/* Layout en dos partes: el GIF ABSORBE el espacio sobrante y el bloque de datos
+          (timer, serie, reps•peso) queda FIJO abajo. Antes todo vivía dentro de un
+          ScrollView: en pantallas cortas —y en la PWA, donde el viewport pierde el alto
+          de la barra del sistema— el bloque de datos caía fuera del área visible y
+          parecía "tapado" por los botones. Ahora nunca se recorta: si falta lugar, el
+          que se achica es el GIF. */}
+      <View className="flex-1 px-5">
+        {/* GIF hero: el cuadrado más grande que entre en el espacio disponible */}
+        <View className="flex-1 items-center justify-center mt-2 overflow-hidden">
+          <View
+            className="rounded-3xl overflow-hidden bg-zinc-900"
+            style={{ height: '100%', aspectRatio: 1, maxWidth: '100%' }}
+          >
+            {currentExercise.gifUrl ? (
+              <ExerciseGif uri={currentExercise.gifUrl} />
+            ) : (
+              <View className="flex-1 items-center justify-center">
+                <Ionicons name="image-outline" size={48} color="#52525b" />
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Timer */}
         <Text className="text-lime-400 text-base font-medium mt-6">{timeLabel}</Text>
 
         {/* Serie actual */}
-        <Text className="text-white text-5xl font-bold mt-1">
+        <Text className="text-white text-5xl font-bold mt-1" adjustsFontSizeToFit numberOfLines={1}>
           Serie <Text className="text-lime-400">{currentSet}</Text> de {totalSets}
         </Text>
 
         {/* Objetivo: reps • peso */}
-        <Text className="text-zinc-400 text-lg mt-2">
+        <Text className="text-zinc-400 text-lg mt-2 mb-2">
           {repsLabel}
           {loadLabel !== '-' ? (
             <Text>
@@ -81,7 +88,7 @@ export const ExercisePhase: React.FC<ExercisePhaseProps> = ({
             </Text>
           ) : null}
         </Text>
-      </ScrollView>
+      </View>
 
       <InstructionsModal
         visible={showInstructions}

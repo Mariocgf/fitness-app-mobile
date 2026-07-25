@@ -14,8 +14,16 @@ interface EditExerciseCardProps {
   onReplace: (exId: string) => void;
   canReplace?: boolean;
   onToggleRepMode: (exId: string) => void;
-  onDrag: () => void;
+  /** Inicia el drag & drop. Ausente en web, donde el reordenamiento va por `onMove`. */
+  onDrag?: () => void;
   isActive: boolean;
+  /**
+   * Reordenamiento sin gestos (web): -1 sube, +1 baja. Cuando está presente se oculta
+   * el handle de drag y las acciones aparecen en el menú de la card.
+   */
+  onMove?: (direction: -1 | 1) => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
 }
 
 /** Stat de la fila inferior: label gris arriba, valor abajo. Al tocar abre el wheel picker. */
@@ -63,6 +71,7 @@ const EditStat = ({
  */
 export const EditExerciseCard: React.FC<EditExerciseCardProps> = ({
   exercise, index, onOpenPicker, onRemove, onReplace, canReplace = true, onToggleRepMode, onDrag, isActive,
+  onMove, canMoveUp = false, canMoveDown = false,
 }) => {
   const swipeableRef = useRef<Swipeable>(null);
   const { showActionSheetWithOptions } = useActionSheet();
@@ -73,6 +82,9 @@ export const EditExerciseCard: React.FC<EditExerciseCardProps> = ({
 
   const openMenu = () => {
     const actions: { label: string; onPress: () => void; destructive?: boolean }[] = [
+      /* Sustituto del drag & drop donde no hay gestos disponibles (web). */
+      ...(onMove && canMoveUp ? [{ label: 'Subir', onPress: () => onMove(-1) }] : []),
+      ...(onMove && canMoveDown ? [{ label: 'Bajar', onPress: () => onMove(1) }] : []),
       ...(canReplace ? [{ label: 'Cambiar ejercicio', onPress: () => onReplace(exercise.id) }] : []),
       { label: 'Eliminar', onPress: () => onRemove(exercise.id), destructive: true },
     ];
@@ -124,9 +136,11 @@ export const EditExerciseCard: React.FC<EditExerciseCardProps> = ({
       >
         {/* Fila 1 — identidad: handle, orden, imagen, nombre, menú */}
         <View className="flex-row items-center gap-2">
-          <TouchableOpacity onLongPress={onDrag} delayLongPress={150} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
-            <MaterialCommunityIcons name="drag-vertical" size={22} color="#52525b" />
-          </TouchableOpacity>
+          {onDrag ? (
+            <TouchableOpacity onLongPress={onDrag} delayLongPress={150} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+              <MaterialCommunityIcons name="drag-vertical" size={22} color="#52525b" />
+            </TouchableOpacity>
+          ) : null}
 
           <Text className="text-zinc-600 font-bold text-sm w-4 text-center">{index + 1}</Text>
 
