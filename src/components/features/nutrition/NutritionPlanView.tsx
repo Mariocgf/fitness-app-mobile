@@ -10,6 +10,8 @@ import {
   View,
 } from 'react-native';
 
+import AiLoader from '@/src/components/common/AiLoader';
+import { confirm } from '@/src/components/ui/feedback';
 import { useNutritionRoutineContext } from '@/src/store/nutrition-routine-context';
 import { RoutineMealSummaryDto } from '@/src/types/nutritionRoutine';
 import { PlanSkeleton, RoutinePlanContent } from './RoutinePlanContent';
@@ -32,7 +34,7 @@ export function NutritionPlanView() {
     isAccepting,
     isRejecting,
     error,
-    generate,
+    requestGenerate,
     accept,
     reject,
   } = useNutritionRoutineContext();
@@ -52,8 +54,59 @@ export function NutritionPlanView() {
     router.push('/nutrition/routines' as any);
   }, [router]);
 
-  /** Estado de carga inicial o generando */
-  if (isLoading || isGenerating) {
+  /**
+   * Descartar y regenerar avisan que los créditos de ESTE plan ya se consumieron.
+   * El backend los debita al generar (`CreditCost = 3`) y no los devuelve al rechazar
+   * el draft, así que las dos acciones tiran plata del usuario y no son reversibles.
+   *
+   * No se pisa con la confirmación del modal de generación: aquella preguntaba por algo
+   * que el modal ya confirma; esta aporta un dato que el usuario no tiene a la vista.
+   */
+  const CREDITS_WARNING =
+    'Los créditos de este plan ya se descontaron y no se recuperan.';
+
+  /** "Generar otra": confirma y vuelve al modal de generación para elegir de nuevo. */
+  const handleRegenerate = useCallback(async () => {
+    const confirmed = await confirm({
+      title: 'Generar otro plan',
+      message: `${CREDITS_WARNING} Generar otro vuelve a descontar créditos y reemplaza este borrador.`,
+      confirmText: 'Generar otro',
+      cancelText: 'Cancelar',
+    });
+    if (confirmed) requestGenerate();
+  }, [requestGenerate]);
+
+  /** "Descartar": confirma antes de perder el borrador ya pagado. */
+  const handleReject = useCallback(async () => {
+    const confirmed = await confirm({
+      title: 'Descartar plan',
+      message: `${CREDITS_WARNING} Si lo descartás vas a tener que generar uno nuevo.`,
+      confirmText: 'Descartar',
+      cancelText: 'Cancelar',
+      destructive: true,
+    });
+    if (confirmed) reject();
+  }, [reject]);
+
+  /**
+   * Generando con IA: animación en loop, no el esqueleto. Son esperas distintas —
+   * la carga inicial son milisegundos y el esqueleto anticipa el layout que viene;
+   * generar es una llamada a IA de varios segundos, donde hay que comunicar que
+   * algo se está creando y no que la pantalla se colgó.
+   */
+  if (isGenerating) {
+    return (
+      <View className="flex-1 bg-zinc-950">
+        <AiLoader
+          title="Creando tu plan"
+          subtitle="La IA está armando tu semana según tus objetivos, alergias y preferencias. Esto tarda unos segundos."
+        />
+      </View>
+    );
+  }
+
+  /** Carga inicial: esqueleto del layout que está por aparecer. */
+  if (isLoading) {
     return <PlanSkeleton />;
   }
 
@@ -73,8 +126,9 @@ export function NutritionPlanView() {
         {error && (
           <Text className="text-rose-500 text-sm text-center mb-4">{error}</Text>
         )}
+        {/* Sin callback: ya estamos en el tab Plan, no hay que navegar a ningún lado. */}
         <TouchableOpacity
-          onPress={generate}
+          onPress={() => requestGenerate()}
           activeOpacity={0.8}
           className="bg-amber-400 px-8 py-4 rounded-xl"
         >
@@ -140,7 +194,7 @@ export function NutritionPlanView() {
 
             <View className="flex-row gap-2">
               <TouchableOpacity
-                onPress={generate}
+                onPress={handleRegenerate}
                 disabled={actionDisabled}
                 activeOpacity={0.8}
                 className={`flex-1 flex-row items-center justify-center py-3 rounded-xl border gap-1.5 ${
@@ -162,7 +216,7 @@ export function NutritionPlanView() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={reject}
+                onPress={handleReject}
                 disabled={actionDisabled}
                 activeOpacity={0.8}
                 className={`flex-1 flex-row items-center justify-center py-3 rounded-xl border gap-1.5 ${

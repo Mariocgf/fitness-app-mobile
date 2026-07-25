@@ -60,7 +60,7 @@ export default function HomeScreen() {
     draft: nutritionDraft,
     isLoading: isLoadingNutritionRoutine,
     isGenerating: isGeneratingNutrition,
-    generate: generateNutritionRoutine,
+    requestGenerate: requestGenerateNutrition,
   } = useNutritionRoutineContext();
 
   const userName = user?.firstName ?? 'Usuario';
@@ -96,12 +96,14 @@ export default function HomeScreen() {
     !isLoadingNutritionRoutine && nutritionRoutine == null && nutritionDraft == null;
   const needsAnyPlan = needsFitnessPlan || needsNutritionPlan;
 
-  // Genera el borrador de nutrición y lleva al tab de plan para confirmarlo
-  // (la generación de nutrición no activa el plan automáticamente).
-  const handleGenerateNutrition = useCallback(async () => {
-    await generateNutritionRoutine();
-    router.push({ pathname: '/(tabs)/nutrition' as any, params: { tab: 'plan' } });
-  }, [generateNutritionRoutine, router]);
+  // Abre el modal de generación (vive en `NutritionRoutineProvider`, uno solo para toda
+  // la app). Apenas arranca a generar, lleva al tab de plan: ahí se ve el estado
+  // "generando" y después el draft, que hay que confirmar (no se activa solo).
+  const handleGenerateNutrition = useCallback(() => {
+    requestGenerateNutrition(() =>
+      router.push({ pathname: '/(tabs)/nutrition' as any, params: { tab: 'plan' } }),
+    );
+  }, [requestGenerateNutrition, router]);
 
   // Pull-to-refresh: además del dashboard, releemos el saldo de créditos. El badge vive en
   // el header del Home, así que estirar hacia abajo también tiene que actualizarlo.

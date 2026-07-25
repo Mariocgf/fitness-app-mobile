@@ -2,6 +2,7 @@ import apiClient from '../api/client';
 import type { OfflineRequestOptions } from './routine.service';
 import { NutritionDayDto } from '../types/nutrition';
 import {
+  NutritionGenerationOptions,
   NutritionRoutineDto,
   PagedNutritionRoutinesResponse,
   RoutineMealDetailDto,
@@ -161,6 +162,31 @@ export const getNutritionRoutineById = async (
     if (status === 401) throw new Error('Sesión expirada. Iniciá sesión nuevamente.');
     if (status === 404) throw new Error('Este plan no existe o no te pertenece.');
     throw new Error('No pudimos cargar el plan. Intentá de nuevo.');
+  }
+};
+
+/**
+ * Datos para poblar el modal de generación del plan: catálogos de alergias y tipos de
+ * dieta, la selección actual del usuario y sus objetivos calóricos.
+ * Una sola llamada: el modal edita esos campos, así que necesita catálogo + ids juntos.
+ */
+export const getNutritionGenerationOptions = async (
+  token: string | null,
+  signal?: AbortSignal,
+): Promise<NutritionGenerationOptions> => {
+  try {
+    const { data } = await apiClient.get<
+      NutritionGenerationOptions | { data: NutritionGenerationOptions }
+    >(
+      '/api/nutrition-routine/generation-options',
+      withRequestSignal({ headers: { Authorization: `Bearer ${token}` } }, signal),
+    );
+    return unwrapApiData(data);
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if (status === 401) throw new Error('Sesión expirada. Iniciá sesión nuevamente.');
+    if (status === 404) throw new Error('Tu perfil nutricional no está configurado.');
+    throw new Error('No pudimos cargar las opciones de generación. Intentá de nuevo.');
   }
 };
 

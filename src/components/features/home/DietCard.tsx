@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 
-import { confirm } from '@/src/components/ui/feedback';
 import { useNutritionRoutineContext } from '@/src/store/nutrition-routine-context';
 
 /**
@@ -12,7 +11,8 @@ import { useNutritionRoutineContext } from '@/src/store/nutrition-routine-contex
  */
 export function DietCard() {
   const router = useRouter();
-  const { routine, draft, isLoading, isGenerating, error, generate } = useNutritionRoutineContext();
+  const { routine, draft, isLoading, isGenerating, error, requestGenerate } =
+    useNutritionRoutineContext();
 
   const goToPlanTab = () => {
     router.push({
@@ -21,21 +21,15 @@ export function DietCard() {
     });
   };
 
-  /** Genera y navega al tab de plan para que el usuario confirme el draft */
-  const handleGenerate = async () => {
-    await generate();
-    goToPlanTab();
-  };
-
-  const handleRegenerate = async () => {
-    const confirmed = await confirm({
-      title: 'Generar nuevo plan',
-      message:
-        'Se generará un nuevo borrador para revisar. Tu plan activo no cambia hasta que lo aceptes.',
-      confirmText: 'Generar',
-      cancelText: 'Cancelar',
-    });
-    if (confirmed) handleGenerate();
+  /**
+   * Abre el modal de generación y, apenas arranca a generar, va al tab Plan: ahí se ve
+   * el esqueleto de "generando" y después el draft para confirmar.
+   *
+   * Reemplaza también al `confirm()` que tenía "Generar nuevo plan": el modal ya es
+   * el paso de revisión y confirmación, encadenar los dos sería preguntar dos veces.
+   */
+  const handleGenerate = () => {
+    requestGenerate(goToPlanTab);
   };
 
   /** Hay un draft pendiente de revisión */
@@ -97,7 +91,7 @@ export function DietCard() {
             <Text className="text-black font-bold text-base">Ver plan</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={handleRegenerate}
+            onPress={handleGenerate}
             activeOpacity={0.8}
             className="py-3 rounded-xl items-center"
           >

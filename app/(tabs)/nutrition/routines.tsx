@@ -31,7 +31,7 @@ const AMBER = '#fbbf24';
 export default function NutritionRoutinesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { generate } = useNutritionRoutineContext();
+  const { requestGenerate } = useNutritionRoutineContext();
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -50,11 +50,14 @@ export default function NutritionRoutinesScreen() {
     [router],
   );
 
-  /** Genera un plan nuevo y vuelve al tab Plan para revisar/aceptar el draft. */
+  /**
+   * Abre el modal de generación (vive en `NutritionRoutineProvider`) y, apenas arranca
+   * a generar, vuelve al tab Plan: ahí se ve el esqueleto de "generando" y después el
+   * draft. Quedarse en este listado dejaría al usuario esperando sin feedback.
+   */
   const handleGenerate = useCallback(() => {
-    generate();
-    router.back();
-  }, [generate, router]);
+    requestGenerate(() => router.back());
+  }, [requestGenerate, router]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
