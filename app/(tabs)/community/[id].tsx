@@ -54,7 +54,11 @@ export default function CommunityPostDetailScreen() {
 
   const { isKeyboardVisible } = useKeyboardHeight();
 
-  const handleBack = useCallback(() => router.back(), [router]);
+  // El detalle SIEMPRE viene del feed de Comunidad. En web, `router.back()` no es fiable
+  // con tabs (puede saltar al Home porque cambiar de tab no deja entrada en el history),
+  // así que navegamos explícito al feed. `navigate` en nativo hace pop al feed si ya está
+  // en el stack, así que también funciona ahí.
+  const handleBack = useCallback(() => router.navigate('/community'), [router]);
 
   /** Al enfocar el input (tap directo o desde el ícono del feed): baja hasta él. */
   const handleComposerFocus = useCallback(() => {

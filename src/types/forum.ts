@@ -47,6 +47,26 @@ export interface ForumPostSummary {
   createdAt: string;
 }
 
+/* ── Mis publicaciones ────────────────────────────────────────────────────── */
+
+/**
+ * Item de "Mis publicaciones" (`GET /api/forum/me/posts`). NO es el mismo DTO que el feed:
+ *  - Sin datos de autor (el autor sos vos) ni `likedByMe` (no aporta en tu propia pantalla).
+ *  - CON `isHidden`: los posts ocultados por moderación vienen igual, para que puedas
+ *    distinguir "me lo ocultaron" (reversible desde el panel) de "se borró".
+ * El `body` viene COMPLETO, igual que el feed: truncar en la card (regla de oro #2).
+ */
+export interface MyForumPostSummary {
+  id: string;
+  title: string;
+  body: string;
+  attachedRoutineVersionId: string | null;
+  likeCount: number;
+  commentCount: number;
+  isHidden: boolean;
+  createdAt: string;
+}
+
 /* ── Detalle ──────────────────────────────────────────────────────────────── */
 
 /** Ejercicio dentro de un día del snapshot de rutina adjunta. */

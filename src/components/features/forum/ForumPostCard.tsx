@@ -4,6 +4,7 @@ import { formatRelativeTime } from '@/src/utils/relative-time';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
+import { ForumAvatar } from './ForumAvatar';
 import { HashtaggedText } from './HashtaggedText';
 
 const SKY = '#38bdf8';
@@ -17,6 +18,12 @@ interface ForumPostCardProps {
   onToggleLike?: (post: ForumPostSummary) => void;
   /** Tocar el ícono de comentar: abre el detalle con el input enfocado para escribir. */
   onComment?: (post: ForumPostSummary) => void;
+  /**
+   * Foto de perfil del autor. Hoy `GET /api/forum/posts` NO la manda (el DTO del feed no
+   * tiene `authorAvatarUrl`), así que el feed general cae a la inicial. Se pasa poblada
+   * donde SÍ conocemos la foto (ej. tus propios posts, con el `imageUrl` de Clerk).
+   */
+  avatarUrl?: string | null;
 }
 
 /**
@@ -29,10 +36,9 @@ interface ForumPostCardProps {
  * El `body` viene COMPLETO del back: se trunca acá (regla de oro #2).
  * Like/comentarios son solo lectura en esta fase; la interacción llega en la Fase 4.
  */
-export function ForumPostCard({ post, onPress, onToggleLike, onComment }: ForumPostCardProps) {
+export function ForumPostCard({ post, onPress, onToggleLike, onComment, avatarUrl }: ForumPostCardProps) {
   const hasAuthor = post.authorName.trim().length > 0;
   const authorLabel = hasAuthor ? post.authorName : 'Usuario eliminado';
-  const initial = hasAuthor ? post.authorName.trim().charAt(0).toUpperCase() : '?';
   const hasRoutine = post.attachedRoutineVersionId != null;
 
   // Preview de los últimos comentarios (best-effort; solo si el post tiene comentarios).
@@ -44,10 +50,10 @@ export function ForumPostCard({ post, onPress, onToggleLike, onComment }: ForumP
       activeOpacity={0.85}
       className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-3"
     >
-      {/* Header: avatar-placeholder + autor + tiempo relativo */}
+      {/* Header: foto de perfil (o inicial) + autor + tiempo relativo */}
       <View className="flex-row items-center mb-3">
-        <View className="w-10 h-10 rounded-full bg-zinc-800 items-center justify-center mr-3">
-          <Text className="text-sky-400 font-bold text-base">{initial}</Text>
+        <View className="mr-3">
+          <ForumAvatar uri={avatarUrl} name={post.authorName} size={40} />
         </View>
         <View className="flex-1">
           <Text

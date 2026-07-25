@@ -79,7 +79,7 @@ redondeada, header de autor, footer social) pero mapeado a los campos que el bac
   `RoutineLimitError` (403 al copiar, expone el `Message` accionable).
 - `src/hooks/` — `useForumFeed` (paginado), `useForumPost` (detalle), `useForumComments`, `useCreatePost`.
 - `src/components/features/forum/` — UI (`ForumPostCard`, `AttachedRoutineSnapshotView`, `FlagWarningList`,
-  `CreatePostView`, `CommentList`, `CommentInput`, `FlaggedTermsText`, …).
+  `CreatePostView`, `CommentList`, `CommentInput`, `HighlightedTextInput`, …).
 - `app/(tabs)/community/` — rutas: `_layout.tsx` (Stack), `index.tsx` (feed), `[id].tsx` (detalle), `new.tsx` (crear).
 
 **Acento visual**: **`sky-400`** (`#38bdf8`). El foro es transversal (no Fitness/Nutrición/Salud), así que

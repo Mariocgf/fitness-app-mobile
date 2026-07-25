@@ -1,8 +1,8 @@
 import { toast } from '@/src/components/ui/feedback';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { FlaggedTermsText } from './FlaggedTermsText';
+import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
+import { HighlightedTextInput } from './HighlightedTextInput';
 
 const ZINC_600 = '#52525b';
 
@@ -21,8 +21,8 @@ interface CommentComposerProps {
 
 /**
  * Input para escribir un comentario. Maneja el 422 igual que crear post: si el back marca
- * términos, los resalta en un preview para que el usuario los corrija antes de reenviar.
- * Sin `Modal` ni posicionamiento absoluto → se comporta igual en nativo y PWA.
+ * términos, los resalta DENTRO del cuadro (`HighlightedTextInput`) para que el usuario los
+ * corrija antes de reenviar. Sin `Modal` ni posicionamiento absoluto → igual en nativo y PWA.
  */
 export function CommentComposer({ isSubmitting, flaggedTerms, onSubmit, onChange, autoFocus, onFocus }: CommentComposerProps) {
   const [text, setText] = useState('');
@@ -46,18 +46,19 @@ export function CommentComposer({ isSubmitting, flaggedTerms, onSubmit, onChange
   return (
     <View className="px-4 mt-2">
       <View className="flex-row items-end">
-        <TextInput
+        <HighlightedTextInput
           value={text}
           onChangeText={handleChange}
+          terms={flaggedTerms}
           placeholder="Escribí un comentario..."
           placeholderTextColor={ZINC_600}
           autoFocus={autoFocus}
           onFocus={onFocus}
           multiline
+          minHeight={44}
           maxLength={1000}
-          textAlignVertical="top"
-          style={{ minHeight: 44, maxHeight: 120 }}
-          className={`flex-1 rounded-2xl border bg-zinc-900 text-white text-sm px-4 py-3 leading-5 ${
+          fontSize={15}
+          containerClassName={`flex-1 rounded-2xl border bg-zinc-900 ${
             hasFlagged ? 'border-red-500/60' : 'border-zinc-800'
           }`}
         />
@@ -77,7 +78,7 @@ export function CommentComposer({ isSubmitting, flaggedTerms, onSubmit, onChange
         </TouchableOpacity>
       </View>
 
-      {/* Banner de términos marcados (422) */}
+      {/* Banner de términos marcados (422): mensaje + chips (el resaltado va en el cuadro) */}
       {hasFlagged && (
         <View className="mt-2 rounded-2xl border border-red-500/40 bg-red-500/10 p-3">
           <View className="flex-row items-center mb-1.5">
@@ -88,12 +89,11 @@ export function CommentComposer({ isSubmitting, flaggedTerms, onSubmit, onChange
           </View>
           <View className="flex-row flex-wrap">
             {flaggedTerms.map((term, index) => (
-              <View key={`${term}-${index}`} className="bg-red-500/25 rounded-full px-2.5 py-0.5 mr-2 mb-1.5">
+              <View key={`${term}-${index}`} className="bg-red-500/25 rounded-full px-2.5 py-0.5 mr-2 mb-0.5">
                 <Text className="text-red-200 text-xs font-semibold">{term}</Text>
               </View>
             ))}
           </View>
-          <FlaggedTermsText text={text} terms={flaggedTerms} className="text-zinc-300 text-xs leading-5" />
         </View>
       )}
     </View>

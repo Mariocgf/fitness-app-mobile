@@ -10,6 +10,7 @@ import {
   ForumPostDetail,
   ForumPostSummary,
   LikeToggleResult,
+  MyForumPostSummary,
   PagedResponse,
   ReportResult,
 } from '../types/forum';
@@ -144,6 +145,30 @@ export const fetchFeed = async (
       PagedResponse<ForumPostSummary> | { data: PagedResponse<ForumPostSummary> }
     >(
       `${BASE}/posts`,
+      withRequestSignal({ headers: authHeaders(token), params: { page, pageSize } }, signal),
+    );
+    return unwrapApiData(data);
+  } catch (error) {
+    throw mapForumError(error);
+  }
+};
+
+/**
+ * Mis publicaciones, paginadas (más nuevas primero). A diferencia del feed, INCLUYE las
+ * ocultas por moderación con su `isHidden`: sin ese estado el autor no podría distinguir
+ * una publicación ocultada de una borrada.
+ */
+export const fetchMyPosts = async (
+  token: string | null,
+  page: number = 1,
+  pageSize: number = 10,
+  signal?: AbortSignal,
+): Promise<PagedResponse<MyForumPostSummary>> => {
+  try {
+    const { data } = await apiClient.get<
+      PagedResponse<MyForumPostSummary> | { data: PagedResponse<MyForumPostSummary> }
+    >(
+      `${BASE}/me/posts`,
       withRequestSignal({ headers: authHeaders(token), params: { page, pageSize } }, signal),
     );
     return unwrapApiData(data);

@@ -1,7 +1,8 @@
 import SwipeBackWrapper from '@/src/components/common/SwipeBackWrapper';
 import { AttachRoutinePicker } from '@/src/components/features/forum/AttachRoutinePicker';
-import { FlaggedTermsText } from '@/src/components/features/forum/FlaggedTermsText';
+import { HighlightedTextInput } from '@/src/components/features/forum/HighlightedTextInput';
 import { TAB_BAR_HEIGHT } from '@/src/components/features/routine/routine-detail-shared';
+import { toast } from '@/src/components/ui/feedback';
 import { useCreatePost } from '@/src/hooks/useCreatePost';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -35,14 +36,18 @@ export default function CreatePostScreen() {
     isSubmitting, error, flaggedTerms, canSubmit, submit,
   } = useCreatePost();
 
-  const handleBack = useCallback(() => router.back(), [router]);
+  // En web, `router.back()` con tabs puede saltar al Home; navegamos explícito al feed.
+  const handleBack = useCallback(() => router.navigate('/community'), [router]);
 
   const handleSubmit = useCallback(async () => {
     const result = await submit();
     if (result) {
-      // Reemplazamos la pantalla de creación por el detalle del post recién publicado:
-      // el usuario ve su post y "volver" lo lleva al feed, no de nuevo al formulario.
-      router.replace(`/community/${result.id}` as any);
+      // Volvemos al feed (que se refresca al reenfocarse) en vez de navegar al detalle del
+      // post recién creado: un GET-by-id inmediato puede 404 (consistencia eventual) y hacía
+      // ver "esta publicación ya no está disponible" aunque el post SÍ se creó. En el feed
+      // aparece arriba (más nuevos primero).
+      toast.success('¡Publicación creada!');
+      router.navigate('/community');
     }
   }, [submit, router]);
 
@@ -103,22 +108,22 @@ export default function CreatePostScreen() {
               className="rounded-2xl border border-zinc-800 bg-zinc-900 text-white text-base px-4 py-3.5"
             />
 
-            {/* Cuerpo */}
+            {/* Cuerpo — resalta los términos marcados DENTRO del cuadro */}
             <Text className="text-white font-bold text-base px-1 mb-2 mt-5">Contenido</Text>
-            <TextInput
+            <HighlightedTextInput
               value={body}
               onChangeText={setBody}
+              terms={flaggedTerms}
               placeholder="Compartí tu experiencia, tips, progreso..."
               placeholderTextColor={ZINC_600}
               multiline
-              textAlignVertical="top"
-              style={{ minHeight: 140 }}
-              className={`rounded-2xl border bg-zinc-900 text-white text-base px-4 py-3.5 leading-6 ${
+              minHeight={140}
+              containerClassName={`rounded-2xl border bg-zinc-900 ${
                 hasFlagged ? 'border-red-500/60' : 'border-zinc-800'
               }`}
             />
 
-            {/* Banner de términos marcados (422) */}
+            {/* Banner de términos marcados (422): mensaje + chips (el resaltado va en el cuadro) */}
             {hasFlagged && (
               <View className="mt-3 rounded-2xl border border-red-500/40 bg-red-500/10 p-4">
                 <View className="flex-row items-center mb-2">
@@ -127,20 +132,13 @@ export default function CreatePostScreen() {
                     {error ?? 'Hay términos que no están permitidos. Editalos para publicar.'}
                   </Text>
                 </View>
-                {/* Chips de los términos marcados */}
                 <View className="flex-row flex-wrap">
                   {flaggedTerms.map((term, index) => (
-                    <View key={`${term}-${index}`} className="bg-red-500/25 rounded-full px-3 py-1 mr-2 mb-2">
+                    <View key={`${term}-${index}`} className="bg-red-500/25 rounded-full px-3 py-1 mr-2 mb-1">
                       <Text className="text-red-200 text-xs font-semibold">{term}</Text>
                     </View>
                   ))}
                 </View>
-                {/* Preview del cuerpo con los términos resaltados */}
-                <FlaggedTermsText
-                  text={body}
-                  terms={flaggedTerms}
-                  className="text-zinc-300 text-sm leading-5 mt-1"
-                />
               </View>
             )}
 

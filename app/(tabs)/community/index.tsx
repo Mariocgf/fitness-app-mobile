@@ -3,8 +3,8 @@ import { TAB_BAR_HEIGHT } from '@/src/components/features/routine/routine-detail
 import { useForumFeed } from '@/src/hooks/useForumFeed';
 import { ForumPostSummary } from '@/src/types/forum';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useCallback } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useRef } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,6 +18,20 @@ export default function CommunityScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { posts, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore, toggleLike } = useForumFeed();
+
+  // Refresca al RE-enfocar el feed (ej: al volver de publicar un post o dar like), pero NO
+  // en el primer montaje (el hook ya hace esa carga inicial). Así el post recién creado
+  // aparece arriba sin duplicar el fetch inicial (ver lección de fetch duplicado).
+  const isFirstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (isFirstFocus.current) {
+        isFirstFocus.current = false;
+        return;
+      }
+      refresh();
+    }, [refresh]),
+  );
 
   const handleOpenPost = useCallback((post: ForumPostSummary) => {
     router.push(`/community/${post.id}` as any);
@@ -37,6 +51,10 @@ export default function CommunityScreen() {
     router.push('/community/new' as any);
   }, [router]);
 
+  const handleOpenMyPosts = useCallback(() => {
+    router.push('/community/mine' as any);
+  }, [router]);
+
   const renderItem = useCallback(
     ({ item }: { item: ForumPostSummary }) => (
       <ForumPostCard
@@ -53,15 +71,32 @@ export default function CommunityScreen() {
     <SafeAreaView className="flex-1 bg-zinc-950" edges={['top', 'left', 'right']}>
       {/* Header: título + acción publicar */}
       <View className="px-4 pt-8 pb-3 flex-row items-center justify-between">
-        <Text className="text-3xl font-bold text-white">Comunidad</Text>
-        <TouchableOpacity
-          onPress={handleCreatePost}
-          activeOpacity={0.85}
-          className="flex-row items-center px-3.5 py-2 rounded-full bg-sky-400"
-        >
-          <Ionicons name="create-outline" size={18} color="#09090b" />
-          <Text className="text-zinc-900 font-bold text-sm ml-1.5">Publicar</Text>
-        </TouchableOpacity>
+        <Text className="text-3xl font-bold text-white flex-shrink" numberOfLines={1}>
+          Comunidad
+        </Text>
+        <View className="flex-row items-center ml-3">
+          {/* Mis publicaciones: acción secundaria, se lee (no se adivina por un ícono) */}
+          <TouchableOpacity
+            onPress={handleOpenMyPosts}
+            activeOpacity={0.7}
+            hitSlop={8}
+            className="px-3.5 py-2 rounded-full bg-zinc-900 border border-zinc-800 mr-2"
+          >
+            <Text className="text-zinc-300 font-semibold text-sm">Mis publicaciones</Text>
+          </TouchableOpacity>
+          {/* Publicar: acción primaria, solo ícono. `accessibilityLabel` para que el lector
+              de pantalla igual la anuncie (sin texto visible, el ícono no dice nada). */}
+          <TouchableOpacity
+            onPress={handleCreatePost}
+            activeOpacity={0.85}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Publicar"
+            className="w-10 h-10 items-center justify-center rounded-full bg-sky-400"
+          >
+            <Ionicons name="create-outline" size={20} color="#09090b" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {isLoading ? (
