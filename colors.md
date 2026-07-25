@@ -11,6 +11,11 @@
 * Modo claro: rose-600
 * Modo oscuro: rose-400
 
+## Modulo Foro / Comunidad
+* Modo claro: sky-400
+* Modo oscuro: sky-400
+> Acento transversal (no es Fitness/Nutrición/Salud). `#38bdf8`. No choca con lime/amber/rose.
+
 ## Tabla para el resto de la UI
 
 > Sistema neutral `zinc`, alineado con la vista de detalle de rutina (`RoutineDetailView`), el home y el tab bar (`MyTabBar`).

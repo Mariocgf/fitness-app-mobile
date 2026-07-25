@@ -23,6 +23,8 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
+  Platform,
   Pressable,
   Text,
   TextInput,
@@ -137,6 +139,72 @@ export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
     [pickerExercise, weightOptionsFor],
   );
 
+  /* ── Lista de ejercicios ──────────────────────────────────────────────────
+     En web NO se puede usar DraggableFlatList: envuelve toda la lista en un
+     GestureDetector, y RNGH le pone `touch-action: none` al div → el navegador
+     deja de scrollear y la lista queda congelada en la PWA. Ahí renderizamos un
+     FlatList común y el reordenamiento se hace por el menú de la card
+     ("Subir"/"Bajar"), que no depende de gestos. */
+  const isWeb = Platform.OS === 'web';
+
+  /** Mueve un ejercicio una posición (web: reemplaza al drag & drop). */
+  const moveExercise = useCallback((exId: string, direction: -1 | 1) => {
+    const list = activeDay?.exercises;
+    if (!list) return;
+    const from = list.findIndex((e) => e.id === exId);
+    const to = from + direction;
+    if (from === -1 || to < 0 || to >= list.length) return;
+    const next = [...list];
+    [next[from], next[to]] = [next[to], next[from]];
+    editor.reorderExercises(next);
+  }, [activeDay, editor.reorderExercises]);
+
+  const listContentStyle = {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: insets.bottom + TAB_BAR_HEIGHT + BOTTOM_BUTTON_HEIGHT + 32,
+  };
+
+  const renderCard = (
+    item: CreateRoutineExercise,
+    index: number,
+    drag?: () => void,
+    isActive = false,
+  ) => (
+    <EditExerciseCard
+      exercise={item}
+      index={index}
+      onOpenPicker={(field) => setActivePicker({ exId: item.id, field })}
+      onRemove={editor.removeExercise}
+      onReplace={(id) => editor.setReplacingExerciseId(id)}
+      canReplace={!offlineLimited}
+      onToggleRepMode={editor.toggleRepMode}
+      onDrag={drag}
+      isActive={isActive}
+      onMove={isWeb ? (dir) => moveExercise(item.id, dir) : undefined}
+      canMoveUp={index > 0}
+      canMoveDown={index < (activeDay?.exercises.length ?? 0) - 1}
+    />
+  );
+
+  const listFooter = !offlineLimited ? (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() => setIsAddExerciseOpen(true)}
+      className="bg-zinc-900 rounded-2xl p-4 border border-white/10 items-center justify-center mt-1"
+    >
+      <Ionicons name="add" size={26} className="text-lime-400" />
+      <Text className="text-zinc-400 text-sm mt-1 font-medium">Agregar ejercicio</Text>
+    </TouchableOpacity>
+  ) : (
+    <View className="bg-zinc-900/70 rounded-2xl p-4 border border-white/10 items-center justify-center mt-1">
+      <Ionicons name="cloud-offline-outline" size={24} className="text-zinc-500" />
+      <Text className="text-zinc-500 text-sm mt-1 text-center">
+        Offline: podés ajustar o quitar ejercicios existentes, pero no agregar ni reemplazar.
+      </Text>
+    </View>
+  );
+
   /* ── Render ───────────────────────────────────────────────────────────── */
 
   return (
@@ -174,7 +242,9 @@ export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
       </View>
 
       {/* Header de días (swipe + slot "+") */}
-      <GestureDetector gesture={dayGesture}>
+      {/* `touchAction="pan-y"` (web-only): sin esto RNGH pone `touch-action: none` en el
+          div del detector y el navegador no scrollea sobre esta zona. */}
+      <GestureDetector gesture={dayGesture} touchAction="pan-y">
         <Pressable
           className="px-6 pt-1 pb-4"
           onPress={() => { if (isAddSlot) setIsDayPickerOpen(true); }}
@@ -230,49 +300,30 @@ export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
             </Text>
           </View>
         ) : activeDay ? (
-          <DraggableFlatList
-            data={activeDay.exercises}
-            keyExtractor={(item) => item.id}
-            onDragEnd={({ data }) => editor.reorderExercises(data)}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{
-              paddingHorizontal: 16,
-              paddingTop: 4,
-              paddingBottom: insets.bottom + TAB_BAR_HEIGHT + BOTTOM_BUTTON_HEIGHT + 32,
-            }}
-            renderItem={({ item, getIndex, drag, isActive }: RenderItemParams<CreateRoutineExercise>) => (
-              <ScaleDecorator activeScale={1.02}>
-                <EditExerciseCard
-                  exercise={item}
-                  index={getIndex() ?? 0}
-                  onOpenPicker={(field) => setActivePicker({ exId: item.id, field })}
-                  onRemove={editor.removeExercise}
-                  onReplace={(id) => editor.setReplacingExerciseId(id)}
-                  canReplace={!offlineLimited}
-                  onToggleRepMode={editor.toggleRepMode}
-                  onDrag={drag}
-                  isActive={isActive}
-                />
-              </ScaleDecorator>
-            )}
-            ListFooterComponent={!offlineLimited ? (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setIsAddExerciseOpen(true)}
-                className="bg-zinc-900 rounded-2xl p-4 border border-white/10 items-center justify-center mt-1"
-              >
-                <Ionicons name="add" size={26} className="text-lime-400" />
-                <Text className="text-zinc-400 text-sm mt-1 font-medium">Agregar ejercicio</Text>
-              </TouchableOpacity>
-            ) : (
-              <View className="bg-zinc-900/70 rounded-2xl p-4 border border-white/10 items-center justify-center mt-1">
-                <Ionicons name="cloud-offline-outline" size={24} className="text-zinc-500" />
-                <Text className="text-zinc-500 text-sm mt-1 text-center">
-                  Offline: podés ajustar o quitar ejercicios existentes, pero no agregar ni reemplazar.
-                </Text>
-              </View>
-            )}
-          />
+          isWeb ? (
+            <FlatList
+              data={activeDay.exercises}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={listContentStyle}
+              renderItem={({ item, index }) => renderCard(item, index)}
+              ListFooterComponent={listFooter}
+            />
+          ) : (
+            <DraggableFlatList
+              data={activeDay.exercises}
+              keyExtractor={(item) => item.id}
+              onDragEnd={({ data }) => editor.reorderExercises(data)}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={listContentStyle}
+              renderItem={({ item, getIndex, drag, isActive }: RenderItemParams<CreateRoutineExercise>) => (
+                <ScaleDecorator activeScale={1.02}>
+                  {renderCard(item, getIndex() ?? 0, drag, isActive)}
+                </ScaleDecorator>
+              )}
+              ListFooterComponent={listFooter}
+            />
+          )
         ) : (
           <View className="flex-1 items-center justify-center">
             <Text className="text-zinc-500">Esta rutina no tiene días.</Text>

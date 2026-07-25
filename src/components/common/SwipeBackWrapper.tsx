@@ -66,7 +66,11 @@ export default function SwipeBackWrapper({
   }));
 
   return (
-    <GestureDetector gesture={panGesture}>
+    /* `touchAction` es web-only y por defecto RNGH pone `none` en el div del detector, lo
+       que MATA el scroll táctil de todo lo que hay adentro (el navegador deja de manejar
+       el paneo). Como este gesto es horizontal desde el borde, `pan-y` le devuelve al
+       navegador el scroll vertical sin perder el swipe-back. En nativo se ignora. */
+    <GestureDetector gesture={panGesture} touchAction="pan-y">
       <Animated.View style={[styles.container, animatedStyle]}>
         {children}
       </Animated.View>
