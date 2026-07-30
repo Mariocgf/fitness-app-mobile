@@ -55,10 +55,13 @@ export const PaywallView: React.FC<PaywallViewProps> = ({ onChoosePlan }) => {
   /**
    * Plan ya contratado, por `productId` (identidad del store) y NO por tier: Fitness
    * Mensual y Fitness Anual son productos distintos, así que ocultar el tier entero le
-   * sacaría al usuario el pase a anual. Solo cuenta si la suscripción está ACTIVA:
-   * vencida o inválida tiene que poder volver a comprarse.
+   * sacaría al usuario el pase a anual. Vencida o inválida tiene que poder volver a comprarse.
+   *
+   * Se mide con `hasAccess`, no con `status === 'active'`: en período de gracia o con la
+   * renovación cancelada el usuario SIGUE teniendo ese plan, y ofrecérselo como si no lo
+   * tuviera lo empuja a pagar dos veces por lo mismo.
    */
-  const ownedProductId = status.status === 'active' ? status.productId : null;
+  const ownedProductId = status.hasAccess ? status.productId : null;
 
   // Free (`productId: null`) no se ofrece: no se compra.
   const paidPlans = useMemo(() => plans.filter((plan) => plan.productId !== null), [plans]);

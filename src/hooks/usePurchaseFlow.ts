@@ -62,22 +62,23 @@ export function usePurchaseFlow(): UsePurchaseFlowReturn {
         const status = await validatePurchase(result, token);
 
         // 3) Reflejar el estado que devolvió el backend (no decidir acá).
-        switch (status.status) {
-          case 'active':
-            await subscription.refresh();
-            toast.success(`¡Compra confirmada! Ya tenés el plan ${status.tier}.`);
-            break;
-          case 'pending':
-            // Compra reconocida pero sin confirmar: no se concede acceso todavía.
-            toast.info('Tu compra está en proceso. Te avisamos cuando se confirme.');
-            break;
-          case 'invalid':
-          case 'expired':
-          case 'none':
-          default:
-            // 200 sin acceso: no es error de red, pero no se concede nada.
-            toast.warning('No pudimos validar la compra. No se aplicó ningún cambio.');
-            break;
+        //    El corte es `hasAccess`, NO `status === 'active'`: una compra que queda en
+        //    período de gracia o con la renovación ya cancelada igual concede el plan, y
+        //    tratarla como fallida le diría "no pudimos validar" a alguien que sí pagó.
+        if (status.hasAccess) {
+          await subscription.refresh();
+          toast.success(`¡Compra confirmada! Ya tenés el plan ${status.tier}.`);
+        } else if (status.status === 'pending') {
+          // Compra reconocida pero sin confirmar: no se concede acceso todavía. El backend la
+          // activa solo cuando la tienda confirme, así que no hace falta reintentar.
+          toast.info('Tu compra está en proceso. Te avisamos cuando se confirme.');
+        } else if (status.requiresPaymentUpdate) {
+          // Se validó, pero el cobro está fallando: el problema es el medio de pago.
+          await subscription.refresh();
+          toast.warning('No pudimos cobrar tu suscripción. Actualizá tu medio de pago.');
+        } else {
+          // 200 sin acceso: no es error de red, pero no se concede nada.
+          toast.warning('No pudimos validar la compra. No se aplicó ningún cambio.');
         }
       } catch (err) {
         const message =

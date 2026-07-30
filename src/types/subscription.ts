@@ -3,12 +3,34 @@
 /** Niveles de suscripción que devuelve el backend. */
 export type SubscriptionTier = 'Free' | 'Fitness' | 'Nutrition' | 'Full';
 
-/** Estado de una suscripción/validación. 200 con `invalid` NO es error HTTP. */
+/**
+ * Estado de una suscripción/validación. 200 con `invalid` NO es error HTTP.
+ *
+ * OJO: el estado NO define si hay acceso. `graceperiod` y `cancelled` siguen concediendo
+ * el plan, así que para gatear la UI se usa `hasAccess`, nunca `status === 'active'`.
+ */
 export type SubscriptionStatusValue =
+  /** Vigente. */
   | 'active'
+  /** Falló el cobro y la store dio un colchón: CONSERVA el plan y hay que avisarle. */
+  | 'graceperiod'
+  /** Apagó la renovación: conserva el plan hasta `currentPeriodEnd`. */
+  | 'cancelled'
+  /** Se agotó la gracia: ya sin acceso, pero recuperable actualizando el pago. */
+  | 'billingretry'
+  /** Pausada (Android): sin acceso hasta reanudar. */
+  | 'paused'
+  /** Compra reconocida sin confirmar (pago diferido); todavía sin acceso. */
   | 'pending'
+  /** Venció sin renovar. */
   | 'expired'
+  /** Se reembolsó la compra. */
+  | 'refunded'
+  /** La store revocó el acceso (contracargo/abuso). */
+  | 'revoked'
+  /** El proveedor rechazó la compra (solo respuesta de `POST /validate`). */
   | 'invalid'
+  /** El usuario NUNCA tuvo una suscripción. No es lo mismo que "la perdió". */
   | 'none';
 
 /** Modalidad de cobro. */
@@ -39,8 +61,26 @@ export interface SubscriptionPlanDto {
 export interface SubscriptionStatusDto {
   tier: SubscriptionTier;
   status: SubscriptionStatusValue;
-  /** ISO date; `null` si no hay período activo. */
+  /**
+   * ISO date; `null` si no hay período activo. El backend lo manda **solo cuando
+   * `hasAccess` es true**: describe hasta cuándo vale el plan que viene en `tier`, y un
+   * Free sin acceso no vence.
+   */
   currentPeriodEnd: string | null;
+  /**
+   * ¿El usuario puede usar su plan AHORA? **Este es el campo para gatear la UI.**
+   *
+   * No alcanza con `status === 'active'`: en `graceperiod` (le falló la tarjeta) y en
+   * `cancelled` (apagó la renovación pero el período está pagado) el usuario CONSERVA
+   * el plan, y tratarlos como "sin plan" le saca algo por lo que pagó.
+   */
+  hasAccess: boolean;
+  /**
+   * El cobro falló y hay que pedirle que actualice el medio de pago. Combinado con
+   * `hasAccess` distingue los dos escalones: con acceso todavía (gracia, "arreglalo
+   * antes de que venza") o ya sin acceso (billing retry, "recuperá tu plan").
+   */
+  requiresPaymentUpdate: boolean;
   /**
    * Cupo mensual que otorga el PLAN (Free: 0, Fitness/Nutrition: 15, Full: 40).
    * OJO: no es el saldo disponible. El saldo del wallet vive en `CreditsBalanceDto`

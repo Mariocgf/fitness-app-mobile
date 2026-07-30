@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { RefreshControl, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ProfileSectionScreen } from '@/src/components/features/profile/ProfileSectionScreen';
@@ -30,14 +30,32 @@ import {
 export default function SubscriptionProfileScreen() {
   const insets = useSafeAreaInsets();
   const { purchase, isPurchasing } = usePurchaseFlow();
-  const { refreshCredits } = useSubscription();
+  const { refresh, refreshCredits } = useSubscription();
   const [sheetPlan, setSheetPlan] = useState<PlanViewModel | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // El saldo cambia con cada acción de IA, y el contexto solo lo consulta al arrancar
-  // la app. Al entrar acá lo releemos: es la pantalla donde el número TIENE que estar bien.
+  // El saldo cambia con cada acción de IA y el estado de la suscripción lo mueven los webhooks
+  // del proveedor; el contexto solo consulta ambos al arrancar la app. Al entrar acá los releemos:
+  // es LA pantalla donde el plan y el número tienen que estar bien.
   useEffect(() => {
+    void refresh();
     void refreshCredits();
-  }, [refreshCredits]);
+  }, [refresh, refreshCredits]);
+
+  /**
+   * Pull-to-refresh: el gesto que el usuario ya espera en una pantalla de estado, y la única
+   * forma de traer un cambio del proveedor sin salir de la app (volver del segundo plano también
+   * revalida, pero eso no sirve si nunca se fue). `refresh` no toca `isLoading`, así que la
+   * tarjeta no se reemplaza por un loader: el contenido se queda quieto y solo gira el spinner.
+   */
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([refresh(), refreshCredits()]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refresh, refreshCredits]);
 
   // Para el upsell del add-on (usuario Free): bajar el scroll hasta el paywall.
   const scrollRef = useRef<ScrollView>(null);
@@ -67,6 +85,14 @@ export default function SubscriptionProfileScreen() {
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor="#a1a1aa"
+            colors={['#a1a1aa']}
+          />
+        }
       >
         <SubscriptionStatusCard />
         <CreditsAddonCard

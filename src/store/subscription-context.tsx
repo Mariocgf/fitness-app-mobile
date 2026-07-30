@@ -9,6 +9,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 
 import { getCreditsBalance, getMySubscription } from '../services/subscription.service';
 import { SubscriptionStatusDto, SubscriptionTier } from '../types/subscription';
@@ -42,6 +43,36 @@ const FREE_STATUS: SubscriptionStatusDto = {
   monthlyCredits: 0,
   billingInterval: 'Monthly',
   productId: null,
+  hasAccess: false,
+  requiresPaymentUpdate: false,
+};
+
+/**
+ * Normaliza un estado leído de la cache. En un dispositivo que ya venía usando la app, el JSON
+ * persistido tiene la forma ANTERIOR: sin `hasAccess` ni `requiresPaymentUpdate`. Sin esto,
+ * `hasAccess` llegaría `undefined` y la UI trataría como "sin plan" a un usuario que sí lo tiene,
+ * hasta que `GET /me` responda. Se deriva del `status` para que ese arranque no mienta.
+ */
+const normalizeCachedStatus = (raw: unknown): SubscriptionStatusDto => {
+  const cached = raw as Partial<SubscriptionStatusDto> | null;
+  if (!cached || typeof cached !== 'object') return FREE_STATUS;
+
+  const status = cached.status ?? 'none';
+  const hasAccess =
+    typeof cached.hasAccess === 'boolean'
+      ? cached.hasAccess
+      : status === 'active' || status === 'graceperiod' || status === 'cancelled';
+
+  return {
+    ...FREE_STATUS,
+    ...cached,
+    status,
+    hasAccess,
+    requiresPaymentUpdate:
+      typeof cached.requiresPaymentUpdate === 'boolean'
+        ? cached.requiresPaymentUpdate
+        : status === 'graceperiod' || status === 'billingretry',
+  };
 };
 
 /**
@@ -61,6 +92,14 @@ interface SubscriptionContextValue {
   status: SubscriptionStatusDto;
   /** Nivel de suscripción actual (atajo de `status.tier`). */
   tier: SubscriptionTier;
+  /**
+   * ¿El usuario puede usar su plan ahora? Atajo de `status.hasAccess`. **Usar esto para
+   * gatear, no `status.status === 'active'`**: en período de gracia y en cancelada dentro
+   * del período el usuario conserva el plan aunque el estado no sea "active".
+   */
+  hasAccess: boolean;
+  /** El cobro falló: hay que avisarle que actualice el medio de pago. */
+  requiresPaymentUpdate: boolean;
   /** Módulos desbloqueados por el tier actual. */
   unlockedModules: string[];
   /**
@@ -84,6 +123,8 @@ interface SubscriptionContextValue {
 const SubscriptionContext = createContext<SubscriptionContextValue>({
   status: FREE_STATUS,
   tier: 'Free',
+  hasAccess: false,
+  requiresPaymentUpdate: false,
   unlockedModules: [],
   credits: null,
   isLoading: false,
@@ -99,6 +140,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const mountedRef = useRef(true);
   const requestRef = useRef<AbortController | null>(null);
   const creditsRequestRef = useRef<AbortController | null>(null);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   getTokenRef.current = getToken;
 
@@ -189,7 +231,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     const key = statusKeyFor(userId);
     AsyncStorage.getItem(key!)
       .then((raw) => {
-        if (raw && mountedRef.current && !stale) setStatus(JSON.parse(raw));
+        if (raw && mountedRef.current && !stale) setStatus(normalizeCachedStatus(JSON.parse(raw)));
       })
       .catch((e) => logger.error('Error hidratando suscripción:', e))
       .finally(() => {
@@ -210,6 +252,37 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
    */
   useEffect(() => creditsEvents.subscribe(() => void refreshCredits()), [refreshCredits]);
 
+  /**
+   * Revalida al volver del segundo plano.
+   *
+   * Es EL momento en que el estado pudo cambiar sin que la app se entere: el usuario salió a la
+   * tienda a cancelar, cambiar de plan o arreglar su medio de pago, el proveedor mandó el webhook
+   * y el backend ya se actualizó. La app no tiene forma de enterarse sola — no hay push ni
+   * polling — así que sin esto el único modo de ver el estado nuevo es cerrarla y reabrirla.
+   *
+   * NO es polling: solo corre en la transición real a primer plano, y aprovecha que volver a la
+   * app es justo cuando el usuario espera ver su plan al día.
+   */
+  useEffect(() => {
+    // Sin sesión no hay nada que revalidar (y `refresh` pediría un token inexistente).
+    if (!userId) return;
+
+    const handleAppStateChange = (next: AppStateStatus) => {
+      const previous = appStateRef.current;
+      appStateRef.current = next;
+
+      // Solo background/inactive → active. Sin comparar contra el estado anterior, cualquier
+      // notificación de 'active' redundante dispararía dos requests por cada vuelta a la app.
+      if (/inactive|background/.test(previous) && next === 'active') {
+        void refresh();
+        void refreshCredits();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [userId, refresh, refreshCredits]);
+
   /** Persiste el último estado conocido para el arranque offline-first, por usuario. */
   useEffect(() => {
     const key = statusKeyFor(userId);
@@ -229,6 +302,8 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     () => ({
       status,
       tier: status.tier,
+      hasAccess: status.hasAccess,
+      requiresPaymentUpdate: status.requiresPaymentUpdate,
       unlockedModules,
       credits,
       isLoading,

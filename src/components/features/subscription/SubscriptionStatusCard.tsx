@@ -11,6 +11,7 @@ import {
   SubscriptionStatusValue,
   SubscriptionTier,
 } from '@/src/types/subscription';
+import { SubscriptionNotice, buildSubscriptionNotice } from './subscription-notice';
 
 /** Acento premium puntual (violeta → índigo) para el clímax de un plan pago. */
 const PREMIUM_GRADIENT = ['#a78bfa', '#818cf8'] as const;
@@ -18,21 +19,64 @@ const PREMIUM_GRADIENT = ['#a78bfa', '#818cf8'] as const;
 /** Etiqueta legible del plan (ej. "Plan Fitness", "Plan Free"). */
 const tierLabel = (tier: SubscriptionTier): string => `Plan ${tier}`;
 
-/** Etiqueta ES del estado de la suscripción. */
+/** Formatea una fecha ISO al formato corto del repo. */
+const formatPeriodEnd = (iso: string): string =>
+  new Date(iso).toLocaleDateString('es-AR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+
+/** Etiqueta ES del estado de la suscripción. Cubre TODOS los estados del backend. */
 const statusLabel = (status: SubscriptionStatusValue): string => {
   switch (status) {
     case 'active':
       return 'Activa';
+    case 'graceperiod':
+      return 'Pago pendiente';
+    case 'cancelled':
+      return 'Cancelada';
+    case 'billingretry':
+      return 'Cobro fallido';
+    case 'paused':
+      return 'Pausada';
     case 'pending':
       return 'Pendiente';
     case 'expired':
       return 'Vencida';
+    case 'refunded':
+      return 'Reembolsada';
+    case 'revoked':
+      return 'Revocada';
     case 'invalid':
       return 'Inválida';
     case 'none':
     default:
       return 'Sin plan activo';
   }
+};
+
+/** Banner del aviso. Ámbar = todavía tiene el plan; rojo = ya lo perdió. */
+const NoticeBanner: React.FC<{ notice: SubscriptionNotice }> = ({ notice }) => {
+  const isDanger = notice.tone === 'danger';
+  return (
+    <View
+      accessibilityRole="alert"
+      className={`mt-4 flex-row rounded-2xl p-4 ${isDanger ? 'bg-red-500/10' : 'bg-amber-500/10'}`}
+    >
+      <Ionicons
+        name={isDanger ? 'alert-circle' : 'warning-outline'}
+        size={20}
+        color={isDanger ? '#f87171' : '#fbbf24'}
+      />
+      <View className="ml-3 flex-1">
+        <Text className={`text-sm font-semibold ${isDanger ? 'text-red-300' : 'text-amber-300'}`}>
+          {notice.title}
+        </Text>
+        <Text className="mt-1 text-sm leading-5 text-zinc-400">{notice.body}</Text>
+      </View>
+    </View>
+  );
 };
 
 /** Etiqueta ES del ciclo de cobro. */
@@ -53,14 +97,6 @@ const creditsLabel = (credits: number | null): string =>
 const monthlyCreditsLabel = (monthlyCredits: number): string =>
   monthlyCredits === 0 ? 'Sin cupo mensual' : `${monthlyCredits} / mes`;
 
-/** Formatea una fecha ISO al formato corto del repo. `null` → no se muestra. */
-const formatPeriodEnd = (iso: string): string =>
-  new Date(iso).toLocaleDateString('es-AR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-
 /** Fila de detalle (etiqueta izquierda, valor derecha). */
 const DetailRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <View className="flex-row items-center justify-between py-3 border-t border-zinc-800">
@@ -73,6 +109,10 @@ const DetailRow: React.FC<{ label: string; value: string }> = ({ label, value })
  * Tarjeta con el estado real de suscripción (`GET /me`). Refleja lo que devuelve
  * el backend sin inventar: si no hay período activo (`currentPeriodEnd: null`),
  * no muestra fecha. Acento premium solo cuando el tier no es Free.
+ *
+ * Cuando algo requiere atención —sobre todo el período de gracia, donde el usuario
+ * conserva TODO el plan pero está por perderlo— se muestra un aviso accionable con la
+ * fecha límite. Sin ese aviso, el único síntoma sería que un día el plan desaparece.
  */
 export const SubscriptionStatusCard: React.FC = () => {
   const { status, credits, isLoading, error, refresh } = useSubscription();
@@ -98,6 +138,12 @@ export const SubscriptionStatusCard: React.FC = () => {
   }
 
   const isPremium = status.tier !== 'Free';
+  const notice = buildSubscriptionNotice(
+    status.status,
+    status.hasAccess,
+    status.requiresPaymentUpdate,
+    status.currentPeriodEnd ? formatPeriodEnd(status.currentPeriodEnd) : null,
+  );
 
   return (
     <View className="px-5 pt-5">
@@ -117,8 +163,13 @@ export const SubscriptionStatusCard: React.FC = () => {
           </View>
         </View>
 
+        {/* Aviso accionable: gracia, cobro fallido, cancelación, baja… */}
+        {notice ? <NoticeBanner notice={notice} /> : null}
+
         {/* Detalle del período y créditos */}
         <View className="mt-4">
+          {/* El backend solo manda fecha cuando hay acceso, así que acá no hace falta
+              volver a chequearlo: si viene, describe el plan que se está mostrando. */}
           {status.currentPeriodEnd ? (
             <DetailRow
               label={status.status === 'active' ? 'Renueva' : 'Vence'}
