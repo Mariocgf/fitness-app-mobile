@@ -14,12 +14,17 @@ interface EditExerciseCardProps {
   onReplace: (exId: string) => void;
   canReplace?: boolean;
   onToggleRepMode: (exId: string) => void;
-  /** Inicia el drag & drop. Ausente en web, donde el reordenamiento va por `onMove`. */
+  /** Inicia el drag & drop nativo (long-press sobre el handle). Ausente en web. */
   onDrag?: () => void;
   isActive: boolean;
   /**
-   * Reordenamiento sin gestos (web): -1 sube, +1 baja. Cuando está presente se oculta
-   * el handle de drag y las acciones aparecen en el menú de la card.
+   * Props del handle de arrastre en web (pointer events + `touch-action: none`).
+   * Las provee `WebSortableExerciseList`; hay que spreadearlas tal cual.
+   */
+  dragHandleProps?: object;
+  /**
+   * Reordenamiento sin gestos: -1 sube, +1 baja. Alternativa por menú al arrastre
+   * (accesible con teclado/mouse y a prueba de gestos que no activan).
    */
   onMove?: (direction: -1 | 1) => void;
   canMoveUp?: boolean;
@@ -71,7 +76,7 @@ const EditStat = ({
  */
 export const EditExerciseCard: React.FC<EditExerciseCardProps> = ({
   exercise, index, onOpenPicker, onRemove, onReplace, canReplace = true, onToggleRepMode, onDrag, isActive,
-  onMove, canMoveUp = false, canMoveDown = false,
+  dragHandleProps, onMove, canMoveUp = false, canMoveDown = false,
 }) => {
   const swipeableRef = useRef<Swipeable>(null);
   const { showActionSheetWithOptions } = useActionSheet();
@@ -140,6 +145,16 @@ export const EditExerciseCard: React.FC<EditExerciseCardProps> = ({
             <TouchableOpacity onLongPress={onDrag} delayLongPress={150} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
               <MaterialCommunityIcons name="drag-vertical" size={22} color="#52525b" />
             </TouchableOpacity>
+          ) : dragHandleProps ? (
+            /* Web: el arrastre arranca en el pointerdown de estas props. No es un
+               Touchable — un Touchable se tragaría el gesto antes de que empiece. */
+            <View {...dragHandleProps}>
+              <MaterialCommunityIcons
+                name="drag-vertical"
+                size={22}
+                color={isActive ? '#a3e635' : '#52525b'}
+              />
+            </View>
           ) : null}
 
           <Text className="text-zinc-600 font-bold text-sm w-4 text-center">{index + 1}</Text>

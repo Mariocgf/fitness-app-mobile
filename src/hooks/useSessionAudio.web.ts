@@ -13,9 +13,15 @@
  *   de un `setTimeout` ni de un `useEffect`.
  * - Los beeps se sintetizan con un oscilador: cero latencia de carga y timing exacto,
  *   que es justo lo que necesita una cuenta regresiva de 3-2-1.
+ *
+ * ACÁ NO SE USA SÍNTESIS DE VOZ. `speechSynthesis` (vía `expo-speech`) en la PWA de
+ * Android baja al motor TTS del sistema, que pide foco de audio y PAUSA lo que el
+ * usuario esté escuchando: Spotify, YouTube Music, un podcast. No es configurable —
+ * la Web Speech API no expone control de foco de audio. Los osciladores de Web Audio,
+ * en cambio, conviven con el audio de fondo. Por eso TODAS las alertas de esta versión
+ * son tonos sintetizados.
  */
 import { logger } from '@/src/utils/logger';
-import * as Speech from 'expo-speech';
 import { useEffect, useRef } from 'react';
 import { Phase } from './useActiveSession';
 
@@ -67,18 +73,9 @@ function unlockAudio(): void {
     /* Si el buffer mudo falla, el `resume()` de arriba ya cubre Chrome. */
   }
 
-  /* La síntesis de voz arrastra la misma política: una utterance muda dentro del gesto
-     inicializa el motor para que el aviso de los 10 s no se pierda. */
-  try {
-    const synth = window.speechSynthesis;
-    if (synth) {
-      const warmup = new SpeechSynthesisUtterance(' ');
-      warmup.volume = 0;
-      synth.speak(warmup);
-    }
-  } catch {
-    /* speechSynthesis no disponible: el resto del audio sigue funcionando. */
-  }
+  /* Ojo: acá NO va un warmup de `speechSynthesis`. Esa utterance muda era la que
+     cortaba la música al empezar el primer descanso — el motor TTS toma el foco de
+     audio aunque la utterance sea silenciosa. */
 
   isUnlocked = true;
 }
@@ -86,8 +83,16 @@ function unlockAudio(): void {
 /**
  * Sintetiza un beep. El envelope replica al del hook nativo: arranca en `volume` y cae
  * a silencio a mitad de la duración, así el 3-2-1 suena seco y no arrastra cola.
+ *
+ * `startOffsetSec` agenda el beep a futuro sobre el reloj del `AudioContext` (no con
+ * `setTimeout`), que es lo que permite encadenar dos tonos con separación exacta.
  */
-function playBeep(frequency: number, durationMs: number, volume: number): void {
+function playBeep(
+  frequency: number,
+  durationMs: number,
+  volume: number,
+  startOffsetSec = 0,
+): void {
   const ctx = getAudioContext();
   if (!ctx) return;
 
@@ -96,23 +101,23 @@ function playBeep(frequency: number, durationMs: number, volume: number): void {
   if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
 
   try {
-    const now = ctx.currentTime;
+    const start = ctx.currentTime + startOffsetSec;
     const durationSec = durationMs / 1000;
 
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
 
     oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(frequency, now);
+    oscillator.frequency.setValueAtTime(frequency, start);
 
-    gain.gain.setValueAtTime(volume, now);
-    gain.gain.linearRampToValueAtTime(0.0001, now + durationSec / 2);
+    gain.gain.setValueAtTime(volume, start);
+    gain.gain.linearRampToValueAtTime(0.0001, start + durationSec / 2);
 
     oscillator.connect(gain);
     gain.connect(ctx.destination);
 
-    oscillator.start(now);
-    oscillator.stop(now + durationSec);
+    oscillator.start(start);
+    oscillator.stop(start + durationSec);
     oscillator.onended = () => {
       oscillator.disconnect();
       gain.disconnect();
@@ -122,24 +127,29 @@ function playBeep(frequency: number, durationMs: number, volume: number): void {
   }
 }
 
-/** Pronuncia "Quedan 10 segundos" en español rioplatense */
-function speakTenSeconds(): void {
-  Speech.speak('Quedan 10 segundos', {
-    language: 'es-AR',
-    pitch: 1.0,
-    rate: 0.9,
-  });
+/**
+ * Aviso de "quedan 10 segundos": dos toques cortos y graves (660 Hz), separados 220 ms.
+ *
+ * Reemplaza al `Speech.speak('Quedan 10 segundos')` que tenía esta versión. Ese era el
+ * que frenaba la música del celular en cada descanso al llegar a 10 (ver cabecera del
+ * archivo). El patrón de dos tonos graves no se confunde con el 880 Hz seco del 3-2-1
+ * ni con el 440 Hz sostenido del final.
+ */
+function playTenSecondsCue(): void {
+  playBeep(660, 140, 0.55);
+  playBeep(660, 140, 0.55, 0.22);
 }
 
 /**
  * Hook que reacciona al tiempo restante de un cronómetro y emite alertas auditivas:
- * - 10 s → voz: "Quedan 10 segundos"
+ * - 10 s → doble toque grave (660 Hz × 2). En nativo esto es la voz "Quedan 10
+ *   segundos"; en web se usa un tono para no frenar la música del celular.
  * - 3, 2, 1 s → beep corto (880 Hz, 200 ms)
  * - 0 s → beep sostenido final (440 Hz, 800 ms)
  */
 export function useSessionAudio({ timeLeft, phase }: UseSessionAudioProps): void {
   /* Refs de guardia para evitar disparos duplicados por re-renders */
-  const spokenTenRef = useRef(false);
+  const cuedTenRef = useRef(false);
   const beepedSecondsRef = useRef<Set<number>>(new Set());
 
   /* Desbloqueo: el usuario ya tocó algo para llegar acá, pero ese gesto vivió en otra
@@ -168,33 +178,25 @@ export function useSessionAudio({ timeLeft, phase }: UseSessionAudioProps): void
 
   /* Resetear los flags cuando cambia la fase (nuevo ciclo de cronómetro) */
   useEffect(() => {
-    spokenTenRef.current = false;
+    cuedTenRef.current = false;
     beepedSecondsRef.current = new Set();
   }, [phase]);
-
-  useEffect(() => {
-    return () => {
-      Speech.stop();
-    };
-  }, []);
 
   useEffect(() => {
     /* Solo actuar en fases con cronómetro descendente */
     if (phase !== 'REST' && phase !== 'EXERCISE') return;
     if (timeLeft === null) return;
 
-    /* Voz a los 10 segundos */
-    if (timeLeft === 10 && !spokenTenRef.current) {
-      spokenTenRef.current = true;
-      speakTenSeconds();
+    /* Aviso a los 10 segundos */
+    if (timeLeft === 10 && !cuedTenRef.current) {
+      cuedTenRef.current = true;
+      playTenSecondsCue();
       return;
     }
 
     /* Beeps cortos a 3, 2, 1 */
     if (timeLeft >= 1 && timeLeft <= 3 && !beepedSecondsRef.current.has(timeLeft)) {
       beepedSecondsRef.current.add(timeLeft);
-      /* Cortamos cualquier voz tardía para que no empuje los beeps al segundo 2/1. */
-      Speech.stop();
       playBeep(880, 200, 0.8);
       return;
     }
@@ -202,7 +204,6 @@ export function useSessionAudio({ timeLeft, phase }: UseSessionAudioProps): void
     /* Beep sostenido al llegar a 0 */
     if (timeLeft === 0 && !beepedSecondsRef.current.has(0)) {
       beepedSecondsRef.current.add(0);
-      Speech.stop();
       playBeep(440, 800, 1.0);
     }
   }, [timeLeft, phase]);

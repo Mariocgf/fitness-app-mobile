@@ -4,6 +4,47 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { resolveConfirm, useConfirmRequest } from './confirm';
 
 /**
+ * Largo de label a partir del cual los botones dejan de ir en fila y se apilan.
+ *
+ * Dos botones `flex-1` dentro de la card (max-w-sm, p-6, gap-3) quedan en ~128 px en un
+ * viewport de móvil. A 16 px semibold entran unos 12 caracteres: más que eso parte el
+ * texto en dos líneas y el botón queda apretado y feo. Apilados tienen el ancho completo.
+ */
+const MAX_INLINE_LABEL = 12;
+
+/**
+ * Botón de acción del diálogo. `text-center` no es decorativo: `items-center` centra el
+ * BLOQUE de texto, pero si el label se parte en dos líneas, las líneas de adentro quedan
+ * alineadas a la izquierda. Sin esto, un label largo se ve desalineado.
+ */
+const ConfirmButton = ({
+  label,
+  onPress,
+  destructive,
+  fullWidth,
+}: {
+  label: string;
+  onPress: () => void;
+  destructive?: boolean;
+  fullWidth: boolean;
+}) => (
+  <Pressable
+    onPress={onPress}
+    className={`${fullWidth ? 'w-full' : 'flex-1'} items-center justify-center rounded-2xl px-3 py-3 ${
+      destructive ? 'bg-red-500 active:bg-red-600' : 'bg-lime-300 active:bg-lime-400'
+    }`}
+  >
+    <Text
+      className={`text-center text-base font-semibold ${
+        destructive ? 'text-white' : 'text-zinc-950'
+      }`}
+    >
+      {label}
+    </Text>
+  </Pressable>
+);
+
+/**
  * Renderiza el diálogo activo (si hay). Se monta una vez en el layout raíz. Centrado,
  * dark-only, coherente con el resto de la app. Sirve para confirmaciones (dos botones)
  * y para avisos informativos (`hideCancel`: un solo botón).
@@ -15,6 +56,13 @@ import { resolveConfirm, useConfirmRequest } from './confirm';
 export function ConfirmHost() {
   const request = useConfirmRequest();
   const visible = request !== null;
+
+  const cancelText = request?.cancelText ?? 'Cancelar';
+  const confirmText = request?.confirmText ?? 'Aceptar';
+  /* Con `hideCancel` el único botón ocupa toda la fila, así que nunca hace falta apilar. */
+  const stacked =
+    !request?.hideCancel &&
+    Math.max(cancelText.length, confirmText.length) > MAX_INLINE_LABEL;
 
   return (
     <Modal
@@ -45,36 +93,37 @@ export function ConfirmHost() {
               </ScrollView>
             ) : null}
 
-            <View className="mt-6 flex-row gap-3">
+            {/* Apilado: la acción principal arriba y "cancelar" abajo (convención de los
+                alerts del sistema). En fila se mantiene cancelar a la izquierda. */}
+            <View className={stacked ? 'mt-6 gap-3' : 'mt-6 flex-row gap-3'}>
+              {stacked && (
+                <ConfirmButton
+                  label={confirmText}
+                  onPress={() => resolveConfirm(true)}
+                  destructive={request.destructive}
+                  fullWidth={stacked}
+                />
+              )}
+
               {!request.hideCancel && (
                 <Pressable
                   onPress={() => resolveConfirm(false)}
-                  className="flex-1 items-center justify-center rounded-2xl border border-zinc-700 py-3 active:bg-zinc-800"
+                  className={`${stacked ? 'w-full' : 'flex-1'} items-center justify-center rounded-2xl border border-zinc-700 px-3 py-3 active:bg-zinc-800`}
                 >
-                  <Text className="text-base font-semibold text-zinc-200">
-                    {request.cancelText ?? 'Cancelar'}
+                  <Text className="text-center text-base font-semibold text-zinc-200">
+                    {cancelText}
                   </Text>
                 </Pressable>
               )}
 
-              <Pressable
-                onPress={() => resolveConfirm(true)}
-                className={
-                  request.destructive
-                    ? 'flex-1 items-center justify-center rounded-2xl bg-red-500 py-3 active:bg-red-600'
-                    : 'flex-1 items-center justify-center rounded-2xl bg-lime-300 py-3 active:bg-lime-400'
-                }
-              >
-                <Text
-                  className={
-                    request.destructive
-                      ? 'text-base font-semibold text-white'
-                      : 'text-base font-semibold text-zinc-950'
-                  }
-                >
-                  {request.confirmText ?? 'Aceptar'}
-                </Text>
-              </Pressable>
+              {!stacked && (
+                <ConfirmButton
+                  label={confirmText}
+                  onPress={() => resolveConfirm(true)}
+                  destructive={request.destructive}
+                  fullWidth={stacked}
+                />
+              )}
             </View>
           </View>
         </View>

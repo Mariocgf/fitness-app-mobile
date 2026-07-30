@@ -1,8 +1,9 @@
 import { logger } from '@/src/utils/logger';
 import React, { useCallback, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { FeedbackHost, toast } from '@/src/components/ui/feedback';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { usePreventRemove } from '@react-navigation/native';
+import { FeedbackHost, confirm, toast } from '@/src/components/ui/feedback';
 import { ActiveSessionView } from '@/src/components/features/routine/session/ActiveSessionView';
 import { CountdownOverlay } from '@/src/components/features/routine/session/CountdownOverlay';
 import { useNetworkStatus } from '@/src/hooks/useNetworkStatus';
@@ -23,11 +24,36 @@ export default function SessionScreen() {
   }>();
   const { getToken } = useAuth();
   const router = useRouter();
+  const navigation = useNavigation();
   const { isOnline } = useNetworkStatus();
   const { activeRoutine, setActiveRoutine } = useRoutineDetailContext();
 
   const [isSaving, setIsSaving] = useState(false);
   const [showCountdown, setShowCountdown] = useState(true);
+
+  /**
+   * Guard de salida. Una sesión no se puede reanudar: si se sale a mitad, todo el
+   * progreso (series marcadas, RPE, ajustes de carga) se tira. Un toque accidental
+   * en el botón de atrás arruinaba el entrenamiento sin preguntar nada.
+   *
+   * Va por `usePreventRemove` y no por el `onCancel` del header a propósito: así
+   * UNA sola confirmación cubre todas las salidas — el botón del header, el back
+   * físico de Android, el back del navegador en la PWA y el swipe nativo.
+   *
+   * Se desactiva con `isSaving` porque el guardado termina navegando solo, y esa
+   * salida no hay que confirmarla.
+   */
+  usePreventRemove(!isSaving, async ({ data }) => {
+    const confirmed = await confirm({
+      title: '¿Salir del entrenamiento?',
+      message:
+        'La sesión está en curso. Si salís ahora se pierde todo el progreso: series, RPE y ajustes de carga no se van a guardar.',
+      confirmText: 'Salir y perder todo',
+      cancelText: 'Seguir entrenando',
+      destructive: true,
+    });
+    if (confirmed) navigation.dispatch(data.action);
+  });
 
   const day: SessionDay | null = dayData ? JSON.parse(dayData) : null;
   const dayId = day?.id;

@@ -15,6 +15,7 @@ import {
   TAB_BAR_HEIGHT,
 } from '@/src/components/features/routine/routine-detail-shared';
 import { StatPickerSheet } from '@/src/components/features/routine/StatPickerSheet';
+import { WebSortableExerciseList } from '@/src/components/features/routine/WebSortableExerciseList';
 import { RoutineEditor } from '@/src/hooks/useRoutineEditor';
 import { CreateRoutineDay, CreateRoutineExercise } from '@/src/types/create-routine';
 import { calcDayApproxTime } from '@/src/utils/routine-editor.utils';
@@ -23,7 +24,6 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   Platform,
   Pressable,
   Text,
@@ -142,12 +142,12 @@ export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
   /* ── Lista de ejercicios ──────────────────────────────────────────────────
      En web NO se puede usar DraggableFlatList: envuelve toda la lista en un
      GestureDetector, y RNGH le pone `touch-action: none` al div → el navegador
-     deja de scrollear y la lista queda congelada en la PWA. Ahí renderizamos un
-     FlatList común y el reordenamiento se hace por el menú de la card
-     ("Subir"/"Bajar"), que no depende de gestos. */
+     deja de scrollear y la lista queda congelada en la PWA. Ahí va
+     WebSortableExerciseList, que acota el `touch-action: none` al handle y así
+     tiene arrastre Y scroll a la vez. */
   const isWeb = Platform.OS === 'web';
 
-  /** Mueve un ejercicio una posición (web: reemplaza al drag & drop). */
+  /** Mueve un ejercicio una posición. Alternativa por menú al arrastre. */
   const moveExercise = useCallback((exId: string, direction: -1 | 1) => {
     const list = activeDay?.exercises;
     if (!list) return;
@@ -170,6 +170,7 @@ export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
     index: number,
     drag?: () => void,
     isActive = false,
+    dragHandleProps?: object,
   ) => (
     <EditExerciseCard
       exercise={item}
@@ -181,6 +182,7 @@ export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
       onToggleRepMode={editor.toggleRepMode}
       onDrag={drag}
       isActive={isActive}
+      dragHandleProps={dragHandleProps}
       onMove={isWeb ? (dir) => moveExercise(item.id, dir) : undefined}
       canMoveUp={index > 0}
       canMoveDown={index < (activeDay?.exercises.length ?? 0) - 1}
@@ -301,13 +303,14 @@ export const RoutineEditorView: React.FC<RoutineEditorViewProps> = ({
           </View>
         ) : activeDay ? (
           isWeb ? (
-            <FlatList
+            <WebSortableExerciseList
               data={activeDay.exercises}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
+              onReorder={editor.reorderExercises}
               contentContainerStyle={listContentStyle}
-              renderItem={({ item, index }) => renderCard(item, index)}
               ListFooterComponent={listFooter}
+              renderItem={(item, index, dragHandleProps, isDragging) =>
+                renderCard(item, index, undefined, isDragging, dragHandleProps)
+              }
             />
           ) : (
             <DraggableFlatList

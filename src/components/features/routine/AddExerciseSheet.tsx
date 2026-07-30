@@ -11,6 +11,7 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -33,6 +34,22 @@ interface AddExerciseSheetProps {
 /* ──────────────────────────────────────────────────────────────────────────── */
 /*                          Helpers                                            */
 /* ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Posicionamiento del overlay de detalle. VA POR `style`, NO por `className`.
+ *
+ * `GestureHandlerRootView` no está registrado en el cssInterop de nativewind
+ * (solo lo están los componentes core de RN), así que en web el `className` se
+ * descarta silenciosamente. Sin `style`, el root cae a su default `flex: 1`, entra
+ * en el flujo de la columna del sheet y el detalle se renderiza como una franja
+ * al final: se ve el botón de atrás y un pedazo del nombre, nada más.
+ *
+ * Ambas implementaciones (nativa y web) hacen `style ?? styles.container`, así que
+ * el estilo inline es equivalente a `absolute inset-0 z-30` en las dos plataformas.
+ */
+const detailOverlayStyle = StyleSheet.create({
+  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 30 },
+}).overlay;
 
 /** Construye un RoutineExercise mínimo para alimentar la vista de detalle. */
 const toDetailExercise = (item: ExerciseSearchItem): RoutineExercise => ({
@@ -310,7 +327,7 @@ export const AddExerciseSheet: React.FC<AddExerciseSheetProps> = ({
 
         {/* Overlay de detalle del ejercicio */}
         {detailExercise && (
-          <GestureHandlerRootView className="absolute inset-0 z-30">
+          <GestureHandlerRootView style={detailOverlayStyle}>
             <ExerciseDetailView
               exercise={toDetailExercise(detailExercise)}
               onBack={() => setDetailExercise(null)}
